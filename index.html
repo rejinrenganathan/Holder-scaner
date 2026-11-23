@@ -11,19 +11,22 @@
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>
-:root{--bg:#0b0d10;--bg2:#12151a;--card:#15191f;--line:#222831;--txt:#e8edf2;--mut:#7d8896;--good:#2ecc71;--bad:#ff4d5e;--warn:#f5a623;--acc:#5aa9ff;--smart:#b07cff;--gold:#ffd166}
+:root{--bg:#090b10;--bg2:#10131a;--card:#141822;--line:#212634;--line2:#2d3344;--txt:#eef1f7;--txt2:#c9d1de;--mut:#8590a6;--good:#22c55e;--bad:#f43f5e;--warn:#f59e0b;--acc:#7c9cff;--smart:#a78bfa;--gold:#fbbf24;
+ --chip:#1c2130;--chip2:#262c3d;--press:#1a1f2b;--glass:rgba(9,11,16,.92);--skel1:#131722;--skel2:#1c2130;--kav:var(--kav);--inv:#f3f5f9;--invtxt:#0b0d12;--shadow:0 1px 0 rgba(255,255,255,.03) inset,0 6px 18px rgba(0,0,0,.25);--accbg:rgba(124,156,255,.14)}
+[data-theme=light]{--bg:#f4f6fb;--bg2:#ffffff;--card:#ffffff;--line:#e3e7f0;--line2:#d3d9e6;--txt:#0f172a;--txt2:#334155;--mut:#64748b;--good:#16a34a;--bad:#e11d48;--warn:#d97706;--acc:#4f6bed;--smart:#7c3aed;--gold:#b45309;
+ --chip:#eef1f7;--chip2:#e4e8f1;--press:#f0f3f9;--glass:rgba(255,255,255,.92);--skel1:#eef1f7;--skel2:#e3e7f0;--kav:#efe7ff;--inv:#0f172a;--invtxt:#ffffff;--shadow:0 1px 2px rgba(15,23,42,.06),0 6px 16px rgba(15,23,42,.06);--accbg:rgba(79,107,237,.10)}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;background:var(--bg);color:var(--txt);font:14px/1.35 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,sans-serif;overscroll-behavior-y:contain}
 button{font:inherit;color:inherit;cursor:pointer}
 input,textarea,select{font:inherit;color:var(--txt);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;width:100%}
 .hide{display:none!important}
 /* header */
-.top{position:sticky;top:0;z-index:20;background:rgba(11,13,16,.96);backdrop-filter:blur(8px);padding:calc(env(safe-area-inset-top) + 8px) 12px 0;border-bottom:1px solid var(--line)}
+.top{position:sticky;top:0;z-index:20;background:var(--glass);backdrop-filter:blur(8px);padding:calc(env(safe-area-inset-top) + 8px) 12px 0;border-bottom:1px solid var(--line)}
 .hdr{display:flex;align-items:center;gap:8px}
 .hdr .logo{font-weight:800;font-size:17px;letter-spacing:-.01em}
 .hdr .logo span{color:var(--smart)}
 .hdr .sp{flex:1}
-.live{font-size:11px;color:var(--mut);display:flex;align-items:center;gap:5px}
+.live{font-size:11px;color:var(--mut);display:flex;align-items:center;gap:5px;white-space:nowrap}
 .live i{width:7px;height:7px;border-radius:50%;background:var(--mut)}
 .live.on i{background:var(--good);box-shadow:0 0 6px var(--good)}
 .live.busy i{background:var(--warn);animation:bl 1s infinite}
@@ -41,7 +44,7 @@ input,textarea,select{font:inherit;color:var(--txt);background:var(--bg);border:
 .presets::-webkit-scrollbar{display:none}
 .pr{flex:0 0 auto;background:var(--bg2);border:1px solid var(--line);border-radius:20px;padding:7px 12px;font-size:13px;color:var(--mut);white-space:nowrap}
 .tf{padding:5px 10px;font-size:12px;border-radius:8px}
-.pr.on{border-color:var(--acc);color:var(--txt);background:rgba(90,169,255,.12)}
+.pr.on{border-color:var(--acc);color:var(--txt);background:var(--accbg)}
 .bar2{display:flex;gap:6px;align-items:center;margin-top:4px}
 .bar2 select{width:auto;padding:7px 8px;font-size:13px;background:var(--bg2)}
 .fbtn{background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:7px 11px;font-size:13px;display:flex;gap:6px;align-items:center}
@@ -50,10 +53,10 @@ input,textarea,select{font:inherit;color:var(--txt);background:var(--bg);border:
 /* list + cards */
 .list{padding:6px 10px calc(env(safe-area-inset-bottom) + 30px)}
 .tc{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:11px 12px 9px;margin-bottom:8px;position:relative;overflow:hidden}
-.tc:active{background:#1a1f26}
+.tc:active{background:var(--press)}
 .r1{display:flex;gap:10px;align-items:center}
 .av{position:relative;flex:0 0 46px;height:46px}
-.av img,.av .ini{width:46px;height:46px;border-radius:12px;object-fit:cover;background:#222a35;display:grid;place-items:center;font-weight:800;font-size:16px;color:#cfd8e3}
+.av img,.av .ini{width:46px;height:46px;border-radius:12px;object-fit:cover;background:var(--chip);display:grid;place-items:center;font-weight:800;font-size:16px;color:var(--txt2)}
 .av .lp{position:absolute;right:-4px;bottom:-4px;font-size:9px;font-weight:800;padding:1px 4px;border-radius:6px;border:2px solid var(--card);color:#0b0d10}
 .lp-pump{background:#5ee08f}.lp-bonk{background:#ff9f43}.lp-bags{background:#7ed6ff}.lp-launchlab{background:#c39bff}.lp-dbc{background:#9fb4c7}.lp-other{background:#7d8896}
 .mid{flex:1;min-width:0}
@@ -62,7 +65,7 @@ input,textarea,select{font:inherit;color:var(--txt);background:var(--bg);border:
 .nm .full{color:var(--mut);font-size:12px;overflow:hidden;text-overflow:ellipsis}
 .sub{display:flex;align-items:center;gap:6px;margin-top:3px;font-size:12px;color:var(--mut)}
 .age{color:var(--good);font-weight:600}
-.xb{color:var(--mut);text-decoration:none;font-weight:800;font-size:12px;border:1px solid var(--line);border-radius:6px;padding:0 5px}.xb.on{color:var(--txt);border-color:#3a4350}
+.xb{color:var(--mut);text-decoration:none;font-weight:800;font-size:12px;border:1px solid var(--line);border-radius:6px;padding:0 5px}.xb.on{color:var(--txt);border-color:var(--line2)}
 .cp{background:none;border:0;color:var(--mut);padding:0 2px;font-size:13px}
 .rt{text-align:right;flex:0 0 auto}
 .mc{font-size:12px;color:var(--mut)}.mc b{color:var(--txt);font-size:15px}
@@ -71,7 +74,7 @@ input,textarea,select{font:inherit;color:var(--txt);background:var(--bg);border:
 .r2{display:flex;gap:12px;margin-top:9px;font-size:12px;color:var(--mut);flex-wrap:wrap}
 .r2 b{color:var(--txt);font-weight:600}
 .r3{display:flex;gap:5px;margin-top:8px;flex-wrap:wrap}
-.bd{font-size:11px;font-weight:700;padding:3px 7px;border-radius:7px;background:#1e242c;color:var(--mut)}
+.bd{font-size:11px;font-weight:700;padding:3px 7px;border-radius:7px;background:var(--chip);color:var(--mut)}
 .bd.sm{background:rgba(176,124,255,.15);color:var(--smart)}
 .bd.sp{background:rgba(255,209,102,.13);color:var(--gold)}
 .bd.ok{background:rgba(46,204,113,.12);color:var(--good)}
@@ -80,18 +83,18 @@ input,textarea,select{font:inherit;color:var(--txt);background:var(--bg);border:
 .bs{display:flex;height:3px;border-radius:3px;overflow:hidden;margin-top:9px;background:var(--bad)}
 .bs i{background:var(--good)}
 .empty{text-align:center;color:var(--mut);padding:40px 20px;font-size:14px}
-.skel{height:108px;border-radius:14px;background:linear-gradient(90deg,#14181d,#1b2027,#14181d);background-size:200% 100%;animation:sk 1.2s infinite;margin-bottom:8px}
+.skel{height:108px;border-radius:14px;background:linear-gradient(90deg,var(--skel1),var(--skel2),var(--skel1));background-size:200% 100%;animation:sk 1.2s infinite;margin-bottom:8px}
 @keyframes sk{to{background-position:-200% 0}}
 /* sheets */
 .ov{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:40}
 .sheet{position:fixed;left:0;right:0;bottom:0;z-index:41;background:var(--bg2);border-radius:18px 18px 0 0;max-height:88vh;overflow:auto;padding:8px 14px calc(env(safe-area-inset-bottom) + 16px);border-top:1px solid var(--line)}
-.grab{width:40px;height:4px;border-radius:4px;background:#333b46;margin:4px auto 10px}
+.grab{width:40px;height:4px;border-radius:4px;background:var(--line2);margin:4px auto 10px}
 .sheet h3{margin:0 0 12px;font-size:17px}
 .fl{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em;margin:14px 0 6px}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .chipsel{display:flex;flex-wrap:wrap;gap:6px}
 .chipsel button{background:var(--bg);border:1px solid var(--line);border-radius:20px;padding:7px 12px;font-size:13px;color:var(--mut)}
-.chipsel button.on{border-color:var(--acc);color:var(--txt);background:rgba(90,169,255,.12)}
+.chipsel button.on{border-color:var(--acc);color:var(--txt);background:var(--accbg)}
 .sw{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line)}
 .sw input{width:auto;transform:scale(1.3)}
 .btn{display:block;width:100%;border:0;border-radius:12px;padding:13px;font-weight:700;font-size:15px;background:var(--acc);color:#05121f;margin-top:14px}
@@ -99,21 +102,21 @@ input,textarea,select{font:inherit;color:var(--txt);background:var(--bg);border:
 .btn.pu{background:var(--smart);color:#140a24}
 .note{font-size:12px;color:var(--mut)}
 .kt{display:flex;gap:10px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:6px}
-.kav{flex:0 0 36px;height:36px;border-radius:50%;background:#2a2140;color:var(--gold);display:grid;place-items:center;font-weight:800;font-size:13px}
+.kav{flex:0 0 36px;height:36px;border-radius:50%;background:var(--kav);color:var(--gold);display:grid;place-items:center;font-weight:800;font-size:13px}
 .side{font-size:11px;font-weight:800;padding:2px 7px;border-radius:6px;margin:0 4px}
 .side.buy{background:rgba(46,204,113,.15);color:var(--good)}.side.sell{background:rgba(255,77,94,.15);color:var(--bad)}
 .ktok{display:flex;align-items:center;gap:7px;text-align:right}
-.ktok img,.ktok .ini{width:30px;height:30px;border-radius:8px;object-fit:cover;background:#222a35;display:grid;place-items:center;font-size:11px;font-weight:800}
+.ktok img,.ktok .ini{width:30px;height:30px;border-radius:8px;object-fit:cover;background:var(--chip);display:grid;place-items:center;font-size:11px;font-weight:800}
 .kbar{display:flex;gap:6px;align-items:center;margin:6px 0 4px}
 .kbar .seg2{display:flex;background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:2px}
 .kbar .seg2 button{background:none;border:0;padding:6px 12px;border-radius:8px;color:var(--mut);font-size:13px;font-weight:600}
-.kbar .seg2 button.on{background:#2a313b;color:var(--txt)}
+.kbar .seg2 button.on{background:var(--chip2);color:var(--txt)}
 .fhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
 .rst{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:7px 14px;font-weight:600}
 .ftabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:0 -14px;padding:0 14px 10px;border-bottom:1px solid var(--line)}
 .ftabs::-webkit-scrollbar{display:none}
 .ft{flex:0 0 auto;background:var(--card);border:0;border-radius:20px;padding:8px 14px;color:var(--mut);font-size:13px;font-weight:600}
-.ft.on{background:#2a313b;color:var(--txt)}
+.ft.on{background:var(--chip2);color:var(--txt)}
 .fbody{padding:8px 0 90px}
 .rr{margin-top:14px}.rl{font-size:14px;font-weight:600;margin-bottom:7px}
 .hm-tag{font-size:10px;color:var(--smart);font-weight:600;margin-left:4px}
@@ -121,7 +124,7 @@ input,textarea,select{font:inherit;color:var(--txt);background:var(--bg);border:
 .ri{flex:1;display:flex;align-items:center;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:0 10px}
 .ri input::-webkit-outer-spin-button,.ri input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}.ri input{-moz-appearance:textfield;border:0;background:none;padding:11px 0;min-width:0}.ri em{font-style:normal;color:var(--mut);font-size:13px;margin-left:4px}
 .fbar{position:sticky;bottom:calc(-1 * env(safe-area-inset-bottom) - 16px);display:flex;gap:10px;background:var(--bg2);padding:10px 0 calc(env(safe-area-inset-bottom) + 12px);margin:0 -2px}
-.fbar .btn{margin:0}.btn.wh{background:#f2f4f7;color:#0b0d10}
+.fbar .btn{margin:0}.btn.wh{background:var(--inv);color:var(--invtxt)}
 .rowh{display:flex;justify-content:space-between;align-items:center;margin:8px 0 12px}.ck2{display:flex;gap:8px;align-items:center;color:var(--txt);font-size:14px}.ck2 input{width:auto}
 .lpg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .lpb{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:22px;padding:10px 12px;color:var(--mut);font-size:13px;text-align:left}
@@ -129,7 +132,7 @@ input,textarea,select{font:inherit;color:var(--txt);background:var(--bg);border:
 .lpb .lp{font-size:9px;font-weight:800;padding:2px 4px;border-radius:5px;color:#0b0d10}
 /* detail page */
 .page{position:fixed;inset:0;z-index:30;background:var(--bg);overflow:auto;padding-bottom:calc(env(safe-area-inset-bottom) + 30px)}
-.ph{position:sticky;top:0;background:rgba(11,13,16,.96);backdrop-filter:blur(8px);display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top) + 8px) 12px 10px;border-bottom:1px solid var(--line);z-index:2}
+.ph{position:sticky;top:0;background:var(--glass);backdrop-filter:blur(8px);display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top) + 8px) 12px 10px;border-bottom:1px solid var(--line);z-index:2}
 .sec{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin:10px}
 .sec h4{margin:0 0 10px;font-size:14px;display:flex;justify-content:space-between;align-items:center}
 .sg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
@@ -152,12 +155,39 @@ input,textarea,select{font:inherit;color:var(--txt);background:var(--bg);border:
 .verdict{font-size:20px;font-weight:800;margin:2px 0 8px}
 .prog{height:3px;background:var(--line);border-radius:3px;overflow:hidden;margin-top:8px}
 .prog i{display:block;height:100%;background:var(--smart);width:0;transition:width .3s}
-.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 24px);transform:translateX(-50%);background:#232a33;border:1px solid var(--line);padding:9px 14px;border-radius:12px;font-size:13px;z-index:60;transition:opacity .3s}
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 24px);transform:translateX(-50%);background:var(--chip2);border:1px solid var(--line);padding:9px 14px;border-radius:12px;font-size:13px;z-index:60;transition:opacity .3s}
 .wl{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--line);font-family:ui-monospace,Menlo,monospace;font-size:12px}
 .wl button{background:none;border:0;color:var(--bad)}
 .setup{padding:calc(env(safe-area-inset-top) + 40px) 18px 20px;max-width:480px;margin:auto}
 .setup h1{font-size:26px;margin:16px 0 6px}
 .setup img{width:64px;height:64px;border-radius:16px}
+
+/* ---- polish ---- */
+html{transition:background .2s}
+.tc,.kt,.sec{box-shadow:var(--shadow)}
+.tc{border-radius:16px;padding:12px 13px 10px}
+.tc:active,.kt:active{transform:scale(.995);background:var(--press)}
+.ib{border-radius:12px;transition:background .15s}.ib:active{background:var(--chip2)}
+.btn{border-radius:14px;transition:transform .1s,filter .15s}.btn:active{transform:scale(.98);filter:brightness(.95)}
+.btn{background:linear-gradient(135deg,var(--acc),#9b7cff);color:#fff}
+.btn.gh{background:var(--card);color:var(--txt)}
+.pr,.fbtn,.ft,.chipsel button,.lpb{transition:all .15s}
+.pr.on{box-shadow:0 0 0 1px var(--acc) inset}
+.av img,.av .ini{border-radius:14px}
+.av .lp{display:flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 3px;border-radius:7px;right:-5px;bottom:-5px;overflow:hidden;border:2px solid var(--card)}
+.av .lp.im:has(img){background:var(--card);padding:0}
+.av .lp img{width:16px;height:16px;border-radius:4px;object-fit:contain;background:none}
+.solx{display:inline-block;width:12px;height:12px;vertical-align:-1px;margin-right:2px;border-radius:50%;object-fit:cover}
+.logo{display:flex;align-items:center;gap:7px}.logo img{width:22px;height:22px;border-radius:6px}
+.r3 .bd{border-radius:8px}
+.bs{height:4px}
+.kav{overflow:hidden}.kav img{width:100%;height:100%;object-fit:cover}
+.kbar{flex-wrap:wrap}
+.wl .wav{width:26px;height:26px;border-radius:50%;overflow:hidden;background:var(--kav);display:grid;place-items:center;font-size:10px;font-weight:800;color:var(--gold);margin-right:8px;flex:0 0 26px}
+.wl .wav img{width:100%;height:100%;object-fit:cover}
+.wl .wl-l{display:flex;align-items:center;min-width:0;flex:1}
+.stt{font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;margin-left:6px}
+.stt.on{background:rgba(34,197,94,.14);color:var(--good)}.stt.off{background:var(--chip);color:var(--mut)}
 </style>
 </head>
 <body>
@@ -179,10 +209,11 @@ input,textarea,select{font:inherit;color:var(--txt);background:var(--bg);border:
 <div id="vMain" class="hide">
   <div class="top">
     <div class="hdr">
-      <div class="logo">Holder<span>Scan</span></div>
+      <div class="logo"><img src="https://www.google.com/s2/favicons?domain=solana.com&sz=64" alt="" onerror="this.remove()">Holder<span>Scan</span></div>
       <div class="live" id="live"><i></i><span id="liveTxt">idle</span></div>
       <div class="sp"></div>
       <button class="instBtn hide" id="instBtn">Install</button>
+      <button class="ib" id="themeBtn" aria-label="Theme">🌙</button>
       <button class="ib" id="srchBtn" aria-label="Search">🔍</button>
       <button class="ib" id="refBtn" aria-label="Refresh">↻</button>
       <button class="ib" id="setBtn" aria-label="Settings">⚙︎</button>
@@ -241,6 +272,9 @@ const JITO=new Set(['96gYZGLnJYVFmbjzopPSU6QiEV5fGqZNyN9nmNhvrZU5','HFqU5x63VTqv
 const TFS=[['m5','5m'],['m15','15m'],['m30','30m'],['h1','1h'],['h2','2h'],['h4','4h'],['h6','6h'],['h8','8h'],['h12','12h'],['h24','24h']];
 const TF_EXACT=new Set(['m5','h1','h6','h24']);
 const LPN={pump:'Pump.fun',bonk:'Bonk.fun',bags:'Bags',launchlab:'LaunchLab',dbc:'Meteora DBC',other:'Other'};
+const LP_DOM={pump:'pump.fun',bonk:'bonk.fun',bags:'bags.fm',launchlab:'raydium.io',dbc:'meteora.ag'};
+const fav=d=>'https://www.google.com/s2/favicons?domain='+d+'&sz=64';
+const SOLI='<img class="solx" src="'+fav('solana.com')+'" alt="" onerror="this.outerHTML=\'◎\'">';
 const LPS={pump:'PF',bonk:'BK',bags:'BG',launchlab:'LL',dbc:'DB',other:'?'};
 
 // ---- filter presets per tab ----
@@ -251,7 +285,7 @@ const RANGE_DEF={
   mc:{l:'Market cap',u:'K',g:'basic'},liq:{l:'Liquidity',u:'K',g:'basic',tabs:['trend','mig']},
   top10:{l:'Top 10 holding',u:'%',g:'basic',h:1},holders:{l:'Total holders',u:'',g:'basic',h:1},
   bundle:{l:'Bundler',u:'%',g:'basic',h:1},snipers:{l:'Snipers hold',u:'%',g:'basic',h:1},fresh:{l:'Fresh wallets',u:'%',g:'basic',h:1},
-  fees:{l:'Total fees (24h)',u:'SOL',g:'basic'},tax:{l:'Total tax %',u:'%',g:'basic'},smart:{l:'Smart money',u:'',g:'basic'},kols:{l:'KOLs',u:'',g:'basic'},
+  fees:{l:'Total fees (24h)',u:'SOL',g:'basic',h:1},tax:{l:'Total tax %',u:'%',g:'basic'},smart:{l:'Smart money',u:'',g:'basic'},kols:{l:'KOLs',u:'',g:'basic'},
   vol:{l:'Volume',u:'K',g:'trade'},txs:{l:'TXs',u:'Txs',g:'trade'},buys:{l:'Buy orders',u:'Txs',g:'trade'},sells:{l:'Sell orders',u:'Txs',g:'trade'},
   br:{l:'Buy / sell ratio',u:'x',g:'trade'},chg:{l:'Price change',u:'%',g:'trade'},spike:{l:'Volume spike',u:'x',g:'trade'}
 };
@@ -297,12 +331,24 @@ let KEY=store.get('hs_key',''),PLAN=store.get('hs_plan','free');
 let SET=store.get('hs_set',{auto:true});
 let SMART=store.get('hs_smart',{});
 let KOL=store.get('hs_kol',{});              // wallet -> name
-// Public KOL wallets: Kolscan.io leaderboard (top 50) + KolScan data in github.com/nirholas/kol-quest, captured 23 Nov 2026. [address, name, X handle]
-const KOL_PRESET=[['4Be9CvxqHW6BYiRAxW9Q3xu1ycTMWaL5z8NX4HR3ha7t','Mitch','idrawline'],['95TWoKkvv2z85EXBzd2z6NwbxH2f54AvwuCA9x3NoKep','Killua','cryptokillua99'],['JDd3hy3gQn2V982mi1zqhNqUw1GfV2UL6g76STojCJPN','West',''],['EqiFgyNw6kgrmYstWyrP8VjKhka7XEmKTZzHSmwpr1Zb','ban',''],['5T229oePmJGE5Cefys8jE9Jq8C7qfGNNWy3RVA7SmwEP','Tuults',''],['4vw54BmAogeRV3vPKWyFet5yf8DTLcREzdSzx4rw9Ud9','decu','notdecu'],['ardinRsN1mNYVeoJWTBsWeYeXvuR9UUDGMsCDKpb6AT','trunoest','trunoest'],['5hAgYC8TJCcEZV7LTXAzkTrm7YL29YXyQQJPCNrG84zM','Schoen','Schoen_xyz'],['Av3xWHJ5EsoLZag6pr7LKbrGgLRTaykXomDD5kBhL9YQ','Heyitsyolo','Heyitsyolotv'],['DieowDJ137xDRyCDn3YZYfAe4qzeGmdQJvryyqdWhtuc','appie',''],['862TYSvRYoiHAK3F3WwTRYAfuGiQaGdxedN9AGvRGWo2','Wugi',''],['2net6etAtTe3Rbq2gKECmQwnzcKVXRaLcHy2Zy1iCiWz','rambo','goatedondsticks'],['Gn9jrmzjYPfAFsXpauik2FkkPZ9bSReAffKiMQR1qeZb','Hien',''],['88e2kBDJoN7eQCBj2sxT15etUZ3jPNzD4ijCs1TNySWJ','yeekidd','yeekiddd'],['DrJ6SnDXkEsPeGdmSs93v5rwWumv5QMvAGSZjAyWSd5o','Iced','IcedKnife'],['2W14ahXD3XBfWJchQ4K5NLXmguWWcTTUTuHDhEzeuvP3','Veloce','VeloceSVJ'],['AQdBYZNy3BZ1vouGUjA1w9Ay7aq7kH5UQSuh4LQWKotY','Armoski',''],['8274EUKEHK9t9yoNHx9BVpsk8SR8va6wg6aoAiaARBMC','Dame',''],['387FRwow6MKDhSwuMULhKjqeXuxoBY4BbbaSntdk9LaH','Shawty',''],['4cXnf2z85UiZ5cyKsPMEULq1yufAtpkatmX4j4DBZqj2','WaiterG',''],['FqojC24nUn3x6oMQC2ypBHmtH7rFAnKS6DvwsJoCMaiv','CoCo','CoCoCookerr'],['5t9xBNuDdGTGpjaPTx6hKd7sdRJbvtKS8Mhq6qVbo8Qz','Smokez','SmokezXBT'],['G5nxEXuFMfV74DSnsrSatqCW32F34XUnBeq3PfDS7w5E','Profit',''],['6FWhUybWmnjsQ933v2r6o7bhEG5yH9g9XsV7NVWKj5EW','WheresLodo',''],['AGqjivJr1dSv73TVUvdtqAwogzmThzvYMVXjGWg2FYLm','noob_mini',''],['BCnqsPEtA1TkgednYEebRpkmwFRJDCjMQcKZMMtEdArc','kreo','kreo444'],['5o3kAZLwEzNF1kfVv8JSEqv6sSB88pZbHxF1oYTxgXzG','neo.',''],['EjtQrPTbcMevStBkpnjsH23NfUCMhGHusTYsHuGVQZp2','Zef','zefwashere'],['Dv32u9mvSXGVNshf7xM7afuMoPRifQxzuzEjfmfMysZY','deecayz','deecayz'],['BnfiHRDpHQ5yQevvwnzTmxtaB1Ek276fV5oTY9bi71EA','MAMBA',''],['98T65wcMEjoNLDTJszBHGZEX75QRe8QaANXokv4yw3Mp','Leck',''],['BY58Z7N5Adarkx5ed78AzKvR7Kxrq795aa1boZsYyVBT','JB',''],['7Js5gmq57y9jG2sseKrAeJt3vbncSWSFFHDEsyJDnyVm','Yami','YamiPNL'],['4AHgEkTsGqY77qtde4UJn9yZCrbGcM7UM3vjT3qM4G5H','BagCalls','BagCalls'],['9iaawVBEsFG35PSwd4PahwT8fYNQe9XYuRdWm872dUqY','Meechie','973Meech'],['AeLaMjzxErZt4drbWVWvcxpVyo8p94xu5vrg41eZPFe3','^1s1mple',''],['BTeqNydtKyDaSxQNRm8ByaUDPK3cpQ1FsXMtaF1Hfaom','FINN','finnbags'],['5YRgrP3mjGzrzirYYN5HAQH19cTYREYwGxW6XRJQUzij','slingoor',''],['6nhskL8RVpXzWXC7mcC1UXpe3ze2p6P6og1jXVGUW88s','PattyIce','patty_fi'],['DuQabFqdC9eeBULVa7TTdZYxe8vK8ct5DZr4Xcf7docy','orangie','orangie'],['F8WtsrLzexRkjv11b1sgA3Qj7E889RGYa1jFLGoPwKTB','kz',''],['62N1K57D37AUDGp68tnDYKPjGDsaAAtmo357nBtEtuR','set','Setuhx'],['G6fUXjMKPJzCY1rveAE6Qm7wy5U3vZgKDJmN1VPAdiZC','clukz',''],['EDXHdSFdadFbYFFjxPXBqMe1kCEDFqpPu552uvp48HR8','Clown',''],['DMPoinzkqernzaQxB1bVNir2FTmwMNbKF3sDHJo8N1p9','moochi',''],['FqamE7xrahg7FEWoByrx1o8SeyHt44rpmE6ZQfT7zrve','EustazZ','Eustazzeus'],['JAmx4Wsh7cWXRzQuVt3TCKAyDfRm9HA7ztJa4f7RM8h9','Tally','tallxyyy'],['E1wBzPvSWNaFiViCr5vGCAeMkZJqj3pWTM8oedSD4QMb','Tim',''],['4DdrfiDHpmx55i4SPssxVzS9ZaKLb8qr45NKY9Er9nNh','Mr.Frog','TheMisterFrog'],['8MaVa9kdt3NW4Q5HyNAm1X5LbR8PQRVDc1W8NMVK88D5','Daumen',''],['HmtAZQn7U75jkAxrXNh8vRFCmjGjM3Q2WpiTHXoCJrUz','Preston','prestonharty'],['5vg7he5HibvsAW86wfiuP6jw7VwKmUAnP6P93mVCdpJu','blixze','blixze'],['DYAn4XpAkN5mhiXkRB7dGq4Jadnx6XYgu8L5b3WGhbrt','The Doc','KayTheDoc'],['8oQoMhfBQnRspn7QtNAq2aPThRE4q94kLSTwaaFQvRgs','big bags bobby','bigbagsbobby'],['A3W8psibkTUvjxs4LRscbnjux6TFDXdvD4m4GsGpQ2KJ','Numer0','Numerooo0'],['4z3WtX32eehkmnaNNstZWyAuVBhj6cgpk5JtkdTa4m4A','J Spizzle','JSpizzleCrypto'],['9cdZg6xR4c9kZiqKSzqjn4QHCXNQuC9HEWBzzMJ3mzqw','Pikalosi','pikalosi'],['DsqRyTUh1R37asYcVf1KdX4CNnz5DKEFmnXvgT4NfTPE','Classic','simplyclassic69'],['7bsTkeWcSPG6nzsbXucxV89YUULoSExNJdX2WqfLHwZ4','BIGWARZ','bigwarzeth'],['6pa2QnW2mB1F41FkytTYd2gTh9aTUCmdTGEgcFRXcQ8g','Alpha wallet 4','quarsays'],['RaSSH7hMwLKtMT96xZyY4JwHRCCNYvvNeBh6AaFMqdA','Rasta','rastacowboy2021'],['ASVzakePP6GNg9r95d4LPZHJDMXun6L6E4um4pu5ybJk','Naruza','0xNaruza'],['4s2WzRLa35FB58bZY1i4CN3WoywJeuYrGYHnTKFsT23z','jester','thejester'],['GBERKNpahPnBGmeUGWQVjGBDBj6CcJKpGz34FqegmTgu','Scrim','mircs'],['DbRQjQDTTsiBXg1TJdb55WvEr3JvqUyu4iJJ684Aqeu3','dints','dintsfi'],['HwRnKq7RPtKHvX9wyHsc1zvfHtGjPQa5tyZtGtbvfXE','Jay','BitBoyJay'],['DU323DieHUGPmYamp6A4Ai1V4YSYgRi35mGpzJGrjf7k','Toxic weast','Toxic_weast'],['41uh7g1DxYaYXdtjBiYCHcgBniV9Wx57b7HU7RXmx1Gg','Lowskii','Lowskii_gg'],['3L8RAxLkvwkz4CgHivaVRtq19741FAdGLk5DgjRfc1fW','Inquixit','inquixit'],['6EDaVsS6enYgJ81tmhEkiKFcb4HuzPUVFZeom6PHUqN3','Cowboy','feibo03'],['Di75xbVUg3u1qcmZci3NcZ8rjFMj7tsnYEoFdEMjS4ow','No','Nosa1x'],['4ZdCpHJrSn4E9GmfP8jjfsAExHGja2TEn4JmXfEeNtyT','Robo','roboPBOC'],['4Dm3g5goQkaaXM4s7sphZzk8Vqb39j2mjhABrannMGmj','trisha','trishhxy'],['9St6ETbe3CFitw6UNSd8kg7kZ6STXy71wEGiERqQj89U','Trench Guerilla','trenchguerilla'],['722tXm5uB5uuG2tC43uKHXQ7Pbyz75pTokEAJv9x5VTx','sp','SolanaPlays'],['4EsY8HQB4Ak65diFrSHjwWhKSGC8sKmnzyusM993gk2w','prosciutto','prosciuttosol'],['EgjCS3ULUCU5JN83XumirPr6171zvN5i6wc12SDiVGX3','Legend','legend_calls'],['Aen6LKc7sGVPTyjMd5cu9B9XVjL7m9pnvAiP2ZNJC4GZ','Aroa','AroaOnSol'],['3i8akM4xfSX9WKFB5bQ61fmiYkeKQEFqvdMEyu6pSEk9','MoneyMaykah','moneymaykah_'],['9BkauJdFYUyBkNBZwV4mNNyfeVKhHvjULb7cL4gFQaLt','goob','goobfarmedyou'],['5XVKfruE4Zzeoz3aqBQfFMb5aSscY5nSyc6VwtQwNiid','Ily','ilyunow'],['EVCwZrtPFudcjw69RZ9Qogt8dW2HjBp6EiMgv1ujdYuJ','ree','reeotrix'],['9yGxZ43ngT7LvwquVdUAYPvJzVyY65cS6mQvuJXjTEUc','xet','xet'],['4nwfXw7n98jEQn93VWY7Cuf1jnn1scHXuXCPGVYS9k6T','Frost','FrostBallin'],['ELNFHkwb5W9RpxAac6SdJcgYi4wn7bPpPvd3LwfhR2Xx','Guy','obeyguy'],['5dzH7gh5FjtrxUwtfBufJyTBA4fyCUGheZsdYQsE9vag','Hermes','coinsolmaxi'],['2DG4vs36XHf3V9czMopZufUn8ton4tuf6atuRpP4Kowr','dns','DNS_ERR'],['FajxNukkjDLGXfB5V3L1msrU9qgzuzhN4s4YQfefSCKp','Divix','cryptodivix'],['7NnaXghjuU92gM9kmwXysqa5HboyZuR2LTaBnvazFxSH','Pavlo','pavlotrading'],['FksF9AqK7UvkkuzDoHQxYiyk6APwpPAaRzXp5QG3FGqA','proh','PR0H0S'],['91sP85Ds9A4EXJ3gU3iHyLtUNJimxz8LrxRb2qhBNod9','hood','hoodscall'],['9qdiDGhXrGqPN4CTGvyKwFKHrgJSGn836cjkVcGfPd6N','Aymory','Aymoryfun'],['DzeSE8ZBNk36qqswcDxd8919evdH5upwyZ4u1yieQSkp','19ys GGboy','19ys_GGboy'],['9Vk7pkBZ9KFJmzaPzNYjGedyz8qoKMQtnYyYi2AehNMT','Xelf','xelf_sol'],['DpNVrtA3ERfKzX4F8Pi2CVykdJJjoNxyY5QgoytAwD26','Gorilla Capital','gorillacapsol'],['14HDbSrjCJKgwCXDBXv8PGRGFaLrAqDBq2mCwSA46q5x','0xMistBlade','0xMistBlade'],['EgnY4zmqXuaqodCLW366jjd2ecki6pvmMF74MkSxMFQW','Eric Cryptoman','EricCryptoman'],['6Qs6joB349h7zu1z9xRgPgMSmpBYLDQb2wtAecY4LysH','Chefin','Chefin100x'],['2BU3NAzgRA2gg2MpzwwXpA8X4CCRaLgrf6TY1FKfJPX2','Issa','issathecooker'],['CA4keXLtGJWBcsWivjtMFBghQ8pFsGRWFxLrRCtirzu5','old','old'],['DNfuF1L62WWyW3pNakVkyGGFzVVhj4Yr52jSmdTyeBHm','Gake','Ga__ke'],['7PuHVAKDZ96s9P5FAt2eEdE8EYKxy9iUhvaLaMFqfCyj','jitter','jitterxyz'],['8zFZHuSRuDpuAR7J6FzwyF3vKNx4CVW3DFHJerQhc7Zd','Pow','traderpow'],['4jFPYSoUTRaFbFDJp9QpA1J5pXJmMJYoWhiFTpoLPq6X','MERK','MerkTrading'],['GL8VLakj5AeAnkVNd4gQAkjXLqAzjeNbNXUQBdo8FwQG','polar','polarsterrr'],['F1WT79Jkw3BkBDUfCbrKKo15ghZNCEjvnjxQpiCfPuRM','flock','flocko'],['AVAZvHLR2PcWpDf8BXY4rVxNHYRBytycHkcB5z5QNXYm','Ansem','blknoiz06'],['EdDCRfDDeiiDXdntrP59abH4DXHFNU48zpMPYisDMjA7','Mezoteric','mezoteric'],['8ggkt7Y1SZzmsdcy6ZHTif6HvgAUv2dxJCbTFTGD67MV','fa1r','fa1rtrade'],['BjNueAZDxLpwHnpMVZrB5b8DTTBHdmXtg1ZaRPCJ1yYJ','Affu','lethal_affu'],['FbvUU5qvD9JsU9jp3KDweCpZiVZHLoQBQ1PPCAAbd6FB','profitier','profitierr'],['HbCxe8yWQJWnK3f3FX4oohgm87FZuPYD4Ydszqxgkwft','Stacker','Stackeronsol'],['A9aTuBuxoVY547n6hUBCq9oZm36LTJX9Kvn4NZXffXvp','Burixx','Burix_sol'],['6HJetMbdHBuk3mLUainxAPpBpWzDgYbHGTS2TqDAUSX2','LJC','OnlyLJC'],['9Wagwcs6HVtMHaaxBjUbE7AKmxeg9nzEDcvXhN8bydUG','killz','KillzzSol'],['4Bdn33fA7LLZQuuXuFLSxtPWGAUnMBcreQHfh9MXuixe','Key','w3b3k3y'],['Akht8EBJqFSLmhNR7Wdr53YmWjmb9URzbZYWY7FAJKeH','wuzie','crypt0wu'],['Hq5TTULwwmDjGvzQukgujHQogZ5uFSCyYHpP756Uvyae','s0ber','whaIecrypto'],['9EyPAMyQvXaUWFxd2uQHvG8vpkKs33YdXvDvwmRXrUiH','Connor','Connoreo_'],['BrT5kYQ125u6NaRKFKNiBnHak6X7MvcZSQ3LfQCB3sqg','zoru','zoruuuuu'],['qP3Q8d4WWsGbqkTfyA9Dr6cAD7DQoBuxPJMFTK48rWU','kitty','0xkitty69'],['9jyqFiLnruggwNn4EQwBNFXwpbLM9hrA4hV59ytyAVVz','Nach','NachSOL'],['Ebk5ATdfrCuKi27dHZaw5YYsfREEzvvU8xeBhMxQoex6','Sully','sullyfromDeets'],['7tiRXPM4wwBMRMYzmywRAE6jveS3gDbNyxgRrEoU6RLA','Qtdegen','qtdegen'],['3cG7d6GmX47HKSX5nWRX9MJpruCojbzUkak92gSXGtG5','Rektober','rektober'],['D2aXNmQgLnZFFoE8aSCZq1dBXKRDw29NoGY79jCscUmj','waste management','wastemanagem3nt'],['DN7pYLSGYqHXwvPLh8tJM2zoJjhMSsNGVRVkMWVpredr','Fabix','Fabix_R'],['m7Kaas3Kd8FHLnCioSjCoSuVDReZ6FDNBVM6HTNYuF7','Ferb','ferbsol'],['5wcc13mXoyqe6qh2iHH5GFknojoJ7y13ZPx9K4NXTuo3','Dolo','doloxbt'],['HtvLcCFehifb7G4j42JDn53zD7sQRiELF5WHzJzNvWMm','Polly','0xsushi'],['AXwssg5NjQodKofcLV6ypJL4R5usvysYt9q7YVwjEgAH','Sue','sue_xbt'],['DVM5U7yTFUT8TwerBq1afLopuSuFs1rRVCu3KpTJbHUa','YOUNIZ','YOUNIZ_XLZ'],['KJXB1ot9nkCvq1ZD27vzNSBaPPCT82DpVnXrcwxftvY','aightbet','aightbet'],['HkFt55P3PhRWHXoTFeuvkKEE4ab26xZ1bk6UmXV88Pwz','Terp','OnlyTerp'],['gkNNf4NwkR61B1QKBFtELe6TVZFhYRaC2LbVkoNyCkB','Prada','0xPradaa'],['71PCu3E4JP5RDBoY6wJteqzxkKNXLyE1byg5BTAL9UtQ','Ramset','Ramsetx'],['Fi2hrxExy6TJnKcbPtQpo6iZzX9SUVbB9mDw6d29NgCn','quant','quantgz'],['7SDs3PjT2mswKQ7Zo4FTucn9gJdtuW4jaacPA65BseHS','Insentos','insentos'],['zyncUiCSpP5zExdpvpRgx8twZ1AxTAqaeqtTVZ45ART','zync','zyncxbt'],['EtuuyC1njBScPtYFpuDP6mxdkfTcs9zbUbJGheHzof3t','mog','10piecedawg'],['ExKCuoAzJCgCVjU3CvNoL8vVrdESTWkx3ubj6rQXwQM4','TheDefiApe','TheDefiApe'],['Cxe1d5zFifK4a4UZoHQaCK7sfqd84XjcKy1qtjnz3bge','DJ.En','thisisdjen'],['CCUcjek5p6DLoH2YNtjizxYhAnStXAQAGVxhp1cYJF7w','el charto','elchartox'],['BAr5csYtpWoNpwhUjixX7ZPHXkUciFZzjBp9uNxZXJPh','Jack Duval','jackduvalstocks'],['FQEXjVZPT7BqcZNVs82Q46LFPUevG7YoDiKpugpJaiCb','Padly','Padly1k'],['DUTpdjVjZ3XKqeU5WFE3HbkQ77ZSaSi3CseMkr9zkC6T','Zeek','zeekbased'],['BaLxyjXzATAnfm7cc5AFhWBpiwnsb71THcnofDLTWAPK','peely','0xpeely'],['8RrMaJXYwANd4zEskfPQuSYE35dTzaYtuwyKz3ewcZQx','Te','TeTheGamer'],['BuhkHhM3j4viF71pMTd23ywxPhF35LUnc2QCLAvUxCdW','Saif','degensaif'],['2w3zDW2e1KjYtM2pHTkgh78L8DjMrC6fuB9uhwKNigTs','Yokai Ryujin','YokaiCapital'],['6m5sW6EAPAHncxnzapi1ZVJNRb9RZHQ3Bj7FD84X9rAF','ShockedJS','ShockedJS'],['4WPTQA7BB4iRdrPhgNpJihGcxKh8T43gLjMn5PbEVfQw','Oura','Oura456'],['CkPFGv2Wv1vwdWjtXioEgb8jhZQfs3eVZez3QCetu7xD','Lynk','lynk0x'],['4uTeAz9TmZ1J5bNkgGLvqAELvCHJwLZgo7Hxar2KAiyu','Monarch','MonarchBTC'],['G3g1CKqKWSVEVURZDNMazDBv7YAhMNTjhJBVRTiKZygk','Insyder','insydercrypto'],['EBjXstFQBBnXVFEXouqGfUxQFmaEHu6KFbxrZQkGbjru','Zinc','zinceth'],['HLv6yCEpgjQV9PcKsvJpem8ESyULTyh9HjHn9CtqSek1','Lyxe','cryptolyxe'],['9EfTigVxHuNjqzxiv3BQ7wD2v7uFvdRQbrrnDEPr8pTk','Seee','tstar_frr1'],['B3beyovNKBo4wF1uFrfGfpVeyEHjFyJPmEBciz7kpnoS','CC2','CC2Ventures'],['GfXQesPe3Zuwg8JhAt6Cg8euJDTVx751enp9EQQmhzPH','Spuno','spunosounds'],['7Gi4H4wugm2n3rRWa6BijsQPJV7sMardawTi2tXDL9zM','Ricco','RiccoRosas'],['GmDXqHhXqfzEBErQqPft9xkznvgfkX6bcUT65MxQzNBj','Jerry','0xJrmm'],['7VBTpiiEjkwRbRGHJFUz6o5fWuhPFtAmy8JGhNqwHNnn','Brox','ohbrox'],['8eioZubsRjFkNEFcSHKDbWa8MkpmXMBvQcfarGsLviuE','0xJumpman','0xjumpman'],['CtUzwARj8A13M3hdJAXvsLkqJUfmFKqWzFXJPcq4MiMx','Chris','ChrisCoffeeEth'],['B8kdogV1a39GPVpSiPjPdUGfFf8nx6EVexRMvdeiXB64','Jakey','SolJakey'],['kiLogfWUXp7nby7Xi6R9t7u8ERQyRdAzg6wBjvuE49u','kilo','kilorippy'],['65paNEG8m7mCVoASVF2KbRdU21aKXdASSB9G3NjCSQuE','Pullup','pullupso'],['JBTJAkwqYR471nmeHqLSUaLezNz4Yx2wy9jYotveGnEm','Fawcette','Fawcette_'],['uS74rigLoPmKdi169RPUB4VSF6T9PqChTpG5jWzVhVp','para','paradilf'],['Huk3KuMLsLBZSer2n7MXmMPAJE1eKcr8dJS6DDoM3m8f','Little Mustacho','littlemustacho'],['BWQPaFCn5Fp5ok2x5W69wspbsgiRXuPPUYX8Zgnm7XeQ','SatsBuyer','Satsbuyer'],['DBmRHNbSsVX8F6NyVaaaiuGdwo1aYGawiy3jfNcvXYSC','Bobby','retardmode'],['GVQtcYiQLy3tKNPGzPa81RsCKycam1zLTQSybdnDjMkF','GVQ','GVQ_xx'],['HrCPnDvDgbpbFxKxer6Pw3qEcfAQQNNjb6aJNFWgTEng','0xWinged','0xExorcized'],['EAnB5151L8ejp3SM6haLgyv3snk6oqc8acKgWEg9T5J','Jordan','ohFrostyyy'],['J2B5fnm2DAAUAGa4EaegwQFoYaN6B5FerGA5sjtQoaGM','Dan176','176Dan'],['5AyJw1VNDgTho2chipbVmuGqTuX1fCvVkLneChQkQrw8','Bolivian','_bolivian'],['3mPypxb7ViYEdLv4siFmESvY5w5ZKknwgmB4TPcZ77qe','Carti The Menace','CartiTheMenace'],['AGnd5WTHMUbyK3kjjQPdQFM3TbWcuPTtkwBFWVUwiCLu','Angi','angitradez'],['3nvC8cSrEBqFEXZjUpKfwZMPk7xYdqcnoxmFBjXiizVX','Value & Time','valueandtime'],['9vWutdTBs66hWkeCmxaLFpkKy4q5RSe8DsFjfdxj5yFA','Dutch','0xDutch_'],['HUS9ErdrDqpqQePbmfgJUTnDTE6eZ8ES62a25RihSK9U','Hustler','JoeVargas'],['EgzjRCbcdRiPc1bW52tcvGDnKDbQWCzQbUhDBszD2BZm','Rev','solrevv'],['42nsEk51owYM3uciuRvFerqK77yhXZyjBLRgkDzJPV2g','.exe','itoptick'],['F72vY99ihQsYwqEDCfz7igKXA5me6vN2zqVsVUTpw6qL','Jalen','RipJalens'],['9NL6thsiaoyDnm7XF8hEbMoqeG172WmG7iKYpygvjfgo','Scooter','imperooterxbt'],['9K18MstUaXmSFSBoa9qDTqWTnYhTZqdgEhuKRTVRgh6g','Sabby','sabby_eth'],['BPWsae36tY6oFz7f5MjsfTGqzi3ttM1AsAtjMvUb91tT','Rizz','sollrizz'],['Ehqd8q5rAN8V7Y7EGxYm3Tp4KPQMTVWQtzjSSPP3Upg3','Collectible','collectible'],['3ZtwP8peTwTfLUF1rgUQgUxwyeHCxfmoELXghQzKqnAJ','cxltures','cxlturesvz'],['8YYDiCbPd4nM8TxrQEVdPA4aG8jys8R7Z1kKsgPL4pwh','Michi','michibets'],['E7gozEiAPNhpJsdS52amhhN2XCAqLZa7WPrhyR6C8o4S','evening','eveningbtc'],['5dhKiVtynZVDWGgvAFrz9mPPU1VNKkaMrcbrjKMtoANw','Obijai','Obijai'],['4S8YBCt6hhi7Nr1NnKF6jF856LLN8JJFzD1a8nF5UuHA','shaka','solanashaka'],['FGVjsmD76HMcMa6NNzhwxZ2qpx25fGnAZT7zF2A3SWtH','aloh','alohquant'],['FUZZUhT5qKncddMxLnkeiN7Dh1CmSpWPScp55iexZ85t','Fuzz','slfuzz'],['B57ChV7Sa7FToRFsKWRWi5QPJJUn6cv4CuMQCzgw4VY2','fshmatt','fshmatt'],['J4rYYPEXHwYMvyNzVwRsTyaSVpHv4SXK6kQNGgvBdvc4','RUSKY','CryDevil23'],['72YiE4crBv2UhxRgRYKs4GaTGT2avbacfL4HNCfQLqsm','kyz','kyzenill']];
+// Public KOL wallets: Kolscan.io leaderboard + KolScan data (1d/7d/30d boards) in github.com/nirholas/kol-quest, captured 23 Nov 2026. 285 wallets. [address, name, X handle]
+const KOL_PRESET=[['4Be9CvxqHW6BYiRAxW9Q3xu1ycTMWaL5z8NX4HR3ha7t','Mitch','idrawline'],['95TWoKkvv2z85EXBzd2z6NwbxH2f54AvwuCA9x3NoKep','Killua','cryptokillua99'],['JDd3hy3gQn2V982mi1zqhNqUw1GfV2UL6g76STojCJPN','West','ratwizardx'],['EqiFgyNw6kgrmYstWyrP8VjKhka7XEmKTZzHSmwpr1Zb','ban',''],['5T229oePmJGE5Cefys8jE9Jq8C7qfGNNWy3RVA7SmwEP','Tuults','tuults69'],['4vw54BmAogeRV3vPKWyFet5yf8DTLcREzdSzx4rw9Ud9','decu','notdecu'],['ardinRsN1mNYVeoJWTBsWeYeXvuR9UUDGMsCDKpb6AT','trunoest','trunoest'],['5hAgYC8TJCcEZV7LTXAzkTrm7YL29YXyQQJPCNrG84zM','Schoen','Schoen_xyz'],['Av3xWHJ5EsoLZag6pr7LKbrGgLRTaykXomDD5kBhL9YQ','Heyitsyolo','Heyitsyolotv'],['DieowDJ137xDRyCDn3YZYfAe4qzeGmdQJvryyqdWhtuc','appie',''],['862TYSvRYoiHAK3F3WwTRYAfuGiQaGdxedN9AGvRGWo2','Wugi',''],['2net6etAtTe3Rbq2gKECmQwnzcKVXRaLcHy2Zy1iCiWz','rambo','goatedondsticks'],['Gn9jrmzjYPfAFsXpauik2FkkPZ9bSReAffKiMQR1qeZb','Hien',''],['88e2kBDJoN7eQCBj2sxT15etUZ3jPNzD4ijCs1TNySWJ','yeekidd','yeekiddd'],['DrJ6SnDXkEsPeGdmSs93v5rwWumv5QMvAGSZjAyWSd5o','Iced','IcedKnife'],['2W14ahXD3XBfWJchQ4K5NLXmguWWcTTUTuHDhEzeuvP3','Veloce','VeloceSVJ'],['AQdBYZNy3BZ1vouGUjA1w9Ay7aq7kH5UQSuh4LQWKotY','Armoski',''],['8274EUKEHK9t9yoNHx9BVpsk8SR8va6wg6aoAiaARBMC','Dame',''],['387FRwow6MKDhSwuMULhKjqeXuxoBY4BbbaSntdk9LaH','Shawty',''],['4cXnf2z85UiZ5cyKsPMEULq1yufAtpkatmX4j4DBZqj2','WaiterG','Waiter1x'],['FqojC24nUn3x6oMQC2ypBHmtH7rFAnKS6DvwsJoCMaiv','CoCo','CoCoCookerr'],['5t9xBNuDdGTGpjaPTx6hKd7sdRJbvtKS8Mhq6qVbo8Qz','Smokez','SmokezXBT'],['G5nxEXuFMfV74DSnsrSatqCW32F34XUnBeq3PfDS7w5E','Profit',''],['6FWhUybWmnjsQ933v2r6o7bhEG5yH9g9XsV7NVWKj5EW','WheresLodo',''],['AGqjivJr1dSv73TVUvdtqAwogzmThzvYMVXjGWg2FYLm','noob_mini','noobmini_'],['BCnqsPEtA1TkgednYEebRpkmwFRJDCjMQcKZMMtEdArc','kreo','kreo444'],['5o3kAZLwEzNF1kfVv8JSEqv6sSB88pZbHxF1oYTxgXzG','neo.',''],['EjtQrPTbcMevStBkpnjsH23NfUCMhGHusTYsHuGVQZp2','Zef','zefwashere'],['Dv32u9mvSXGVNshf7xM7afuMoPRifQxzuzEjfmfMysZY','deecayz','deecayz'],['BnfiHRDpHQ5yQevvwnzTmxtaB1Ek276fV5oTY9bi71EA','MAMBA',''],['98T65wcMEjoNLDTJszBHGZEX75QRe8QaANXokv4yw3Mp','Leck','LeckSol'],['BY58Z7N5Adarkx5ed78AzKvR7Kxrq795aa1boZsYyVBT','JB',''],['7Js5gmq57y9jG2sseKrAeJt3vbncSWSFFHDEsyJDnyVm','Yami','YamiPNL'],['4AHgEkTsGqY77qtde4UJn9yZCrbGcM7UM3vjT3qM4G5H','BagCalls','BagCalls'],['9iaawVBEsFG35PSwd4PahwT8fYNQe9XYuRdWm872dUqY','Meechie','973Meech'],['AeLaMjzxErZt4drbWVWvcxpVyo8p94xu5vrg41eZPFe3','^1s1mple','s1mple_s1mple'],['BTeqNydtKyDaSxQNRm8ByaUDPK3cpQ1FsXMtaF1Hfaom','FINN','finnbags'],['5YRgrP3mjGzrzirYYN5HAQH19cTYREYwGxW6XRJQUzij','slingoor',''],['6nhskL8RVpXzWXC7mcC1UXpe3ze2p6P6og1jXVGUW88s','PattyIce','patty_fi'],['DuQabFqdC9eeBULVa7TTdZYxe8vK8ct5DZr4Xcf7docy','orangie','orangie'],['F8WtsrLzexRkjv11b1sgA3Qj7E889RGYa1jFLGoPwKTB','kz',''],['62N1K57D37AUDGp68tnDYKPjGDsaAAtmo357nBtEtuR','set','Setuhx'],['G6fUXjMKPJzCY1rveAE6Qm7wy5U3vZgKDJmN1VPAdiZC','clukz',''],['EDXHdSFdadFbYFFjxPXBqMe1kCEDFqpPu552uvp48HR8','Clown','ClownsTrenches'],['DMPoinzkqernzaQxB1bVNir2FTmwMNbKF3sDHJo8N1p9','moochi',''],['FqamE7xrahg7FEWoByrx1o8SeyHt44rpmE6ZQfT7zrve','EustazZ','Eustazzeus'],['JAmx4Wsh7cWXRzQuVt3TCKAyDfRm9HA7ztJa4f7RM8h9','Tally','tallxyyy'],['E1wBzPvSWNaFiViCr5vGCAeMkZJqj3pWTM8oedSD4QMb','Tim',''],['4DdrfiDHpmx55i4SPssxVzS9ZaKLb8qr45NKY9Er9nNh','Mr.Frog','TheMisterFrog'],['8MaVa9kdt3NW4Q5HyNAm1X5LbR8PQRVDc1W8NMVK88D5','Daumen','daumenxyz'],['HmtAZQn7U75jkAxrXNh8vRFCmjGjM3Q2WpiTHXoCJrUz','Preston','prestonharty'],['5vg7he5HibvsAW86wfiuP6jw7VwKmUAnP6P93mVCdpJu','blixze','blixze'],['DYAn4XpAkN5mhiXkRB7dGq4Jadnx6XYgu8L5b3WGhbrt','The Doc','KayTheDoc'],['8oQoMhfBQnRspn7QtNAq2aPThRE4q94kLSTwaaFQvRgs','big bags bobby','bigbagsbobby'],['A3W8psibkTUvjxs4LRscbnjux6TFDXdvD4m4GsGpQ2KJ','Numer0','Numerooo0'],['4z3WtX32eehkmnaNNstZWyAuVBhj6cgpk5JtkdTa4m4A','J Spizzle','JSpizzleCrypto'],['9cdZg6xR4c9kZiqKSzqjn4QHCXNQuC9HEWBzzMJ3mzqw','Pikalosi','pikalosi'],['DsqRyTUh1R37asYcVf1KdX4CNnz5DKEFmnXvgT4NfTPE','Classic','simplyclassic69'],['7bsTkeWcSPG6nzsbXucxV89YUULoSExNJdX2WqfLHwZ4','BIGWARZ','bigwarzeth'],['6pa2QnW2mB1F41FkytTYd2gTh9aTUCmdTGEgcFRXcQ8g','Alpha wallet 4','quarsays'],['RaSSH7hMwLKtMT96xZyY4JwHRCCNYvvNeBh6AaFMqdA','Rasta','rastacowboy2021'],['ASVzakePP6GNg9r95d4LPZHJDMXun6L6E4um4pu5ybJk','Naruza','0xNaruza'],['4s2WzRLa35FB58bZY1i4CN3WoywJeuYrGYHnTKFsT23z','jester','thejester'],['GBERKNpahPnBGmeUGWQVjGBDBj6CcJKpGz34FqegmTgu','Scrim','mircs'],['DbRQjQDTTsiBXg1TJdb55WvEr3JvqUyu4iJJ684Aqeu3','dints','dintsfi'],['HwRnKq7RPtKHvX9wyHsc1zvfHtGjPQa5tyZtGtbvfXE','Jay','BitBoyJay'],['DU323DieHUGPmYamp6A4Ai1V4YSYgRi35mGpzJGrjf7k','Toxic weast','Toxic_weast'],['41uh7g1DxYaYXdtjBiYCHcgBniV9Wx57b7HU7RXmx1Gg','Lowskii','Lowskii_gg'],['3L8RAxLkvwkz4CgHivaVRtq19741FAdGLk5DgjRfc1fW','Inquixit','inquixit'],['6EDaVsS6enYgJ81tmhEkiKFcb4HuzPUVFZeom6PHUqN3','Cowboy','feibo03'],['Di75xbVUg3u1qcmZci3NcZ8rjFMj7tsnYEoFdEMjS4ow','No','Nosa1x'],['4ZdCpHJrSn4E9GmfP8jjfsAExHGja2TEn4JmXfEeNtyT','Robo','roboPBOC'],['4Dm3g5goQkaaXM4s7sphZzk8Vqb39j2mjhABrannMGmj','trisha','trishhxy'],['9St6ETbe3CFitw6UNSd8kg7kZ6STXy71wEGiERqQj89U','Trench Guerilla','trenchguerilla'],['722tXm5uB5uuG2tC43uKHXQ7Pbyz75pTokEAJv9x5VTx','sp','SolanaPlays'],['4EsY8HQB4Ak65diFrSHjwWhKSGC8sKmnzyusM993gk2w','prosciutto','prosciuttosol'],['EgjCS3ULUCU5JN83XumirPr6171zvN5i6wc12SDiVGX3','Legend','legend_calls'],['Aen6LKc7sGVPTyjMd5cu9B9XVjL7m9pnvAiP2ZNJC4GZ','Aroa','AroaOnSol'],['3i8akM4xfSX9WKFB5bQ61fmiYkeKQEFqvdMEyu6pSEk9','MoneyMaykah','moneymaykah_'],['9BkauJdFYUyBkNBZwV4mNNyfeVKhHvjULb7cL4gFQaLt','goob','goobfarmedyou'],['5XVKfruE4Zzeoz3aqBQfFMb5aSscY5nSyc6VwtQwNiid','Ily','ilyunow'],['EVCwZrtPFudcjw69RZ9Qogt8dW2HjBp6EiMgv1ujdYuJ','ree','reeotrix'],['9yGxZ43ngT7LvwquVdUAYPvJzVyY65cS6mQvuJXjTEUc','xet','xet'],['4nwfXw7n98jEQn93VWY7Cuf1jnn1scHXuXCPGVYS9k6T','Frost','FrostBallin'],['ELNFHkwb5W9RpxAac6SdJcgYi4wn7bPpPvd3LwfhR2Xx','Guy','obeyguy'],['5dzH7gh5FjtrxUwtfBufJyTBA4fyCUGheZsdYQsE9vag','Hermes','coinsolmaxi'],['2DG4vs36XHf3V9czMopZufUn8ton4tuf6atuRpP4Kowr','dns','DNS_ERR'],['FajxNukkjDLGXfB5V3L1msrU9qgzuzhN4s4YQfefSCKp','Divix','cryptodivix'],['7NnaXghjuU92gM9kmwXysqa5HboyZuR2LTaBnvazFxSH','Pavlo','pavlotrading'],['FksF9AqK7UvkkuzDoHQxYiyk6APwpPAaRzXp5QG3FGqA','proh','PR0H0S'],['91sP85Ds9A4EXJ3gU3iHyLtUNJimxz8LrxRb2qhBNod9','hood','hoodscall'],['9qdiDGhXrGqPN4CTGvyKwFKHrgJSGn836cjkVcGfPd6N','Aymory','Aymoryfun'],['DzeSE8ZBNk36qqswcDxd8919evdH5upwyZ4u1yieQSkp','19ys GGboy','19ys_GGboy'],['9Vk7pkBZ9KFJmzaPzNYjGedyz8qoKMQtnYyYi2AehNMT','Xelf','xelf_sol'],['DpNVrtA3ERfKzX4F8Pi2CVykdJJjoNxyY5QgoytAwD26','Gorilla Capital','gorillacapsol'],['14HDbSrjCJKgwCXDBXv8PGRGFaLrAqDBq2mCwSA46q5x','0xMistBlade','0xMistBlade'],['EgnY4zmqXuaqodCLW366jjd2ecki6pvmMF74MkSxMFQW','Eric Cryptoman','EricCryptoman'],['6Qs6joB349h7zu1z9xRgPgMSmpBYLDQb2wtAecY4LysH','Chefin','Chefin100x'],['2BU3NAzgRA2gg2MpzwwXpA8X4CCRaLgrf6TY1FKfJPX2','Issa','issathecooker'],['CA4keXLtGJWBcsWivjtMFBghQ8pFsGRWFxLrRCtirzu5','old','old'],['DNfuF1L62WWyW3pNakVkyGGFzVVhj4Yr52jSmdTyeBHm','Gake','Ga__ke'],['7PuHVAKDZ96s9P5FAt2eEdE8EYKxy9iUhvaLaMFqfCyj','jitter','jitterxyz'],['8zFZHuSRuDpuAR7J6FzwyF3vKNx4CVW3DFHJerQhc7Zd','Pow','traderpow'],['4jFPYSoUTRaFbFDJp9QpA1J5pXJmMJYoWhiFTpoLPq6X','MERK','MerkTrading'],['GL8VLakj5AeAnkVNd4gQAkjXLqAzjeNbNXUQBdo8FwQG','polar','polarsterrr'],['F1WT79Jkw3BkBDUfCbrKKo15ghZNCEjvnjxQpiCfPuRM','flock','flocko'],['AVAZvHLR2PcWpDf8BXY4rVxNHYRBytycHkcB5z5QNXYm','Ansem','blknoiz06'],['EdDCRfDDeiiDXdntrP59abH4DXHFNU48zpMPYisDMjA7','Mezoteric','mezoteric'],['8ggkt7Y1SZzmsdcy6ZHTif6HvgAUv2dxJCbTFTGD67MV','fa1r','fa1rtrade'],['BjNueAZDxLpwHnpMVZrB5b8DTTBHdmXtg1ZaRPCJ1yYJ','Affu','lethal_affu'],['FbvUU5qvD9JsU9jp3KDweCpZiVZHLoQBQ1PPCAAbd6FB','profitier','profitierr'],['HbCxe8yWQJWnK3f3FX4oohgm87FZuPYD4Ydszqxgkwft','Stacker','Stackeronsol'],['A9aTuBuxoVY547n6hUBCq9oZm36LTJX9Kvn4NZXffXvp','Burixx','Burix_sol'],['6HJetMbdHBuk3mLUainxAPpBpWzDgYbHGTS2TqDAUSX2','LJC','OnlyLJC'],['9Wagwcs6HVtMHaaxBjUbE7AKmxeg9nzEDcvXhN8bydUG','killz','KillzzSol'],['4Bdn33fA7LLZQuuXuFLSxtPWGAUnMBcreQHfh9MXuixe','Key','w3b3k3y'],['Akht8EBJqFSLmhNR7Wdr53YmWjmb9URzbZYWY7FAJKeH','wuzie','crypt0wu'],['Hq5TTULwwmDjGvzQukgujHQogZ5uFSCyYHpP756Uvyae','s0ber','whaIecrypto'],['9EyPAMyQvXaUWFxd2uQHvG8vpkKs33YdXvDvwmRXrUiH','Connor','Connoreo_'],['BrT5kYQ125u6NaRKFKNiBnHak6X7MvcZSQ3LfQCB3sqg','zoru','zoruuuuu'],['qP3Q8d4WWsGbqkTfyA9Dr6cAD7DQoBuxPJMFTK48rWU','kitty','0xkitty69'],['9jyqFiLnruggwNn4EQwBNFXwpbLM9hrA4hV59ytyAVVz','Nach','NachSOL'],['Ebk5ATdfrCuKi27dHZaw5YYsfREEzvvU8xeBhMxQoex6','Sully','sullyfromDeets'],['7tiRXPM4wwBMRMYzmywRAE6jveS3gDbNyxgRrEoU6RLA','Qtdegen','qtdegen'],['3cG7d6GmX47HKSX5nWRX9MJpruCojbzUkak92gSXGtG5','Rektober','rektober'],['D2aXNmQgLnZFFoE8aSCZq1dBXKRDw29NoGY79jCscUmj','waste management','wastemanagem3nt'],['DN7pYLSGYqHXwvPLh8tJM2zoJjhMSsNGVRVkMWVpredr','Fabix','Fabix_R'],['m7Kaas3Kd8FHLnCioSjCoSuVDReZ6FDNBVM6HTNYuF7','Ferb','ferbsol'],['5wcc13mXoyqe6qh2iHH5GFknojoJ7y13ZPx9K4NXTuo3','Dolo','doloxbt'],['HtvLcCFehifb7G4j42JDn53zD7sQRiELF5WHzJzNvWMm','Polly','0xsushi'],['AXwssg5NjQodKofcLV6ypJL4R5usvysYt9q7YVwjEgAH','Sue','sue_xbt'],['DVM5U7yTFUT8TwerBq1afLopuSuFs1rRVCu3KpTJbHUa','YOUNIZ','YOUNIZ_XLZ'],['KJXB1ot9nkCvq1ZD27vzNSBaPPCT82DpVnXrcwxftvY','aightbet','aightbet'],['HkFt55P3PhRWHXoTFeuvkKEE4ab26xZ1bk6UmXV88Pwz','Terp','OnlyTerp'],['gkNNf4NwkR61B1QKBFtELe6TVZFhYRaC2LbVkoNyCkB','Prada','0xPradaa'],['71PCu3E4JP5RDBoY6wJteqzxkKNXLyE1byg5BTAL9UtQ','Ramset','Ramsetx'],['Fi2hrxExy6TJnKcbPtQpo6iZzX9SUVbB9mDw6d29NgCn','quant','quantgz'],['7SDs3PjT2mswKQ7Zo4FTucn9gJdtuW4jaacPA65BseHS','Insentos','insentos'],['zyncUiCSpP5zExdpvpRgx8twZ1AxTAqaeqtTVZ45ART','zync','zyncxbt'],['EtuuyC1njBScPtYFpuDP6mxdkfTcs9zbUbJGheHzof3t','mog','10piecedawg'],['ExKCuoAzJCgCVjU3CvNoL8vVrdESTWkx3ubj6rQXwQM4','TheDefiApe','TheDefiApe'],['Cxe1d5zFifK4a4UZoHQaCK7sfqd84XjcKy1qtjnz3bge','DJ.En','thisisdjen'],['CCUcjek5p6DLoH2YNtjizxYhAnStXAQAGVxhp1cYJF7w','el charto','elchartox'],['BAr5csYtpWoNpwhUjixX7ZPHXkUciFZzjBp9uNxZXJPh','Jack Duval','jackduvalstocks'],['FQEXjVZPT7BqcZNVs82Q46LFPUevG7YoDiKpugpJaiCb','Padly','Padly1k'],['DUTpdjVjZ3XKqeU5WFE3HbkQ77ZSaSi3CseMkr9zkC6T','Zeek','zeekbased'],['BaLxyjXzATAnfm7cc5AFhWBpiwnsb71THcnofDLTWAPK','peely','0xpeely'],['8RrMaJXYwANd4zEskfPQuSYE35dTzaYtuwyKz3ewcZQx','Te','TeTheGamer'],['BuhkHhM3j4viF71pMTd23ywxPhF35LUnc2QCLAvUxCdW','Saif','degensaif'],['2w3zDW2e1KjYtM2pHTkgh78L8DjMrC6fuB9uhwKNigTs','Yokai Ryujin','YokaiCapital'],['6m5sW6EAPAHncxnzapi1ZVJNRb9RZHQ3Bj7FD84X9rAF','ShockedJS','ShockedJS'],['4WPTQA7BB4iRdrPhgNpJihGcxKh8T43gLjMn5PbEVfQw','Oura','Oura456'],['CkPFGv2Wv1vwdWjtXioEgb8jhZQfs3eVZez3QCetu7xD','Lynk','lynk0x'],['4uTeAz9TmZ1J5bNkgGLvqAELvCHJwLZgo7Hxar2KAiyu','Monarch','MonarchBTC'],['G3g1CKqKWSVEVURZDNMazDBv7YAhMNTjhJBVRTiKZygk','Insyder','insydercrypto'],['EBjXstFQBBnXVFEXouqGfUxQFmaEHu6KFbxrZQkGbjru','Zinc','zinceth'],['HLv6yCEpgjQV9PcKsvJpem8ESyULTyh9HjHn9CtqSek1','Lyxe','cryptolyxe'],['9EfTigVxHuNjqzxiv3BQ7wD2v7uFvdRQbrrnDEPr8pTk','Seee','tstar_frr1'],['B3beyovNKBo4wF1uFrfGfpVeyEHjFyJPmEBciz7kpnoS','CC2','CC2Ventures'],['GfXQesPe3Zuwg8JhAt6Cg8euJDTVx751enp9EQQmhzPH','Spuno','spunosounds'],['7Gi4H4wugm2n3rRWa6BijsQPJV7sMardawTi2tXDL9zM','Ricco','RiccoRosas'],['GmDXqHhXqfzEBErQqPft9xkznvgfkX6bcUT65MxQzNBj','Jerry','0xJrmm'],['7VBTpiiEjkwRbRGHJFUz6o5fWuhPFtAmy8JGhNqwHNnn','Brox','ohbrox'],['8eioZubsRjFkNEFcSHKDbWa8MkpmXMBvQcfarGsLviuE','0xJumpman','0xjumpman'],['CtUzwARj8A13M3hdJAXvsLkqJUfmFKqWzFXJPcq4MiMx','Chris','ChrisCoffeeEth'],['B8kdogV1a39GPVpSiPjPdUGfFf8nx6EVexRMvdeiXB64','Jakey','SolJakey'],['kiLogfWUXp7nby7Xi6R9t7u8ERQyRdAzg6wBjvuE49u','kilo','kilorippy'],['65paNEG8m7mCVoASVF2KbRdU21aKXdASSB9G3NjCSQuE','Pullup','pullupso'],['JBTJAkwqYR471nmeHqLSUaLezNz4Yx2wy9jYotveGnEm','Fawcette','Fawcette_'],['uS74rigLoPmKdi169RPUB4VSF6T9PqChTpG5jWzVhVp','para','paradilf'],['Huk3KuMLsLBZSer2n7MXmMPAJE1eKcr8dJS6DDoM3m8f','Little Mustacho','littlemustacho'],['BWQPaFCn5Fp5ok2x5W69wspbsgiRXuPPUYX8Zgnm7XeQ','SatsBuyer','Satsbuyer'],['DBmRHNbSsVX8F6NyVaaaiuGdwo1aYGawiy3jfNcvXYSC','Bobby','retardmode'],['GVQtcYiQLy3tKNPGzPa81RsCKycam1zLTQSybdnDjMkF','GVQ','GVQ_xx'],['HrCPnDvDgbpbFxKxer6Pw3qEcfAQQNNjb6aJNFWgTEng','0xWinged','0xExorcized'],['EAnB5151L8ejp3SM6haLgyv3snk6oqc8acKgWEg9T5J','Jordan','ohFrostyyy'],['J2B5fnm2DAAUAGa4EaegwQFoYaN6B5FerGA5sjtQoaGM','Dan176','176Dan'],['5AyJw1VNDgTho2chipbVmuGqTuX1fCvVkLneChQkQrw8','Bolivian','_bolivian'],['3mPypxb7ViYEdLv4siFmESvY5w5ZKknwgmB4TPcZ77qe','Carti The Menace','CartiTheMenace'],['AGnd5WTHMUbyK3kjjQPdQFM3TbWcuPTtkwBFWVUwiCLu','Angi','angitradez'],['3nvC8cSrEBqFEXZjUpKfwZMPk7xYdqcnoxmFBjXiizVX','Value & Time','valueandtime'],['9vWutdTBs66hWkeCmxaLFpkKy4q5RSe8DsFjfdxj5yFA','Dutch','0xDutch_'],['HUS9ErdrDqpqQePbmfgJUTnDTE6eZ8ES62a25RihSK9U','Hustler','JoeVargas'],['EgzjRCbcdRiPc1bW52tcvGDnKDbQWCzQbUhDBszD2BZm','Rev','solrevv'],['42nsEk51owYM3uciuRvFerqK77yhXZyjBLRgkDzJPV2g','.exe','itoptick'],['F72vY99ihQsYwqEDCfz7igKXA5me6vN2zqVsVUTpw6qL','Jalen','RipJalens'],['9NL6thsiaoyDnm7XF8hEbMoqeG172WmG7iKYpygvjfgo','Scooter','imperooterxbt'],['9K18MstUaXmSFSBoa9qDTqWTnYhTZqdgEhuKRTVRgh6g','Sabby','sabby_eth'],['BPWsae36tY6oFz7f5MjsfTGqzi3ttM1AsAtjMvUb91tT','Rizz','sollrizz'],['Ehqd8q5rAN8V7Y7EGxYm3Tp4KPQMTVWQtzjSSPP3Upg3','Collectible','collectible'],['3ZtwP8peTwTfLUF1rgUQgUxwyeHCxfmoELXghQzKqnAJ','cxltures','cxlturesvz'],['8YYDiCbPd4nM8TxrQEVdPA4aG8jys8R7Z1kKsgPL4pwh','Michi','michibets'],['E7gozEiAPNhpJsdS52amhhN2XCAqLZa7WPrhyR6C8o4S','evening','eveningbtc'],['5dhKiVtynZVDWGgvAFrz9mPPU1VNKkaMrcbrjKMtoANw','Obijai','Obijai'],['4S8YBCt6hhi7Nr1NnKF6jF856LLN8JJFzD1a8nF5UuHA','shaka','solanashaka'],['FGVjsmD76HMcMa6NNzhwxZ2qpx25fGnAZT7zF2A3SWtH','aloh','alohquant'],['FUZZUhT5qKncddMxLnkeiN7Dh1CmSpWPScp55iexZ85t','Fuzz','slfuzz'],['B57ChV7Sa7FToRFsKWRWi5QPJJUn6cv4CuMQCzgw4VY2','fshmatt','fshmatt'],['J4rYYPEXHwYMvyNzVwRsTyaSVpHv4SXK6kQNGgvBdvc4','RUSKY','CryDevil23'],['72YiE4crBv2UhxRgRYKs4GaTGT2avbacfL4HNCfQLqsm','kyz','kyzenill'],['6DwBGYF7JbLUmsMeAGn9ZMCv2sKF6s6UGAQtBkDzJtw4','Noah','Noahhcalls'],['FPx2BavA7J2C7Nz6WpoPL9f5kDAKjxLb38PHNZMoxCra','Achi','AchillesXBT'],['AstaWuJuQiAS3AfqmM3xZxrJhkkZNXtW4VyaGQfqV6JL','asta','astaso1'],['2YJbcB9G8wePrpVBcT31o8JEed6L3abgyCjt5qkJMymV','Al4n','Al4neu'],['9FEHWFjgbYnFCRRHkesJNq6znHjc5Aaq7TiKi1rCVSnH','fomo','fomomofosol'],['7K7itu678xAaUcuPQ2f3c2DcjirRjBY4HMTW1dx6hiL6','DRT','pepeDRT'],['BjYxVF81MgahqgahDTUEGzxzP7bZrA4p5Dg67Y4e3bXZ','0xBossman','0xBossman'],['2FbbtmK9MN3Zxkz3AnqoAGnRQNy2SVRaAazq2sFSbftM','iconXBT','iconXBT'],['HFx9E1vvWyoMmiHuTMSAQ2GRkJ2N4snCUwhUMr83LLSs','yassir','yassirwtf'],['9Bs2XgZynPdMfbpn3HQX8NKWLToPDwGrMHRbZruwbyPD','woopig','crypto_woopig'],['AAMnoNo3TpezKcT7ah9puLFZ4D59muEhQHJJqpX16ccg','sarah milady','saracrypto_eth'],['7w7f4P284zJhv3zotjCUmaNsZSsrHQKtpXGBJFq8gdzq','eq','404flipped'],['DKgvpfttzmJqZXdavDwTxwSVkajibjzJnN2FA99dyciK','ROWDY','RowdyCrypto'],['FTg1gqW7vPm4kdU1LPM7JJnizbgPdRDy2PitKw6mY27j','Solo','Soloxbt'],['274vmGgKuYQp8Fxvb8n3cr9ZeY3SYM6LgeaXM6jS2nD6','Maurits','mauritsneo'],['EeSx4wehRQhEbmbyFvfqA633v2P4C558bHh2ed7zgZh','Dolo','Dolonomix'],['3pcmVZ1DwKbqnjbGbeg3FycThT1AkTpGQYB96jGU6oS1','Fizzwick','fizzwickBW'],['FkL99xVBParNcPTjxnLdqFFCg3cvcR7NjCGkMgDPFfW3','Nils','nilsthedegen'],['HYgRa7NfuNhGZ7hsPix4N7evmmU5t5BTUUEoxwFcTKJD','zurh','zurhxbt'],['J15mCwMU8EeSvaiFTTyM8teCoxXf82aLUh6FgtDy5q1g','Fwasty','Fwasty'],['9THzoX5yGNSgPBAjCF4Lgqc1wLXoFkMQit4XWbhhRnqE','Dedmeow5','dedmeow5'],['14k7D9HA5zff4EmQD6QTPBqM25CRiEA7ZqTjM3fhypgz','Charlie','Charlduyomeme'],['8tP391aDbKKpQS7eKnCEfnJ8Cmek6jatEe2LFkdJ2PRP','JinMu','LongzuAlpha'],['Aa5LycwALUjaGeLyqe7y2jLZX3QetYnZqyvW2bLpwc2Q','Nuotrix','Nuotrix'],['6SYhd67FqypKyNqd5iFikRhrmKAKcCwwurSYUAMNSH4r','Dragon','DragonOnSol'],['BTf4A2exGK9BCVDNzy65b9dUzXgMqB4weVkvTMFQsadd','Kev','Kevsznx'],['719sfKUjiMThumTt2u39VMGn612BZyCcwbM5Pe8SqFYz','Fashr','FASHRCrypto'],['7ABz8qEFZTHPkovMDsmQkm64DZWN5wRtU7LEtD2ShkQ6','Red','redwithbag'],['53BnNc49Ajgstciq3CRoyxuBpkkW1r8pgPyvr7JGYnsh','Monki','m0nkicrypto'],['6aXFYXbFob1ZKAEDCcqZnX2vooA3TgEqDoy5dAQbeWoV','Flames','FlamesOnSol'],['922VvmmYDHV9KMTJJ71Y5Yd3Vn7cfJuFasLNSsZPygrG','Zuki','zukiweb3'],['4sAUSQFdvWRBxR8UoLBYbw8CcXuwXWxnN8pXa4mtm5nU','Scharo','XScharo'],['86AEJExyjeNNgcp7GrAvCXTDicf5aGWgoERbXFiG1EdD','Publix','Publixplayz'],['4nvNc7dDEqKKLM4Sr9Kgk3t1of6f8G66kT64VoC95LYh','MAMBA','mambatrades_'],['j38fhfqWsJyt8hzym48P8QMsXWx1FfLUxQwuor7Ti4o','Nilla','NillaGurilla'],['67Nwfi9hgwqhxGoovT2JGLU67uxfomLwQAWncjXXzU6U','Silver','0xSilver'],['CEUA7zVoDRqRYoeHTP58UHU6TR8yvtVbeLrX1dppqoXJ','Tom','tdmilky'],['FRbUNvGxYNC1eFngpn7AD3f14aKKTJVC6zSMtvj2dyCS','Henn','henn100x'],['4Ff9dbi9L93qMvevpESY4YLHtdqTd8Yj8jXj3VwCNY4g','Padre','PadrePrints'],['B32QbbdDAyhvUQzjcaM5j6ZVKwjCxAwGH5Xgvb9SJqnC','Kadenox','kadenox'],['8deJ9xeUvXSJwicYptA9mHsU2rN2pDx37KWzkDkEXhU6','Cooker','CookerFlips'],['DtjYbZntc2mEm1UrZHNcKguak6h6QM4S5xobnwFgg92Y','Files','xfilesboy'],['F2SuErm4MviWJ2HzKXk2nuzBC6xe883CFWUDCPz6cyWm','Earl','earlTrades'],['BtMBMPkoNbnLF9Xn552guQq528KKXcsNBNNBre3oaQtr','Letterbomb','ihateoop'],['AuPp4YTMTyqxYXQnHc5KUc6pUuCSsHQpBJhgnD45yqrf','Dani','DaniWorldwide'],['89HbgWduLwoxcofWpmn1EiF9wEdpgkNDEyPjzZ72mkDi','AlxCooks','AlxCooks_off'],['8rvAsDKeAcEjEkiZMug9k8v1y8mW6gQQiMobd89Uy7qR','Casino','casino616'],['78N177fzNJpp8pG49xDv1efYcTMSzo9tPTKEA9mAVkh2','Sheep','imsheepsol'],['B3wagQZiZU2hKa5pUCj6rrdhWsX3Q6WfTTnki9PjwzMh','xander','xandereef'],['EaVboaPxFCYanjoNWdkxTbPvt57nhXGu5i6m9m6ZS2kK','danny','cladzsol'],['2iPgNgss7ow3v5YFkTpzABStfjFSyG3BGvP5sZqADtFM','Jdn','JadenOnChain'],['EQaxqKT3N981QBmdSUGNzAGK5S26zUwAdRHhBCgn87zD','jamessmith','luckedhub'],['6S8GezkxYUfZy9JPtYnanbcZTMB87Wjt1qx3c6ELajKC','Nyhrox','nyhrox'],['5B52w1ZW9tuwUduueP5J7HXz5AcGfruGoX6YoAudvyxG','Yenni','Yennii56'],['3H9LVHarjBoZ2YPEsgFbVD1zuERCGwfp4AeyHoHsFSEC','JADAWGS','10xJDOG'],['HTVupcGHvA8tXX5pHmmAxQ8eiFAJSJhYNQjer3zycLcU','Setora','Setora__'],['D52tmCnycFovhx2ueMuEnxq5LCdwfZrU9u8ECE5foCW5','Zachary','Zakidge'],['6MrVEEBypwJuakxLQTeEvidCgM6LDLtfMQeWdnrjpobM','Zoke','z0ke'],['87rRdssFiTJKY4MGARa4G5vQ31hmR7MxSmhzeaJ5AAxJ','Dior','Dior100x'],['8WN7tkp8WcZEYX2cSXJQY8u3q5QHEtykrZqJmFP7NYcf','Netti','Netti_kun'],['8DGbkGgQewL9mx4aXzZCUChr7hBVXvPK9fYqSqc7Ajpn','Ban','Bancrypto__'],['CvNiezB8hofusHCKqu8irJ6t2FKY7VjzpSckofMzk5mB','Dali','SolanaDali'],['9f5ywdCDA4QhSktBomozpHmZfSLqS6J9VqCrRehYWh1p','matsu','matsu_sol'],['FpD6n8gfoZNxyAN6QqNH4TFQdV9vZEgcv5W4H2YL8k4X','Hesi','hesikillaz'],['Cv4JVc25RZ7JV8HhEXrnxJjzebMBCqN5prB5ec43aJSz','juicyfruity','juicyfruityy2'],['CgaA9a1JwAXJyfHuvZ7VW8YfTVRkdiT5mjBBSKcg7Rz5','Art','ArtCryptoz'],['F5TjPySiUJMdvqMZHnPP85Rc1vErDGV5FR5P2vdVm429','Zyaf','0xZyaf'],['2fg5QD1eD7rzNNCsvnhmXFm5hqNgwTTG8p7kQ6f3rx6f','Cupsey','Cupseyy'],['BQVz7fQ1WsQmSTMY3umdPEPPTm1sdcBcX9sP7o6kPRmB','Limfork','Limfork'],['4YzpSZpxDdjNf3unjkCtdWEsz2FL5mok7e5XQaDNqry8','xunle','xunle111'],['2e1w3Xo441Ytvwn54wCn8itAXwCKbiizc9ynGEv14Vis','prettyover','prettyoverr'],['2k7Mnf2K3GhpB7hEVN1CFFeV4oNzzuCS5Q6SmcfAoLHd','Setsu','Setsu2k'],['sAdNbe1cKNMDqDsa4npB3TfL62T14uAo2MsUQfLvzLT','Ethan Prosper','pr6spr'],['831yhv67QpKqLBJjbmw2xoDUeeFHGUx8RnuRj9imeoEs','Trey','treysocial'],['3LUfv2u5yzsDtUzPdsSJ7ygPBuqwfycMkjpNreRR2Yww','Domy','domyxbt'],['Dgehc8YMv6dHsiPJVoumvq4pSBkMVvrTgTUg7wdcYJPJ','omar','maghrrebi'],['CAPn1yH4oSywsxGU456jfgTrSSUidf9jgeAnHceNUJdw','cap','himothy'],['9yYya3F5EJoLnBNKW6z4bZvyQytMXzDcpU5D6yYr4jqL','Loopierr','Loopierr'],['5B79fMkcFeRTiwm7ehsZsFiKsC7m7n1Bgv9yLxPp9q2X','bandit','bandeez'],['Ew6qBU7N34gRNgpgUwhJ3PgrtbPYpLYWLBEG5yuQTceD','UniswapVillain','UniswapVillain'],['DTdHa4auX68jFtXv9wkzMYCahg295AnRuwvm6moW6meZ','sadizmed','sadizmed'],['2kv8X2a9bxnBM8NKLc6BBTX2z13GFNRL4oRotMUJRva9','Gh0stee','4GH0STEE'],['DEdEW3SMPU2dCfXEcgj2YppmX9H3bnMDJaU4ctn2BQDQ','King Solomon','0xsolomon'],['5sNnKuWKUtZkdC1eFNyqz3XHpNoCRQ1D1DfHcNHMV7gn','cryptovillain26','cryptovillain26'],['8nqtxpFpuXwfXG4pBLsDkkuMMPK9FjSkBMCn542HiM3v','dov 7','dovvvv7']];
 const KOL_PRESET_SET=new Set(KOL_PRESET.map(x=>x[0]));
 let KOLX=store.get('hs_kolx',{});            // wallet -> X handle
-function seedKOL(){let n=0;KOL_PRESET.forEach(([w,name,x])=>{if(!KOL[w]){KOL[w]=name;n++;}if(x&&!KOLX[w])KOLX[w]=x;});store.set('hs_kol',KOL);store.set('hs_kolx',KOLX);store.set('hs_kol_seeded2',1);return n;}
-if(!store.get('hs_kol_seeded2',0))seedKOL();
+function seedKOL(){let n=0;KOL_PRESET.forEach(([w,name,x])=>{if(!KOL[w]){KOL[w]=name;n++;}if(x&&!KOLX[w])KOLX[w]=x;});store.set('hs_kol',KOL);store.set('hs_kolx',KOLX);store.set('hs_kol_seeded3',1);return n;}
+if(!store.get('hs_kol_seeded3',0))seedKOL();
+let KACT=store.get('hs_kact',{});            // wallet -> {t: checked ms, last: blockTime s}
+let ACTIVE_DAYS=store.get('hs_actdays',7);
+const kolActive=w=>{const a=KACT[w];return!a||a.last==null?null:(Date.now()/1000-a.last)<ACTIVE_DAYS*86400;};
+const kolOK=w=>kolActive(w)!==false;   // unchecked counts as OK until checked
+let actRunning=false;
+async function checkKolActivity(force){
+  if(actRunning||!KEY)return;actRunning=true;
+  const ws=Object.keys(KOL).filter(w=>force||!KACT[w]||Date.now()-KACT[w].t>12*3600e3);
+  await pool(ws,4,async w=>{try{const r=await rpc('getSignaturesForAddress',[w,{limit:1}]);KACT[w]={t:Date.now(),last:r&&r[0]?r[0].blockTime:0};}catch(e){}});
+  store.set('hs_kact',KACT);actRunning=false;if(TAB==='kol')renderList();
+}
+const kolAv=(w,cls)=>{const h=KOLX[w],ini=esc((KOL[w]||'?').replace(/[^A-Za-z0-9]/g,'').slice(0,2).toUpperCase()||'K');return `<div class="${cls}">${h?`<img src="https://unavatar.io/x/${encodeURIComponent(h)}?fallback=false" loading="lazy" alt="" onerror="this.outerHTML='${ini}'">`:ini}</div>`;};
 const kolX=w=>KOLX[w]?'https://x.com/'+encodeURIComponent(KOLX[w]):'https://x.com/search?q='+encodeURIComponent(KOL[w]||w);
 const kolLink=w=>`<a href="${kolX(w)}" target="_blank" rel="noopener" style="color:var(--acc);text-decoration:none">${esc(KOL[w]||short(w))}${KOLX[w]?' <span class="note">@'+esc(KOLX[w])+'</span>':''}</a>`;            // wallet -> {t,src,wr,closed}
 let WCACHE=store.get('hs_wc',{});              // wallet -> {t,p}
@@ -407,7 +453,7 @@ function derive(t){
   t.gradAt=t.stage==='mig'?(p.pairCreatedAt||null):null;
   t.socials=p.info?.socials||[];t.sites=p.info?.websites||[];
   if(!t.snap)t.snap=[];const ln=t.snap[t.snap.length-1];if(!ln||Date.now()-ln.t>50e3){t.snap.push({t:Date.now(),m5:t.vol.m5});if(t.snap.length>40)t.snap.shift();}
-  t.fees24=t.act.feeN>=1?(t.act.fee/t.act.feeN)/1e9*(t.buys.h24+t.sells.h24):null;
+  if(t.feeAvg!=null)t.fees24=t.feeAvg*(t.buys.h24+t.sells.h24);else t.fees24=t.act.feeN>=5?(t.act.fee/t.act.feeN)/1e9*(t.buys.h24+t.sells.h24):null;
   t.twitter=(t.socials||[]).find(x=>/twitter|^x$/i.test(x.type||'')||/x\.com|twitter\.com/.test(x.url||''))?.url||null;
   t.spike=t.vol.h1>0?(t.vol.m5*12)/t.vol.h1:(t.vol.m5>0?3:0);
   t.br=t.buys.h1/(t.sells.h1+1);
@@ -456,6 +502,10 @@ async function loadHM(t){
     const launch=curvePair.length?Math.min(...curvePair)/1000:(t.stage==='curve'&&t.created?t.created/1000:null);
     const insider=launch?people.filter(h=>h.time&&h.time-launch<=15).reduce((a,h)=>a+h.pct,0):null;
     const fresh=people.filter(h=>h.fresh).reduce((a,h)=>a+h.pct,0);
+    // fee sample from the token's own recent trades: network + priority + Jito tips per trade
+    try{const tx=await txRecent(t.mint,100);const trades=(Array.isArray(tx)?tx:[]).filter(x=>!x.transactionError&&(x.tokenTransfers||[]).some(y=>y.mint===t.mint));
+      if(trades.length>=5){const tot=trades.reduce((a,x)=>a+(x.fee||0)+(x.nativeTransfers||[]).filter(n=>JITO.has(n.toUserAccount)).reduce((b,n)=>b+(n.amount||0),0),0);
+        t.feeAvg=tot/trades.length/1e9;t.fees24=t.feeAvg*(t.buys.h24+t.sells.h24);}}catch(e){}
     let holders=null;
     try{let n=0,page=1,more=true;while(more&&page<=5){const r=await das('getTokenAccounts',{mint:t.mint,page,limit:1000});const ac=r?.token_accounts||[];n+=ac.filter(a=>+a.amount>0).length;more=ac.length===1000;page++;}holders={n,more};}catch(e){}
     t.hm={top10:people.reduce((a,h)=>a+h.pct,0),bundle,insider,fresh,holders,kols:people.filter(h=>KOL[h.owner]).map(h=>h.owner)};t.top10=t.hm.top10;
@@ -501,7 +551,7 @@ function addTrade(tx,w){
 function saveKTR(){const cut=Date.now()/1000-86400;KTR=KTR.filter(x=>x.ts>cut&&KOL[x.w]).sort((a,b)=>b.ts-a.ts).slice(0,800);store.set('hs_ktr',KTR);}
 async function txRecent(addr,limit){return enhGet('/v0/addresses/'+addr+'/transactions?api-key='+encodeURIComponent(KEY)+'&limit='+limit);}
 async function kolPoll(n,onStep){
-  const ws=Object.keys(KOL);if(!ws.length)return 0;
+  const ws=Object.keys(KOL).filter(kolOK);if(!ws.length)return 0;
   const batch=[];for(let i=0;i<Math.min(n,ws.length);i++)batch.push(ws[(kolCursor+i)%ws.length]);
   kolCursor=(kolCursor+batch.length)%ws.length;store.set('hs_kcur',kolCursor);
   let added=0,done=0;
@@ -510,7 +560,7 @@ async function kolPoll(n,onStep){
 }
 async function kolScanAll(){
   if(kolScanning)return;kolScanning=true;stopScan=false;
-  const total=Object.keys(KOL).length;let done=0;
+  const total=Object.keys(KOL).filter(kolOK).length;let done=0;
   const step=LIMITS[PLAN].par*5;
   try{while(done<total&&!stopScan){const n=Math.min(step,total-done);await kolPoll(n,(d)=>{$('cnt').textContent=`scanning KOLs ${Math.min(total,done+d)}/${total}`;});done+=n;
     await loadMarket();renderList();}}
@@ -522,7 +572,7 @@ const KOL_PRESETS=[['all','All trades',{side:'all',sol:[null,null],minKols:1,mod
 function kolTradesFiltered(){
   const f=FILT.kol,now=Date.now()/1000;
   return KTR.filter(x=>{
-    if(!KOL[x.w])return false;
+    if(!KOL[x.w]||!kolOK(x.w))return false;
     if(now-x.ts>f.win*60)return false;
     if(f.side!=='all'&&x.side!==f.side)return false;
     if(!inR(x.sol,f.sol))return false;
@@ -552,24 +602,58 @@ function renderKol(){
   const f=FILT.kol,tr=kolTradesFiltered(),nK=Object.keys(KOL).length;
   $('c-kol').textContent=tr.length||'';
   let h=`<div class="kbar"><div class="seg2" id="kMode"><button data-v="trades" class="${f.mode==='trades'?'on':''}">Trades</button><button data-v="tokens" class="${f.mode==='tokens'?'on':''}">Tokens</button></div>
-   <button class="fbtn" id="kScan">${kolScanning?'⏹ Stop scan':'⟳ Scan all '+nK+' KOLs'}</button></div>`;
+   <button class="fbtn" id="kScan">${kolScanning?'⏹ Stop':'⟳ Scan '+Object.keys(KOL).filter(kolOK).length+' active'}</button><button class="fbtn" id="kAddW">＋ Add wallet</button><button class="fbtn" id="kMan">👑 Manage (${nK})</button></div>`;
   if(!nK){$('list').innerHTML=h+'<div class="empty">No KOLs saved. Add them in ⚙︎ Settings → KOL wallets.</div>';wireKol();return;}
   if(!tr.length){h+=`<div class="empty">No KOL trades match yet.<br><br>Tap <b>Scan all KOLs</b> to load recent trades (takes ~${Math.round(nK/LIMITS[PLAN].enh/60)+1} min on your plan). New trades also arrive with every refresh.</div>`;$('list').innerHTML=h;wireKol();return;}
   if(f.mode==='trades'){
-    h+=tr.slice(0,120).map(x=>`<div class="kt" data-m="${x.m}"><div class="kav">${kolIni(x.w)}</div>
-     <div class="mid"><div class="nm"><a href="${kolX(x.w)}" target="_blank" rel="noopener" style="color:var(--txt);text-decoration:none"><b>${esc(KOL[x.w])}</b></a><span class="side ${x.side}">${x.side.toUpperCase()}</span><b class="${x.side==='buy'?'up':'dn'}">◎${num(x.sol,x.sol<1?2:1)}</b></div>
+    h+=tr.slice(0,120).map(x=>`<div class="kt" data-m="${x.m}">${kolAv(x.w,'kav')}
+     <div class="mid"><div class="nm"><a href="${kolX(x.w)}" target="_blank" rel="noopener" style="color:var(--txt);text-decoration:none"><b>${esc(KOL[x.w])}</b></a><span class="side ${x.side}">${x.side.toUpperCase()}</span><b class="${x.side==='buy'?'up':'dn'}">${SOLI}${num(x.sol,x.sol<1?2:1)}</b></div>
      <div class="sub">${KOLX[x.w]?'@'+esc(KOLX[x.w])+' · ':''}${ago(x.ts)}</div></div>${tokMini(x.m)}</div>`).join('');
   }else{
     const gs=kolTokens(tr);
     h+=gs.length?gs.slice(0,60).map(g=>{const t=TOK.get(g.m);return `<div class="tc" data-m="${g.m}">${t&&t.pair?`<div class="r1">${avatar(t)}<div class="mid"><div class="nm"><b>${esc(t.sym)}</b><span class="full">${esc(t.name)}</span></div><div class="sub"><span class="age">${dur(t.created?(Date.now()-t.created)/1000:null)}</span>·<span>${short(g.m)}</span><button class="cp" data-cp="${g.m}">⧉</button></div></div><div class="rt"><div class="mc">MC <b>${usd(t.mc)}</b></div><div class="chg ${(t.chg.h1||0)>=0?'up':'dn'}">${pct(t.chg.h1)} <span style="color:var(--mut);font-weight:500">1h</span></div></div></div>`:`<b>${short(g.m)}</b>`}
-      <div class="r3"><span class="bd sp">👑 ${g.buyers.size} bought</span>${g.sellers.size?`<span class="bd bad">${g.sellers.size} sold</span>`:''}<span class="bd ok">◎${num(g.bin,1)} in</span>${g.sout?`<span class="bd bad">◎${num(g.sout,1)} out</span>`:''}<span class="bd">last ${ago(g.last)}</span></div>
+      <div class="r3"><span class="bd sp">👑 ${g.buyers.size} bought</span>${g.sellers.size?`<span class="bd bad">${g.sellers.size} sold</span>`:''}<span class="bd ok">${SOLI}${num(g.bin,1)} in</span>${g.sout?`<span class="bd bad">${SOLI}${num(g.sout,1)} out</span>`:''}<span class="bd">last ${ago(g.last)}</span></div>
       <div class="r3">${[...g.buyers].slice(0,8).map(w=>`<span class="bd">${esc(KOL[w])}</span>`).join('')}</div></div>`;}).join(''):'<div class="empty">No token reaches the minimum KOL count in this window.</div>';
   }
   $('list').innerHTML=h;wireKol();
 }
 function wireKol(){
   const m=$('kMode');if(m)m.querySelectorAll('button').forEach(b=>b.onclick=()=>{FILT.kol.mode=b.dataset.v;saveFilt();renderKol();});
+  const a=$('kAddW');if(a)a.onclick=addWalletSheet;const mg=$('kMan');if(mg)mg.onclick=()=>manageSheet('');
   const s=$('kScan');if(s)s.onclick=()=>{if(kolScanning){stopScan=true;}else kolScanAll();renderKol();};
+}
+function addWalletSheet(){
+  openSheet(`<h3>Add wallet to track</h3>
+  <div class="fl">Wallet address</div><input id="awA" placeholder="Solana wallet address" autocomplete="off">
+  <div class="fl">Name</div><input id="awN" placeholder="e.g. Ansem">
+  <div class="fl">X handle (optional)</div><input id="awX" placeholder="@handle">
+  <div class="fl">Track as</div><div class="chipsel" id="awT"><button data-v="kol" class="on">👑 KOL</button><button data-v="smart">🧠 Smart wallet</button><button data-v="both">Both</button></div>
+  <button class="btn" id="awGo">Add wallet</button>
+  <div class="note" style="margin-top:10px">KOL wallets appear in this feed with name and avatar. Smart wallets power the 🧠 smart-money badges and filters.</div>`);
+  $('awT').querySelectorAll('button').forEach(b=>b.onclick=()=>{$('awT').querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');});
+  $('awGo').onclick=async()=>{const w=$('awA').value.trim(),n=$('awN').value.trim(),x=$('awX').value.trim().replace(/^@/,''),ty=$('awT').querySelector('.on').dataset.v;
+    if(w.length<32||w.length>44){toast('Invalid wallet address');return;}
+    if(ty!=='smart'){KOL[w]=n||short(w);if(x)KOLX[w]=x;store.set('hs_kol',KOL);store.set('hs_kolx',KOLX);}
+    if(ty!=='kol'){SMART[w]={t:Date.now(),src:'manual'};store.set('hs_smart',SMART);}
+    closeSheet();toast('Wallet added');try{const r=await rpc('getSignaturesForAddress',[w,{limit:1}]);KACT[w]={t:Date.now(),last:r&&r[0]?r[0].blockTime:0};store.set('hs_kact',KACT);}catch(e){}
+    if(ty!=='smart'){try{const txs=await txRecent(w,25);(Array.isArray(txs)?txs:[]).forEach(tx=>addTrade(tx,w));saveKTR();await loadMarket();}catch(e){}}renderList();};
+}
+function manageSheet(q){
+  const all=Object.keys(KOL),act=all.filter(w=>kolActive(w)===true).length,inact=all.filter(w=>kolActive(w)===false).length;
+  const list=all.filter(w=>!q||(KOL[w]+' '+(KOLX[w]||'')+' '+w).toLowerCase().includes(q.toLowerCase()))
+    .sort((a,b)=>((KACT[b]?.last||0)-(KACT[a]?.last||0)));
+  openSheet(`<h3>KOL wallets</h3>
+  <div class="note">${all.length} saved · <b style="color:var(--good)">${act} active</b> · ${inact} inactive (no trade in ${ACTIVE_DAYS} days, hidden from the feed) · ${all.length-act-inact} not checked yet</div>
+  <div class="g2" style="margin-top:10px"><input id="mQ" placeholder="Search name or @handle" value="${esc(q)}"><select id="mDays">${[3,7,14,30].map(d=>`<option value="${d}" ${ACTIVE_DAYS===d?'selected':''}>Active = traded in ${d}d</option>`).join('')}</select></div>
+  <div style="display:flex;gap:8px"><button class="btn gh" id="mCheck" style="margin-top:10px">${actRunning?'Checking…':'⟳ Check activity'}</button><button class="btn gh" id="mPrune" style="margin-top:10px">Remove inactive</button></div>
+  <div style="margin-top:10px;max-height:52vh;overflow:auto">${list.slice(0,300).map(w=>{const a=kolActive(w),l=KACT[w]?.last;return `<div class="wl"><div class="wl-l">${kolAv(w,'wav')}<div style="min-width:0">${kolLink(w)}<div class="note">${short(w)}${l?' · last trade '+ago(l):''}</div></div></div><span class="stt ${a?'on':'off'}">${a===true?'active':a===false?'inactive':'—'}</span><button data-mrm="${w}">✕</button></div>`;}).join('')||'<div class="note">No match.</div>'}</div>
+  <button class="btn" id="mAdd">＋ Add wallet</button>`);
+  $('mQ').oninput=e=>{clearTimeout(manageSheet.t);manageSheet.t=setTimeout(()=>{manageSheet(e.target.value);const el=$('mQ');el.focus();el.setSelectionRange(el.value.length,el.value.length);},300);};
+  $('mDays').onchange=e=>{ACTIVE_DAYS=+e.target.value;store.set('hs_actdays',ACTIVE_DAYS);manageSheet(q);renderList();};
+  $('mCheck').onclick=async()=>{toast('Checking '+all.length+' wallets…');await checkKolActivity(true);manageSheet(q);};
+  $('mPrune').onclick=()=>{let n=0;all.forEach(w=>{if(kolActive(w)===false){delete KOL[w];delete KOLX[w];n++;}});store.set('hs_kol',KOL);store.set('hs_kolx',KOLX);toast(n+' inactive removed');manageSheet(q);renderList();};
+  $('sheet').querySelectorAll('[data-mrm]').forEach(b=>b.onclick=()=>{delete KOL[b.dataset.mrm];delete KOLX[b.dataset.mrm];store.set('hs_kol',KOL);store.set('hs_kolx',KOLX);manageSheet(q);});
+  $('mAdd').onclick=addWalletSheet;
 }
 function kolFilterSheet(){
   DRAFT=JSON.parse(JSON.stringify(FILT.kol));
@@ -604,9 +688,10 @@ async function refresh(manual){
     if(Object.keys(KOL).length&&!kolScanning)await kolPoll(TAB==='kol'?LIMITS[PLAN].par*5:LIMITS[PLAN].par*2);
     KTR.forEach(x=>{const t=tok(x.m);if(!t.seen)t.seen=Date.now();});
     await loadMarket();await loadAuth();
-    lastRefresh=Date.now();setLive(SET.auto?'on':'','live · '+new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}));
+    lastRefresh=Date.now();setLive(SET.auto?'on':'',new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',hour12:false}));
     renderList();
     queueTop10();
+    if(!actRunning&&Object.keys(KOL).some(w=>!KACT[w]||Date.now()-KACT[w].t>12*3600e3))setTimeout(()=>checkKolActivity(),3000);
   }catch(e){setLive('',e.message);if(/API key/.test(e.message))toast('Check your Helius key in settings');renderList();}
   busy=false;
 }
@@ -642,7 +727,6 @@ function passBase(t,f,now){
   if(rOn(r.grad)&&!inR(t.gradAt?(now-t.gradAt)/60000:null,r.grad))return false;
   if(!inR(t.mc/1000,r.mc))return false;
   if(rOn(r.liq)&&t.stage==='mig'&&!inR(t.liq/1000,r.liq))return false;
-  if(!inR(t.fees24,r.fees))return false;
   if(!inR(t.act.sm.size,r.smart))return false;
   if(!inR(t.auth?t.auth.tax:null,r.tax))return false;
   if(!inR(kolCount(t),r.kols))return false;
@@ -662,6 +746,7 @@ function passHolder(t,f){
   if(!inR(h.bundle,r.bundle))return false;
   if(!inR(h.insider,r.snipers))return false;
   if(!inR(h.fresh,r.fresh))return false;
+  if(!inR(t.feeAvg!=null?t.fees24:null,r.fees))return false;
   return true;
 }
 function sortKey(f,tab){
@@ -677,7 +762,7 @@ function activeCount(tab){const f=FILT[tab],b=presetF(tab,f.preset==='custom'?PR
   for(const k of Object.keys(RANGE_DEF)){const a=f.r?.[k]||[null,null],c=b.r[k]||[null,null];if(a[0]!=c[0]||a[1]!=c[1])n++;}
   if(f.risk!==b.risk)n++;n+=Object.values(f.soc||{}).filter(Boolean).length;if(f.lp.length!==b.lp.length)n++;return n;}
 // ================= rendering =================
-function avatar(t){const ini=esc((t.sym||'?').replace('$','').slice(0,2).toUpperCase());return `<div class="av">${t.img?`<img src="${esc(t.img)}" loading="lazy" onerror="this.outerHTML='<div class=ini>${ini}</div>'">`:`<div class="ini">${ini}</div>`}<span class="lp lp-${t.lp}">${LPS[t.lp]}</span></div>`;}
+function avatar(t){const ini=esc((t.sym||'?').replace('$','').slice(0,2).toUpperCase());return `<div class="av">${t.img?`<img src="${esc(t.img)}" loading="lazy" onerror="this.outerHTML='<div class=ini>${ini}</div>'">`:`<div class="ini">${ini}</div>`}<span class="lp lp-${t.lp}${LP_DOM[t.lp]?' im':''}">${LP_DOM[t.lp]?`<img src="${fav(LP_DOM[t.lp])}" alt="${LPS[t.lp]}" onerror="this.outerHTML='${LPS[t.lp]}'">`:LPS[t.lp]}</span></div>`;}
 function badges(t){
   const b=[];
   if(t.act.sm.size)b.push(`<span class="bd sm">🧠 ${t.act.sm.size} smart</span>`);
@@ -701,7 +786,7 @@ function cardHTML(t){
     <div class="sub"><span class="age">${dur(ageS)}</span>·<span>${short(t.mint)}</span><button class="cp" data-cp="${t.mint}">⧉</button><a class="xb ${t.twitter?'on':''}" href="${esc(xUrl(t))}" target="_blank" rel="noopener">𝕏</a>${t.stage==='mig'?'<span>🎓</span>':''}</div></div>
    <div class="rt"><div class="mc">MC <b>${usd(t.mc)}</b></div><div class="chg ${ch>=0?'up':'dn'}">${pct(ch)} <span style="color:var(--mut);font-weight:500">${chL}</span></div></div>
   </div>
-  <div class="r2"><span>V${tfLabel(f.tf)}${TF_EXACT.has(f.tf)?'':'~'} <b>${usd(volTF(t,f.tf))}</b></span>${f.tf!=='h1'?`<span>V1h <b>${usd(t.vol.h1)}</b></span>`:`<span>V5m <b>${usd(t.vol.m5)}</b></span>`}${t.hm?.holders?`<span>Holders <b>${num(t.hm.holders.n,0)}${t.hm.holders.more?'+':''}</b></span>`:''}${t.fees24!=null?`<span>Fees <b>◎${num(t.fees24,t.fees24<10?2:0)}</b></span>`:''}${t.stage==='mig'?`<span>Liq <b>${usd(t.liq)}</b></span>`:''}<span>TX${{m5:'5m',h1:'1h',h6:'6h',h24:'24h'}[tk]} <b>${num(tot,0)}</b></span>${chL!=='5m'?`<span>5m <b class="${(t.chg.m5||0)>=0?'up':'dn'}">${pct(t.chg.m5)}</b></span>`:''}</div>
+  <div class="r2"><span>V${tfLabel(f.tf)}${TF_EXACT.has(f.tf)?'':'~'} <b>${usd(volTF(t,f.tf))}</b></span>${f.tf!=='h1'?`<span>V1h <b>${usd(t.vol.h1)}</b></span>`:`<span>V5m <b>${usd(t.vol.m5)}</b></span>`}${t.hm?.holders?`<span>Holders <b>${num(t.hm.holders.n,0)}${t.hm.holders.more?'+':''}</b></span>`:''}${t.feeAvg!=null?`<span>Fees <b>${SOLI}${num(t.fees24,t.fees24<10?2:1)}</b></span>`:''}${t.stage==='mig'?`<span>Liq <b>${usd(t.liq)}</b></span>`:''}<span>TX${{m5:'5m',h1:'1h',h6:'6h',h24:'24h'}[tk]} <b>${num(tot,0)}</b></span>${chL!=='5m'?`<span>5m <b class="${(t.chg.m5||0)>=0?'up':'dn'}">${pct(t.chg.m5)}</b></span>`:''}</div>
   <div class="r3">${badges(t)}</div>
   <div class="bs"><i style="width:${bp}%"></i></div></div>`;
 }
@@ -754,12 +839,12 @@ function drawFilter(){
   if(FTAB==='lp'){
     const all=ALL_LP.every(v=>DRAFT.lp.includes(v));
     body=`<div class="rowh"><b>Select platform</b><label class="ck2"><input type="checkbox" id="lpAll" ${all?'checked':''}> Select all</label></div>
-    <div class="lpg">${ALL_LP.map(v=>`<button class="lpb ${DRAFT.lp.includes(v)?'on':''}" data-lp="${v}"><span class="lp lp-${v}" style="position:static;border:0">${LPS[v]}</span>${LP_LABEL[v]}</button>`).join('')}</div>
+    <div class="lpg">${ALL_LP.map(v=>`<button class="lpb ${DRAFT.lp.includes(v)?'on':''}" data-lp="${v}"><span class="lp lp-${v}" style="position:static;border:0;display:inline-flex;width:20px;height:20px;align-items:center;justify-content:center;background:var(--card)">${LP_DOM[v]?`<img src="${fav(LP_DOM[v])}" style="width:16px;height:16px;border-radius:4px" onerror="this.outerHTML='${LPS[v]}'">`:LPS[v]}</span>${LP_LABEL[v]}</button>`).join('')}</div>
     ${TAB==='trend'?`<div class="rl" style="margin-top:18px">Stage</div><div class="chipsel" id="stSel">${[['all','All'],['curve','Bonding curve'],['mig','Graduated']].map(([v,l])=>`<button data-v="${v}" class="${DRAFT.stage===v?'on':''}">${l}</button>`).join('')}</div>`:''}
     <div class="note" style="margin-top:14px">Detected by token address ending (pump, bonk, BAGS) or by the trading venue (LaunchLab, Meteora DBC). Stonk.fun runs on Raydium LaunchLab.</div>`;
   }else if(FTAB==='basic'){
     body=`<div class="sw"><span>Hide mint / freeze authority ON</span><input type="checkbox" id="fRisk" ${DRAFT.risk?'checked':''}></div>`+keys('basic').map(rangeRow).join('')+
-    `<div class="note" style="margin-top:6px">Holder checks run in the background on the top cards. Bundler = top holders who got tokens in the same block. Snipers = top holders in within 15s of launch. Fresh = wallets under 3 days old. Fees = network + priority + Jito tips (estimated). Smart money = wallets from your smart list seen trading it. KOLs = wallets from your KOL list (Settings) trading or holding it. Tax = Token-2022 transfer fee.</div>`;
+    `<div class="note" style="margin-top:6px">Holder checks run in the background on the top cards. Bundler = top holders who got tokens in the same block. Snipers = top holders in within 15s of launch. Fresh = wallets under 3 days old. Fees = network + priority + Jito tips per trade, measured from the token's last 100 trades × 24h trade count. Smart money = wallets from your smart list seen trading it. KOLs = wallets from your KOL list (Settings) trading or holding it. Tax = Token-2022 transfer fee.</div>`;
   }else if(FTAB==='trade'){
     body=`<div class="rl">Timeframe</div><div class="chipsel" id="tfSel">${TFS.map(([k,l])=>`<button data-v="${k}" class="${DRAFT.tf===k?'on':''}">${l}${TF_EXACT.has(k)?'':'~'}</button>`).join('')}</div>`+keys('trade').map(rangeRow).join('')+
     `<div class="note" style="margin-top:6px">Volume, TXs, buys, sells, ratio and price change use the timeframe above. ~ = estimated (DexScreener only gives 5m, 1h, 6h and 24h). Volume spike = last 5 min vs 1-hour average.</div>`;
@@ -927,12 +1012,12 @@ async function openDetail(mint){
    <div class="sg" style="margin-top:10px">${st('5m',pct(t.chg.m5),cls(t.chg.m5))}${st('1h',pct(t.chg.h1),cls(t.chg.h1))}${st('24h',pct(t.chg.h24),cls(t.chg.h24))}
    ${st('Vol 5m',usd(t.vol.m5))}${st('Vol 1h',usd(t.vol.h1))}${st('Vol 24h',usd(t.vol.h24))}
    ${st('Buys 1h',num(t.buys.h1,0),'up')}${st('Sells 1h',num(t.sells.h1,0),'dn')}${st(t.stage==='mig'?'Liquidity':'Traders seen',t.stage==='mig'?usd(t.liq):num(t.act.w.size,0))}
-   ${t.hm?st('Holders',t.hm.holders?num(t.hm.holders.n,0)+(t.hm.holders.more?'+':''):'—')+st('Bundle',num(t.hm.bundle,1)+'%',t.hm.bundle>15?'dn':'')+st('Insiders',t.hm.insider!=null?num(t.hm.insider,1)+'%':'—',t.hm.insider>15?'dn':'')+st('Fresh wallets',num(t.hm.fresh,1)+'%',t.hm.fresh>25?'dn':''):''}${st('Fees 24h',t.fees24!=null?'◎'+num(t.fees24,2):'—')}${st('Tax',t.auth?num(t.auth.tax,2)+'%':'—',t.auth?.tax>0?'dn':'up')}${st('KOLs',kolCount(t),kolCount(t)?'up':'')}${st('Vol spike',num(t.spike,1)+'x',t.spike>=2?'up':'')}${st('Buy/Sell',num(t.br,2),t.br>=1?'up':'dn')}${st('Smart seen',t.act.sm.size,t.act.sm.size?'up':'')}</div>
+   ${t.hm?st('Holders',t.hm.holders?num(t.hm.holders.n,0)+(t.hm.holders.more?'+':''):'—')+st('Bundle',num(t.hm.bundle,1)+'%',t.hm.bundle>15?'dn':'')+st('Insiders',t.hm.insider!=null?num(t.hm.insider,1)+'%':'—',t.hm.insider>15?'dn':'')+st('Fresh wallets',num(t.hm.fresh,1)+'%',t.hm.fresh>25?'dn':''):''}${st('Fees 24h (est.)',t.feeAvg!=null?'◎'+num(t.fees24,2):'checking…')}${st('Avg fee / trade',t.feeAvg!=null?'◎'+num(t.feeAvg,5):'—')}${st('Tax',t.auth?num(t.auth.tax,2)+'%':'—',t.auth?.tax>0?'dn':'up')}${st('KOLs',kolCount(t),kolCount(t)?'up':'')}${st('Vol spike',num(t.spike,1)+'x',t.spike>=2?'up':'')}${st('Buy/Sell',num(t.br,2),t.br>=1?'up':'dn')}${st('Smart seen',t.act.sm.size,t.act.sm.size?'up':'')}</div>
    <div style="display:flex;gap:6px;margin-top:10px;align-items:center"><div class="mono" style="flex:1;font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--mut);word-break:break-all">${t.mint}</div><button class="star" id="dCopy">Copy</button></div>
    <div class="links" style="margin-top:10px">${p?.url?`<a href="${esc(p.url)}">Chart</a>`:''}<a href="https://gmgn.ai/sol/token/${t.mint}">GMGN</a>${t.twitter?`<a href="${esc(t.twitter)}">𝕏 Profile</a>`:''}<a href="https://x.com/search?q=${encodeURIComponent(t.mint)}&f=live">𝕏 CA search</a><a href="https://solscan.io/token/${t.mint}">Solscan</a>${t.lp==='pump'?`<a href="https://pump.fun/coin/${t.mint}">Pump</a>`:''}</div>
    ${soc.length?`<div class="links" style="margin-top:8px">${soc.map(([l,u])=>`<a href="${esc(u)}">${esc(l)}</a>`).join('')}</div>`:''}
   </div>
-  ${kolCount(t)?`<div class="sec"><h4>👑 KOLs trading / holding</h4>${[...new Set([...t.act.kol,...(t.hm?.kols||[])])].map(w=>`<div class="wl">${kolLink(w)}<span class="note">${t.act.kol.has(w)?'traded recently':''}${t.act.kol.has(w)&&(t.hm?.kols||[]).includes(w)?' · ':''}${(t.hm?.kols||[]).includes(w)?'top holder':''}</span></div>`).join('')}</div>`:''}
+  ${kolCount(t)?`<div class="sec"><h4>👑 KOLs trading / holding</h4>${[...new Set([...t.act.kol,...(t.hm?.kols||[])])].map(w=>`<div class="wl"><div class="wl-l">${kolAv(w,'wav')}${kolLink(w)}</div><span class="note">${t.act.kol.has(w)?'traded recently':''}${t.act.kol.has(w)&&(t.hm?.kols||[]).includes(w)?' · ':''}${(t.hm?.kols||[]).includes(w)?'top holder':''}</span></div>`).join('')}</div>`:''}
   ${t.act.sm.size?`<div class="sec"><h4>🧠 Smart wallets trading it</h4>${[...t.act.sm].map(w=>`<div class="wl"><a href="https://solscan.io/account/${w}" style="color:var(--acc);text-decoration:none">${short(w)}</a><span class="note">${SMART[w]?.wr!=null?Math.round(SMART[w].wr)+'% WR':SMART[w]?.src==='manual'?'your list':''}</span></div>`).join('')}</div>`:''}
   <div class="sec" id="hSec"><h4>Holder analysis <span class="note" id="hTxt">starting…</span></h4><div class="prog"><i id="hFill"></i></div></div>
   <div class="note" style="padding:0 14px">On-chain behaviour, not a promise. Smart-looking wallets can be insiders. Never risk more than you can afford to lose.</div>`;
@@ -966,6 +1051,12 @@ function holderHTML(h){
   ${a?`<div class="hm"><div>Win rate<b class="${wr}">${a.wr==null?'—':Math.round(a.wr)+'%'}</b></div><div>Trades<b>${a.closed}</b></div><div>PnL<b class="${a.pnl>=0?'up':'dn'}">${num(a.pnl,1)} SOL</b></div><div>Tokens<b>${a.tokens}</b></div><div>Hold<b>${dur(a.medHold)}</b></div><div>Entry<b>${h.entry!=null?dur(h.entry):'—'}</b></div></div>`:''}</div>`;
 }
 window.addEventListener('popstate',()=>{if(!$('vDetail').classList.contains('hide')){stopScan=true;$('vDetail').classList.add('hide');}else if(!$('sheet').classList.contains('hide'))closeSheet();});
+
+// ================= theme =================
+function applyTheme(th){document.documentElement.dataset.theme=th;$('themeBtn').textContent=th==='light'?'🌙':'☀️';document.querySelector('meta[name=theme-color]').setAttribute('content',th==='light'?'#f4f6fb':'#090b10');}
+let THEME=store.get('hs_theme',null)||(window.matchMedia&&matchMedia('(prefers-color-scheme: light)').matches?'light':'dark');
+applyTheme(THEME);
+$('themeBtn').onclick=()=>{THEME=THEME==='light'?'dark':'light';store.set('hs_theme',THEME);applyTheme(THEME);};
 
 // ================= wiring =================
 $('tabs').onclick=e=>{const b=e.target.closest('button');if(!b)return;TAB=b.dataset.t;store.set('hs_tab',TAB);renderControls();renderList();queueTop10();window.scrollTo(0,0);};
