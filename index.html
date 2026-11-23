@@ -183,8 +183,12 @@ html{transition:background .2s}
 .bs{height:4px}
 .kav{overflow:hidden}.kav img{width:100%;height:100%;object-fit:cover}
 .kbar{flex-wrap:wrap}
-.wl .wav{width:26px;height:26px;border-radius:50%;overflow:hidden;background:var(--kav);display:grid;place-items:center;font-size:10px;font-weight:800;color:var(--gold);margin-right:8px;flex:0 0 26px}
-.wl .wav img{width:100%;height:100%;object-fit:cover}
+.pch{font-size:11px;font-weight:700;padding:2px 7px;border-radius:6px;white-space:nowrap}
+.pch.hold{background:rgba(34,197,94,.14);color:var(--good)}.pch.part{background:rgba(245,158,11,.14);color:var(--warn)}.pch.sold{background:rgba(244,63,94,.13);color:var(--bad)}
+.kpl{margin-top:8px;border-top:1px solid var(--line);padding-top:6px}
+.kpr{display:flex;align-items:center;gap:6px;padding:4px 0;font-size:13px}.kpr .wav{width:22px;height:22px;flex:0 0 22px;margin-right:2px}
+.wav,.wl .wav{width:26px;height:26px;border-radius:50%;overflow:hidden;background:var(--kav);display:grid;place-items:center;font-size:10px;font-weight:800;color:var(--gold);margin-right:8px;flex:0 0 26px}
+.wav img,.wl .wav img{width:100%;height:100%;object-fit:cover}
 .wl .wl-l{display:flex;align-items:center;min-width:0;flex:1}
 .stt{font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;margin-left:6px}
 .stt.on{background:rgba(34,197,94,.14);color:var(--good)}.stt.off{background:var(--chip);color:var(--mut)}
@@ -282,7 +286,7 @@ const LPS={pump:'PF',bonk:'BK',bags:'BG',launchlab:'LL',dbc:'DB',other:'?'};
 // Range units: money in K$ (mc, liq, vol), age & grad in minutes, % for holder metrics, SOL for fees.
 const RANGE_DEF={
   age:{l:'Age',u:'m',g:'basic'},grad:{l:'Time since graduation',u:'m',g:'basic',tabs:['trend','mig']},
-  mc:{l:'Market cap',u:'K',g:'basic'},liq:{l:'Liquidity',u:'K',g:'basic',tabs:['trend','mig']},
+  mc:{l:'Market cap',u:'K',g:'basic'},liq:{l:'Liquidity (migrated tokens only)',u:'K',g:'basic',tabs:['trend','mig']},
   top10:{l:'Top 10 holding',u:'%',g:'basic',h:1},holders:{l:'Total holders',u:'',g:'basic',h:1},
   bundle:{l:'Bundler',u:'%',g:'basic',h:1},snipers:{l:'Snipers hold',u:'%',g:'basic',h:1},fresh:{l:'Fresh wallets',u:'%',g:'basic',h:1},
   fees:{l:'Total fees (24h)',u:'SOL',g:'basic',h:1},tax:{l:'Total tax %',u:'%',g:'basic'},smart:{l:'Smart money',u:'',g:'basic'},kols:{l:'KOLs',u:'',g:'basic'},
@@ -398,7 +402,7 @@ function tok(m){let t=TOK.get(m);if(!t){t={mint:m,seen:0,snap:[],act:{n:0,w:new 
 async function discover(){
   const pages=LIMITS[PLAN].pages,now=Date.now();
   // decay activity
-  TOK.forEach(t=>{t.act.n=Math.floor(t.act.n*0.5);t.act.fee*=0.5;t.act.feeN*=0.5;if(t.act.w.size>200)t.act.w=new Set([...t.act.w].slice(-100));});
+  TOK.forEach(t=>{t.act.n=Math.floor(t.act.n*0.5);t.act.fee*=0.5;t.act.feeN*=0.5;if(t.act.w.size>200)t.act.w=new Set([...t.act.w].slice(-100));if(now-t.seen>10*60e3){t.act.w=new Set();t.act.sm=new Set();}});
   const sampleProg=async addr=>{
     try{const h=await txHistory(addr,pages);
       h.txs.forEach(tx=>{const seen=new Set();const fee=(tx.fee||0)+(tx.nativeTransfers||[]).filter(n=>JITO.has(n.toUserAccount)).reduce((a,n)=>a+(n.amount||0),0);(tx.tokenTransfers||[]).forEach(x=>{if(!x.mint||SKIP.has(x.mint)||seen.has(x.mint))return;seen.add(x.mint);const t=tok(x.mint);t.seen=now;t.act.n++;t.act.fee+=fee;t.act.feeN++;if(tx.feePayer){t.act.w.add(tx.feePayer);if(SMART[tx.feePayer])t.act.sm.add(tx.feePayer);if(KOL[tx.feePayer])t.act.kol.add(tx.feePayer);}});if(tx.feePayer&&KOL[tx.feePayer])addTrade(tx,tx.feePayer);});
@@ -435,6 +439,7 @@ function readExt(inf){
   }
   return{tax,hook};
 }
+function launchTime(t){const c=(t.pairs||[]).filter(x=>isCurveDex(x.dexId)).map(x=>x.pairCreatedAt).filter(Boolean);return c.length?Math.min(...c)/1000:(t.stage==='curve'&&t.created?t.created/1000:null);}
 const kolCount=t=>new Set([...(t.act.kol||[]),...(t.hm?.kols||[])]).size;
 function derive(t){
   const ps=t.pairs||[];if(!ps.length)return;
@@ -481,8 +486,10 @@ async function das(method,params){
   if(j.error)throw new Error(j.error.message||'DAS error');return j.result;
 }
 // lite holder metrics: holders, top10, bundle, insiders, fresh (cheap RPC calls)
+const HM_TTL=10*60e3;
+const hmFresh=t=>t.hm&&Date.now()-t.hmAt<HM_TTL;
 async function loadHM(t){
-  if(t.hm||t.hmLoading)return;t.hmLoading=true;
+  if(hmFresh(t)||t.hmLoading)return;t.hmLoading=true;
   try{
     const la=await rpc('getTokenLargestAccounts',[t.mint]);const acc=(la?.value||[]).slice(0,20);
     const ta=await rpc('getMultipleAccounts',[acc.map(a=>a.address),{encoding:'jsonParsed'}]);
@@ -498,8 +505,7 @@ async function loadHM(t){
     }));
     const bySlot={};people.forEach(h=>{if(h.slot)(bySlot[h.slot]=bySlot[h.slot]||[]).push(h);});
     const bundle=Object.values(bySlot).filter(g=>g.length>1).flat().reduce((a,h)=>a+h.pct,0);
-    const curvePair=(t.pairs||[]).filter(x=>isCurveDex(x.dexId)).map(x=>x.pairCreatedAt).filter(Boolean);
-    const launch=curvePair.length?Math.min(...curvePair)/1000:(t.stage==='curve'&&t.created?t.created/1000:null);
+    const launch=launchTime(t);
     const insider=launch?people.filter(h=>h.time&&h.time-launch<=15).reduce((a,h)=>a+h.pct,0):null;
     const fresh=people.filter(h=>h.fresh).reduce((a,h)=>a+h.pct,0);
     // fee sample from the token's own recent trades: network + priority + Jito tips per trade
@@ -508,7 +514,7 @@ async function loadHM(t){
         t.feeAvg=tot/trades.length/1e9;t.fees24=t.feeAvg*(t.buys.h24+t.sells.h24);}}catch(e){}
     let holders=null;
     try{let n=0,page=1,more=true;while(more&&page<=5){const r=await das('getTokenAccounts',{mint:t.mint,page,limit:1000});const ac=r?.token_accounts||[];n+=ac.filter(a=>+a.amount>0).length;more=ac.length===1000;page++;}holders={n,more};}catch(e){}
-    t.hm={top10:people.reduce((a,h)=>a+h.pct,0),bundle,insider,fresh,holders,kols:people.filter(h=>KOL[h.owner]).map(h=>h.owner)};t.top10=t.hm.top10;
+    t.hm={top10:people.reduce((a,h)=>a+h.pct,0),bundle,insider,fresh,holders,kols:people.filter(h=>KOL[h.owner]).map(h=>h.owner)};t.hmAt=Date.now();t.top10=t.hm.top10;t.hmFail=0;
   }catch(e){}
   t.hmLoading=false;
 }
@@ -530,7 +536,8 @@ async function loadTop10(t){
 let KTR=store.get('hs_ktr',[]);                // [{s,w,m,side,sol,ts}]
 const KTR_KEYS=new Set(KTR.map(x=>x.s+x.w+x.m));
 let kolCursor=store.get('hs_kcur',0),kolScanning=false;
-if(!FILT.kol)FILT.kol={preset:'all',mode:'trades',side:'all',sol:[null,null],win:60,lp:['pump','bonk','bags','launchlab','dbc','other'],stage:'all',mc:[null,null],age:[null,null],minKols:1};
+if(FILT.kol&&!FILT.kol.pos)FILT.kol.pos='all';
+if(!FILT.kol)FILT.kol={pos:'all',preset:'all',mode:'trades',side:'all',sol:[null,null],win:60,lp:['pump','bonk','bags','launchlab','dbc','other'],stage:'all',mc:[null,null],age:[null,null],minKols:1};
 function parseTrade(tx,w){
   if(tx.transactionError)return null;
   const tt=tx.tokenTransfers||[],ins={},outs={};
@@ -538,14 +545,14 @@ function parseTrade(tx,w){
   const im=Object.keys(ins),om=Object.keys(outs);
   const ad=(tx.accountData||[]).find(a=>a.account===w);let sol=(ad?ad.nativeBalanceChange:0)/1e9;
   for(const x of tt){if(x.mint!==WSOL)continue;if(x.toUserAccount===w)sol+=+x.tokenAmount||0;if(x.fromUserAccount===w)sol-=+x.tokenAmount||0;}
-  if(im.length===1&&!om.length&&-sol>=0.01)return{m:im[0],side:'buy',sol:-sol};
-  if(om.length===1&&!im.length&&sol>=0.01)return{m:om[0],side:'sell',sol};
+  if(im.length===1&&!om.length&&-sol>=0.01)return{m:im[0],side:'buy',sol:-sol,amt:ins[im[0]]};
+  if(om.length===1&&!im.length&&sol>=0.01)return{m:om[0],side:'sell',sol,amt:outs[om[0]]};
   return null;
 }
 function addTrade(tx,w){
   const tr=parseTrade(tx,w);if(!tr)return false;
   const k=tx.signature+w+tr.m;if(KTR_KEYS.has(k))return false;KTR_KEYS.add(k);
-  KTR.push({s:tx.signature,w,m:tr.m,side:tr.side,sol:+tr.sol.toFixed(3),ts:tx.timestamp});
+  KTR.push({s:tx.signature,w,m:tr.m,side:tr.side,sol:+tr.sol.toFixed(3),amt:tr.amt,ts:tx.timestamp});
   const t=tok(tr.m);t.seen=Date.now();t.act.kol.add(w);return true;
 }
 function saveKTR(){const cut=Date.now()/1000-86400;KTR=KTR.filter(x=>x.ts>cut&&KOL[x.w]).sort((a,b)=>b.ts-a.ts).slice(0,800);store.set('hs_ktr',KTR);}
@@ -568,7 +575,7 @@ async function kolScanAll(){
 }
 const KOL_PRESETS=[['all','All trades',{side:'all',sol:[null,null],minKols:1,mode:'trades'}],['buys','🟢 Buys',{side:'buy',sol:[null,null],minKols:1,mode:'trades'}],
   ['big','🐋 Big buys ≥5 SOL',{side:'buy',sol:[5,null],minKols:1,mode:'trades'}],['cons','👑 2+ KOLs buying',{side:'buy',sol:[null,null],minKols:2,mode:'tokens'}],
-  ['fresh','🌱 New tokens <1h',{side:'buy',sol:[null,null],age:[null,60],minKols:1,mode:'trades'}],['sells','🔴 Sells',{side:'sell',sol:[null,null],minKols:1,mode:'trades'}]];
+  ['fresh','🌱 New tokens <1h',{side:'buy',sol:[null,null],age:[null,60],minKols:1,mode:'trades'}],['sells','🔴 Sells',{side:'sell',sol:[null,null],minKols:1,mode:'trades'}],['hold','💎 Still holding',{side:'buy',pos:'holding',sol:[null,null],minKols:1,mode:'trades'}]];
 function kolTradesFiltered(){
   const f=FILT.kol,now=Date.now()/1000;
   return KTR.filter(x=>{
@@ -576,6 +583,7 @@ function kolTradesFiltered(){
     if(now-x.ts>f.win*60)return false;
     if(f.side!=='all'&&x.side!==f.side)return false;
     if(!inR(x.sol,f.sol))return false;
+    if(f.pos&&f.pos!=='all'){const p=kolPos(x.w,x.m);if(f.pos==='holding'&&!/^holding/.test(p.st))return false;if(f.pos==='sold'&&p.st!=='sold')return false;if(f.pos==='partial'&&p.st!=='partial')return false;}
     const t=TOK.get(x.m);
     const needTok=rOn(f.mc)||rOn(f.age)||f.stage!=='all'||f.lp.length<6;
     if(needTok){if(!t||!t.pair)return false;
@@ -594,6 +602,36 @@ function kolTokens(trades){
     .sort((a,b)=>(b.buyers.size-a.buyers.size)||(b.bin-a.bin));
 }
 const ago=ts=>dur(Date.now()/1000-ts)+' ago';
+// ---- KOL position status: trades we saw + live on-chain balance ----
+let POSBAL={};                                   // w|m -> {bal, t}
+function kolPos(w,m){
+  const tr=KTR.filter(x=>x.w===w&&x.m===m);let bought=0,sold=0,inSol=0,outSol=0,first=null,lastSell=null,lastBuy=null;
+  tr.forEach(x=>{if(x.side==='buy'){bought+=x.amt||0;inSol+=x.sol;first=first==null?x.ts:Math.min(first,x.ts);lastBuy=Math.max(lastBuy||0,x.ts);}else{sold+=x.amt||0;outSol+=x.sol;lastSell=Math.max(lastSell||0,x.ts);}});
+  const pb=POSBAL[w+'|'+m],bal=pb?pb.bal:null,now=Date.now()/1000;
+  let st='unknown',left=null;
+  if(bal!=null){if(bal<=0)st='sold';else if(bought>0&&bal<bought*0.9){st='partial';left=Math.min(100,bal/bought*100);}else st='holding';}
+  else if(bought>0){if(sold>=bought*0.95)st='sold';else if(sold>0){st='partial';left=(1-sold/bought)*100;}else st='holding?';}
+  else if(sold>0)st='sold';
+  const held=first==null?null:(st==='sold'?(lastSell&&lastSell>=first?lastSell-first:null):now-first);
+  return{st,left,held,first,lastSell,inSol,outSol,pnl:outSol-inSol,bal,checked:!!pb};
+}
+function posChip(p,short_){
+  const d=p.held!=null?dur(p.held):'';
+  if(p.st==='holding')return `<span class="pch hold">🟢 Holding${d?' · '+d:''}</span>`;
+  if(p.st==='holding?')return `<span class="pch hold">🟢 Holding?${d?' · '+d:''}</span>`;
+  if(p.st==='partial')return `<span class="pch part">🟡 ${p.left!=null?Math.round(p.left)+'% left':'Part sold'}${d?' · '+d:''}</span>`;
+  if(p.st==='sold')return `<span class="pch sold">🔴 Sold${d?' · held '+d:' (exit time not seen)'}${!short_&&p.outSol&&p.inSol?` · ${p.pnl>=0?'+':''}${num(p.pnl,2)} SOL`:''}</span>`;
+  return '';
+}
+let posQ=new Set(),posRunning=false;
+async function loadPositions(pairs){
+  pairs.forEach(k=>{const pb=POSBAL[k];if(!pb||Date.now()-pb.t>3*60e3)posQ.add(k);});
+  if(posRunning||!posQ.size)return;posRunning=true;
+  const items=[...posQ].slice(0,40);items.forEach(k=>posQ.delete(k));
+  await pool(items,4,async k=>{const [w,m]=k.split('|');try{const r=await rpc('getTokenAccountsByOwner',[w,{mint:m},{encoding:'jsonParsed'}]);
+    const bal=(r?.value||[]).reduce((a,x)=>a+(+x.account?.data?.parsed?.info?.tokenAmount?.uiAmount||0),0);POSBAL[k]={bal,t:Date.now()};}catch(e){}});
+  posRunning=false;if(TAB==='kol'&&$('vDetail').classList.contains('hide')&&$('sheet').classList.contains('hide'))renderKol();
+}
 function kolIni(w){return esc((KOL[w]||'?').replace(/[^A-Za-z0-9]/g,'').slice(0,2).toUpperCase()||'K');}
 function tokMini(m){const t=TOK.get(m);if(!t||!t.pair)return `<div class="ktok"><div><b>${short(m)}</b><div class="note">loading…</div></div></div>`;
   const ini=esc((t.sym||'?').slice(0,2).toUpperCase());
@@ -608,12 +646,14 @@ function renderKol(){
   if(f.mode==='trades'){
     h+=tr.slice(0,120).map(x=>`<div class="kt" data-m="${x.m}">${kolAv(x.w,'kav')}
      <div class="mid"><div class="nm"><a href="${kolX(x.w)}" target="_blank" rel="noopener" style="color:var(--txt);text-decoration:none"><b>${esc(KOL[x.w])}</b></a><span class="side ${x.side}">${x.side.toUpperCase()}</span><b class="${x.side==='buy'?'up':'dn'}">${SOLI}${num(x.sol,x.sol<1?2:1)}</b></div>
-     <div class="sub">${KOLX[x.w]?'@'+esc(KOLX[x.w])+' · ':''}${ago(x.ts)}</div></div>${tokMini(x.m)}</div>`).join('');
+     <div class="sub">${KOLX[x.w]?'@'+esc(KOLX[x.w])+' · ':''}${ago(x.ts)}</div>${x.side==='buy'?`<div class="sub" style="margin-top:4px">${posChip(kolPos(x.w,x.m))}</div>`:''}</div>${tokMini(x.m)}</div>`).join('');
+    loadPositions([...new Set(tr.slice(0,60).filter(x=>x.side==='buy').map(x=>x.w+'|'+x.m))]);
   }else{
     const gs=kolTokens(tr);
     h+=gs.length?gs.slice(0,60).map(g=>{const t=TOK.get(g.m);return `<div class="tc" data-m="${g.m}">${t&&t.pair?`<div class="r1">${avatar(t)}<div class="mid"><div class="nm"><b>${esc(t.sym)}</b><span class="full">${esc(t.name)}</span></div><div class="sub"><span class="age">${dur(t.created?(Date.now()-t.created)/1000:null)}</span>·<span>${short(g.m)}</span><button class="cp" data-cp="${g.m}">⧉</button></div></div><div class="rt"><div class="mc">MC <b>${usd(t.mc)}</b></div><div class="chg ${(t.chg.h1||0)>=0?'up':'dn'}">${pct(t.chg.h1)} <span style="color:var(--mut);font-weight:500">1h</span></div></div></div>`:`<b>${short(g.m)}</b>`}
-      <div class="r3"><span class="bd sp">👑 ${g.buyers.size} bought</span>${g.sellers.size?`<span class="bd bad">${g.sellers.size} sold</span>`:''}<span class="bd ok">${SOLI}${num(g.bin,1)} in</span>${g.sout?`<span class="bd bad">${SOLI}${num(g.sout,1)} out</span>`:''}<span class="bd">last ${ago(g.last)}</span></div>
-      <div class="r3">${[...g.buyers].slice(0,8).map(w=>`<span class="bd">${esc(KOL[w])}</span>`).join('')}</div></div>`;}).join(''):'<div class="empty">No token reaches the minimum KOL count in this window.</div>';
+      <div class="r3"><span class="bd sp">👑 ${g.buyers.size} bought</span>${(()=>{const hs=[...g.buyers].filter(w=>/^holding|partial/.test(kolPos(w,g.m).st)).length;return `<span class="bd ok">💎 ${hs} still holding</span>`;})()}${g.sellers.size?`<span class="bd bad">${g.sellers.size} sold</span>`:''}<span class="bd ok">${SOLI}${num(g.bin,1)} in</span>${g.sout?`<span class="bd bad">${SOLI}${num(g.sout,1)} out</span>`:''}<span class="bd">last ${ago(g.last)}</span></div>
+      <div class="kpl">${[...g.buyers].slice(0,10).map(w=>{const p=kolPos(w,g.m);return `<div class="kpr">${kolAv(w,'wav')}<b>${esc(KOL[w])}</b>${posChip(p,true)}<span class="note" style="margin-left:auto">${SOLI}${num(p.inSol,1)}</span></div>`;}).join('')}</div></div>`;}).join(''):'<div class="empty">No token reaches the minimum KOL count in this window.</div>';
+    loadPositions([...new Set(gs.slice(0,25).flatMap(g=>[...g.buyers].slice(0,10).map(w=>w+'|'+g.m)))]);
   }
   $('list').innerHTML=h;wireKol();
 }
@@ -661,6 +701,7 @@ function kolFilterSheet(){
     const row=(k,l,u,arr)=>`<div class="rr"><div class="rl">${l}</div><div class="rg"><label class="ri"><input type="number" inputmode="decimal" data-kk="${k}" data-i="0" placeholder="Min" value="${v(arr[0])}"><em>${u}</em></label><span class="dash">–</span><label class="ri"><input type="number" inputmode="decimal" data-kk="${k}" data-i="1" placeholder="Max" value="${v(arr[1])}"><em>${u}</em></label></div></div>`;
     openSheet(`<div class="fhead"><h3 style="margin:0">KOL trade filter</h3><button class="rst" id="kReset">Reset</button></div><div class="fbody">
     <div class="rl">Side</div><div class="chipsel" id="kSide">${[['all','All'],['buy','Buys'],['sell','Sells']].map(([a,b])=>`<button data-v="${a}" class="${d.side===a?'on':''}">${b}</button>`).join('')}</div>
+    <div class="rl" style="margin-top:14px">KOL position now</div><div class="chipsel" id="kPos">${[['all','All'],['holding','🟢 Still holding'],['partial','🟡 Partly sold'],['sold','🔴 Sold all']].map(([a,b])=>`<button data-v="${a}" class="${(d.pos||'all')===a?'on':''}">${b}</button>`).join('')}</div>
     <div class="rl" style="margin-top:14px">Time window</div><div class="chipsel" id="kWin">${[[15,'15m'],[60,'1h'],[240,'4h'],[720,'12h'],[1440,'24h']].map(([a,b])=>`<button data-v="${a}" class="${d.win===a?'on':''}">${b}</button>`).join('')}</div>
     ${row('sol','Trade size','SOL',d.sol)}${row('mc','Token market cap','K',d.mc)}${row('age','Token age','m',d.age)}
     <div class="rr"><div class="rl">Min KOLs on same token (Tokens view)</div><div class="rg"><label class="ri"><input type="number" inputmode="numeric" id="kMin" value="${d.minKols}"><em>KOLs</em></label></div></div>
@@ -670,9 +711,9 @@ function kolFilterSheet(){
     <div class="fbar"><button class="btn gh" id="kCancel">Cancel</button><button class="btn wh" id="kOk">Confirm</button></div>`);
     const sh=$('sheet');
     const rd=()=>{sh.querySelectorAll('input[data-kk]').forEach(el=>{d[el.dataset.kk][+el.dataset.i]=el.value===''?null:+el.value;});d.minKols=Math.max(1,+$('kMin').value||1);};
-    [['kSide','side'],['kWin','win'],['kStage','stage']].forEach(([id,k])=>$(id).querySelectorAll('button').forEach(b=>b.onclick=()=>{rd();d[k]=k==='win'?+b.dataset.v:b.dataset.v;draw();}));
+    [['kSide','side'],['kWin','win'],['kStage','stage'],['kPos','pos']].forEach(([id,k])=>$(id).querySelectorAll('button').forEach(b=>b.onclick=()=>{rd();d[k]=k==='win'?+b.dataset.v:b.dataset.v;draw();}));
     $('kLp').querySelectorAll('[data-lp]').forEach(b=>b.onclick=()=>{rd();const x=b.dataset.lp;d.lp=d.lp.includes(x)?d.lp.filter(y=>y!==x):[...d.lp,x];draw();});
-    $('kReset').onclick=()=>{DRAFT={...FILT.kol,preset:'all',side:'all',sol:[null,null],win:60,lp:['pump','bonk','bags','launchlab','dbc','other'],stage:'all',mc:[null,null],age:[null,null],minKols:1};draw();};
+    $('kReset').onclick=()=>{DRAFT={...FILT.kol,pos:'all',preset:'all',side:'all',sol:[null,null],win:60,lp:['pump','bonk','bags','launchlab','dbc','other'],stage:'all',mc:[null,null],age:[null,null],minKols:1};draw();};
     $('kCancel').onclick=closeSheet;
     $('kOk').onclick=()=>{rd();if(!d.lp.length){toast('Select at least one launchpad');return;}d.preset='custom';FILT.kol=d;saveFilt();closeSheet();renderControls();renderList();};
   };draw();
@@ -696,11 +737,12 @@ async function refresh(manual){
   busy=false;
 }
 let t10running=false;
+const HM_SCAN=tab=>holderFilterOn(FILT[tab])?40:20;
 async function queueTop10(){
   if(t10running||TAB==='kol')return;t10running=true;
   for(let round=0;round<4;round++){
-    const tab=TAB,vis=candidates(tab).slice(0,holderFilterOn(FILT[tab])?40:20).filter(t=>!t.hm&&!t.hmFail);if(!vis.length)break;
-    for(const t of vis){await loadHM(t);if(!t.hm)t.hmFail=true;if(holderFilterOn(FILT[TAB]))renderList();else updateCard(t);}
+    const tab=TAB,vis=candidates(tab).slice(0,HM_SCAN(tab)).filter(t=>!hmFresh(t)&&!(t.hmFail&&Date.now()-t.hmFail<HM_TTL));if(!vis.length)break;
+    for(const t of vis){await loadHM(t);if(!hmFresh(t))t.hmFail=Date.now();if(holderFilterOn(FILT[TAB]))renderList();else updateCard(t);}
   }
   t10running=false;
 }
@@ -756,7 +798,7 @@ function sortKey(f,tab){
 }
 function candidates(tab){const f=FILT[tab],now=Date.now(),key=sortKey(f,tab);return[...TOK.values()].filter(t=>passBase(t,f,now)).sort((a,b)=>key(b)-key(a));}
 function filtered(tab){const f=FILT[tab];const c=candidates(tab);return holderFilterOn(f)?c.filter(t=>passHolder(t,f)):c;}
-function pendingHolder(tab){const f=FILT[tab];return holderFilterOn(f)?candidates(tab).filter(t=>!t.hm&&!t.hmFail).length:0;}
+function pendingHolder(tab){const f=FILT[tab];return holderFilterOn(f)?candidates(tab).slice(0,HM_SCAN(tab)).filter(t=>!t.hm&&!t.hmFail).length:0;}
 const holderFilterOn=f=>Object.keys(RANGE_DEF).some(k=>RANGE_DEF[k].h&&rOn(f.r?.[k]));
 function activeCount(tab){const f=FILT[tab],b=presetF(tab,f.preset==='custom'?PRESETS[tab][0][0]:f.preset);let n=0;
   for(const k of Object.keys(RANGE_DEF)){const a=f.r?.[k]||[null,null],c=b.r[k]||[null,null];if(a[0]!=c[0]||a[1]!=c[1])n++;}
@@ -771,7 +813,7 @@ function badges(t){
   if(t.br>=1.5&&t.buys.h1>=20)b.push(`<span class="bd ok">🟢 ${num(t.br,1)} B/S</span>`);
   if(t.auth){b.push(`<span class="bd ${t.auth.tax>0?(t.auth.tax>=5?'bad':'wn'):'ok'}">Tax ${num(t.auth.tax,t.auth.tax%1?2:0)}%</span>`);if(t.auth.hook)b.push('<span class="bd bad">⚠ Transfer hook</span>');if(t.auth.mint||t.auth.freeze)b.push(`<span class="bd bad">⚠ ${t.auth.mint?'Mint':''}${t.auth.mint&&t.auth.freeze?'+':''}${t.auth.freeze?'Freeze':''} on</span>`);else b.push('<span class="bd ok">✓ Auth off</span>');}
   if(t.top10!=null)b.push(`<span class="bd ${t.top10>50?'bad':t.top10>30?'wn':''}">Top10 ${num(t.top10,0)}%</span>`);
-  if(t.hm){const h=t.hm;b.push(`<span class="bd ${h.bundle>15?'bad':h.bundle>5?'wn':'ok'}">📦 Bundle ${num(h.bundle,0)}%</span>`);if(h.insider!=null)b.push(`<span class="bd ${h.insider>15?'bad':h.insider>5?'wn':'ok'}">🕵 Insiders ${num(h.insider,0)}%</span>`);b.push(`<span class="bd ${h.fresh>25?'bad':h.fresh>10?'wn':'ok'}">🆕 Fresh ${num(h.fresh,0)}%</span>`);}
+  if(t.hm){const h=t.hm;b.push(`<span class="bd ${h.bundle>15?'bad':h.bundle>5?'wn':'ok'}">📦 Bundle ${num(h.bundle,0)}%</span>`);if(h.insider!=null)b.push(`<span class="bd ${h.insider>15?'bad':h.insider>5?'wn':'ok'}">🎯 Snipers ${num(h.insider,0)}%</span>`);b.push(`<span class="bd ${h.fresh>25?'bad':h.fresh>10?'wn':'ok'}">🆕 Fresh ${num(h.fresh,0)}%</span>`);}
   else if(t.hmLoading)b.push('<span class="bd">🔎 checking holders…</span>');
   if(t.act.w.size&&!t.hm)b.push(`<span class="bd">${t.act.w.size} traders seen</span>`);
   return b.join('');
@@ -968,8 +1010,8 @@ async function scanHolders(t,onStep){
   toScan.forEach(h=>{const s=h.a?.target?.slot;if(s)(bySlot[s]=bySlot[s]||[]).push(h);const f=h.a?.funder;if(f)(byF[f]=byF[f]||[]).push(h);});
   Object.values(bySlot).forEach(g=>{if(g.length>1)g.forEach(h=>h.bundled=true);});
   Object.values(byF).forEach(g=>{if(g.length>1)g.forEach(h=>h.cluster=short(g[0].a.funder));});
-  const launch=t.created?t.created/1000:null;
-  toScan.forEach(h=>{const fb=h.a?.target?.firstBuy;if(fb&&launch){h.entry=fb-launch;h.sniper=h.entry<=30&&h.entry>=-5;}if(h.smart&&(h.bundled||h.cluster||h.a.target?.free))h.smart=false;
+  const launch=launchTime(t);
+  toScan.forEach(h=>{const fb=h.a?.target?.firstBuy;if(fb&&launch){h.entry=fb-launch;h.sniper=h.entry<=15&&h.entry>=-5;}if(h.smart&&(h.bundled||h.cluster||h.a.target?.free))h.smart=false;
     if(h.smart&&!SMART[h.owner])SMART[h.owner]={t:Date.now(),src:'auto',wr:h.a.wr,closed:h.a.closed};});
   store.set('hs_smart',SMART);saveWC();
   // rug checks
@@ -981,10 +1023,11 @@ async function scanHolders(t,onStep){
   info.freezeAuthority?add('fail','Freeze authority ON — dev can freeze wallets',30):add('pass','Freeze authority revoked');
   {const x=readExt(info);x.tax>0?add(x.tax>=5?'fail':'warn',`Transfer tax ${num(x.tax,2)}% on every buy/sell`,x.tax>=5?25:10):add('pass','No transfer tax (0%)');if(x.hook)add('warn','Transfer hook program attached — transfers can be restricted',15);}
   const a=`Top 10 holders own ${num(top10,1)}% (pools excluded)`;top10>50?add('fail',a,20):top10>30?add('warn',a,10):add('pass',a);
-  const b=`Bundled buys (same block): ${num(bun,1)}%`;bun>15?add('fail',b,20):bun>5?add('warn',b,10):add('pass',b);
+  const bunV=t.hm?Math.max(t.hm.bundle,bun):bun;const b=`Bundled buys (same block): ${num(bunV,1)}% of supply`;bunV>15?add('fail',b,20):bunV>5?add('warn',b,10):add('pass',b);
   const c=`Linked wallets (same funder): ${num(clu,1)}%`;clu>15?add('fail',c,20):clu>5?add('warn',c,10):add('pass',c);
   fr>5?add('warn',`Received by transfer, not bought: ${num(fr,1)}%`,10):add('pass','No big transfer-in holders');
-  fresh>40?add('warn',`${Math.round(fresh)}% of top holders are fresh wallets`,10):add('pass',`${Math.round(fresh)}% fresh wallets among top holders`);
+  {const fv=t.hm?t.hm.fresh:null;fv!=null?(fv>25?add('warn',`Fresh wallets (<3 days) hold ${num(fv,1)}% of supply`,10):add('pass',`Fresh wallets hold ${num(fv,1)}% of supply`)):(fresh>40?add('warn',`${Math.round(fresh)}% of top holders are fresh wallets`,10):add('pass',`${Math.round(fresh)}% fresh wallets among top holders`));}
+  if(t.hm&&t.hm.insider!=null){const iv=t.hm.insider;const x=`Snipers (in within 15s of launch) hold ${num(iv,1)}%`;iv>15?add('fail',x,15):iv>5?add('warn',x,5):add('pass',x);}
   const safety=Math.max(0,100-ck.reduce((s,x)=>s+x.p,0)),fail=ck.some(x=>x.l==='fail');
   const verdict=fail?['High risk','var(--bad)']:smart.length>=3&&safety>=70?['Strong holders','var(--good)']:smart.length>=1&&safety>=60?['Some good holders','var(--warn)']:['No clear edge','var(--mut)'];
   return{ck,safety,smart,sc,toScan,verdict};
@@ -1012,16 +1055,17 @@ async function openDetail(mint){
    <div class="sg" style="margin-top:10px">${st('5m',pct(t.chg.m5),cls(t.chg.m5))}${st('1h',pct(t.chg.h1),cls(t.chg.h1))}${st('24h',pct(t.chg.h24),cls(t.chg.h24))}
    ${st('Vol 5m',usd(t.vol.m5))}${st('Vol 1h',usd(t.vol.h1))}${st('Vol 24h',usd(t.vol.h24))}
    ${st('Buys 1h',num(t.buys.h1,0),'up')}${st('Sells 1h',num(t.sells.h1,0),'dn')}${st(t.stage==='mig'?'Liquidity':'Traders seen',t.stage==='mig'?usd(t.liq):num(t.act.w.size,0))}
-   ${t.hm?st('Holders',t.hm.holders?num(t.hm.holders.n,0)+(t.hm.holders.more?'+':''):'—')+st('Bundle',num(t.hm.bundle,1)+'%',t.hm.bundle>15?'dn':'')+st('Insiders',t.hm.insider!=null?num(t.hm.insider,1)+'%':'—',t.hm.insider>15?'dn':'')+st('Fresh wallets',num(t.hm.fresh,1)+'%',t.hm.fresh>25?'dn':''):''}${st('Fees 24h (est.)',t.feeAvg!=null?'◎'+num(t.fees24,2):'checking…')}${st('Avg fee / trade',t.feeAvg!=null?'◎'+num(t.feeAvg,5):'—')}${st('Tax',t.auth?num(t.auth.tax,2)+'%':'—',t.auth?.tax>0?'dn':'up')}${st('KOLs',kolCount(t),kolCount(t)?'up':'')}${st('Vol spike',num(t.spike,1)+'x',t.spike>=2?'up':'')}${st('Buy/Sell',num(t.br,2),t.br>=1?'up':'dn')}${st('Smart seen',t.act.sm.size,t.act.sm.size?'up':'')}</div>
+   ${t.hm?st('Holders',t.hm.holders?num(t.hm.holders.n,0)+(t.hm.holders.more?'+':''):'—')+st('Bundle',num(t.hm.bundle,1)+'%',t.hm.bundle>15?'dn':'')+st('Snipers',t.hm.insider!=null?num(t.hm.insider,1)+'%':'—',t.hm.insider>15?'dn':'')+st('Fresh wallets',num(t.hm.fresh,1)+'%',t.hm.fresh>25?'dn':''):''}${st('Fees 24h (est.)',t.feeAvg!=null?'◎'+num(t.fees24,2):'checking…')}${st('Avg fee / trade',t.feeAvg!=null?'◎'+num(t.feeAvg,5):'—')}${st('Tax',t.auth?num(t.auth.tax,2)+'%':'—',t.auth?.tax>0?'dn':'up')}${st('KOLs',kolCount(t),kolCount(t)?'up':'')}${st('Vol spike',num(t.spike,1)+'x',t.spike>=2?'up':'')}${st('Buy/Sell',num(t.br,2),t.br>=1?'up':'dn')}${st('Smart seen',t.act.sm.size,t.act.sm.size?'up':'')}</div>
    <div style="display:flex;gap:6px;margin-top:10px;align-items:center"><div class="mono" style="flex:1;font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--mut);word-break:break-all">${t.mint}</div><button class="star" id="dCopy">Copy</button></div>
    <div class="links" style="margin-top:10px">${p?.url?`<a href="${esc(p.url)}">Chart</a>`:''}<a href="https://gmgn.ai/sol/token/${t.mint}">GMGN</a>${t.twitter?`<a href="${esc(t.twitter)}">𝕏 Profile</a>`:''}<a href="https://x.com/search?q=${encodeURIComponent(t.mint)}&f=live">𝕏 CA search</a><a href="https://solscan.io/token/${t.mint}">Solscan</a>${t.lp==='pump'?`<a href="https://pump.fun/coin/${t.mint}">Pump</a>`:''}</div>
    ${soc.length?`<div class="links" style="margin-top:8px">${soc.map(([l,u])=>`<a href="${esc(u)}">${esc(l)}</a>`).join('')}</div>`:''}
   </div>
-  ${kolCount(t)?`<div class="sec"><h4>👑 KOLs trading / holding</h4>${[...new Set([...t.act.kol,...(t.hm?.kols||[])])].map(w=>`<div class="wl"><div class="wl-l">${kolAv(w,'wav')}${kolLink(w)}</div><span class="note">${t.act.kol.has(w)?'traded recently':''}${t.act.kol.has(w)&&(t.hm?.kols||[]).includes(w)?' · ':''}${(t.hm?.kols||[]).includes(w)?'top holder':''}</span></div>`).join('')}</div>`:''}
+  ${kolCount(t)?`<div class="sec"><h4>👑 KOLs trading / holding</h4>${[...new Set([...t.act.kol,...(t.hm?.kols||[])])].map(w=>`<div class="wl"><div class="wl-l">${kolAv(w,'wav')}${kolLink(w)}</div><span style="display:flex;gap:6px;align-items:center">${posChip(kolPos(w,t.mint))}${(t.hm?.kols||[]).includes(w)?'<span class="note">top holder</span>':''}</span></div>`).join('')}</div>`:''}
   ${t.act.sm.size?`<div class="sec"><h4>🧠 Smart wallets trading it</h4>${[...t.act.sm].map(w=>`<div class="wl"><a href="https://solscan.io/account/${w}" style="color:var(--acc);text-decoration:none">${short(w)}</a><span class="note">${SMART[w]?.wr!=null?Math.round(SMART[w].wr)+'% WR':SMART[w]?.src==='manual'?'your list':''}</span></div>`).join('')}</div>`:''}
   <div class="sec" id="hSec"><h4>Holder analysis <span class="note" id="hTxt">starting…</span></h4><div class="prog"><i id="hFill"></i></div></div>
   <div class="note" style="padding:0 14px">On-chain behaviour, not a promise. Smart-looking wallets can be insiders. Never risk more than you can afford to lose.</div>`;
   $('vDetail').classList.remove('hide');$('vDetail').scrollTop=0;
+  if(kolCount(t))loadPositions([...new Set([...t.act.kol,...(t.hm?.kols||[])])].map(w=>w+'|'+t.mint)).then(()=>{});
   history.pushState({d:1},'');
   $('back').onclick=()=>history.back();
   $('dCopy').onclick=()=>copy(t.mint);
@@ -1061,7 +1105,7 @@ $('themeBtn').onclick=()=>{THEME=THEME==='light'?'dark':'light';store.set('hs_th
 // ================= wiring =================
 $('tabs').onclick=e=>{const b=e.target.closest('button');if(!b)return;TAB=b.dataset.t;store.set('hs_tab',TAB);renderControls();renderList();queueTop10();window.scrollTo(0,0);};
 $('tfRow').onclick=e=>{const b=e.target.closest('[data-tf]');if(!b)return;FILT[TAB].tf=b.dataset.tf;FILT[TAB].sort='vol';saveFilt();renderControls();renderList();queueTop10();};
-$('presets').addEventListener('click',e=>{const b=e.target.closest('[data-kp]');if(!b)return;const p=KOL_PRESETS.find(x=>x[0]===b.dataset.kp);FILT.kol={...FILT.kol,age:[null,null],...p[2],preset:p[0]};saveFilt();renderControls();renderList();});
+$('presets').addEventListener('click',e=>{const b=e.target.closest('[data-kp]');if(!b)return;const p=KOL_PRESETS.find(x=>x[0]===b.dataset.kp);FILT.kol={...FILT.kol,age:[null,null],pos:'all',...p[2],preset:p[0]};saveFilt();renderControls();renderList();});
 $('presets').onclick=e=>{const b=e.target.closest('[data-p]');if(b)applyPreset(b.dataset.p);};
 $('sortSel').onchange=()=>{FILT[TAB].sort=$('sortSel').value;saveFilt();renderList();};
 $('filtBtn').onclick=()=>TAB==='kol'?kolFilterSheet():filterSheet();$('setBtn').onclick=settingsSheet;$('srchBtn').onclick=searchSheet;$('refBtn').onclick=()=>refresh(true);
