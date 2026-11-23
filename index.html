@@ -1077,7 +1077,7 @@ const LBC={};async function lbFetch(u){const c=LBC[u];if(c&&Date.now()-c.t<30*60
 const BOT_RX=/snip|bot|fresh|arbitrage|mev|sandwich|bundl|copy/i;
 async function beGet(path){
   let r;try{r=await fetch('https://public-api.birdeye.so'+path,{headers:{accept:'application/json','X-API-KEY':BEKEY,'x-chain':'solana'}});}catch(e){throw new Error('Birdeye could not be reached from the browser');}
-  if(r.status===401||r.status===403)throw new Error('Birdeye rejected the key');if(r.status===429)throw new Error('Birdeye rate limit — try again in a minute');if(!r.ok)throw new Error('Birdeye HTTP '+r.status);return r.json();
+  if(r.status===401||r.status===403)throw new Error('Birdeye rejected the key, or your Birdeye plan does not include the trader leaderboard — GMGN still works without it');if(r.status===429)throw new Error('Birdeye rate limit — try again in a minute');if(!r.ok)throw new Error('Birdeye HTTP '+r.status);return r.json();
 }
 // walk any JSON and collect wallet objects, remembering which leaderboard list (category) they came from
 function collectWallets(j){
@@ -1148,7 +1148,8 @@ function importLeaderSheet(target){
       if(Q.src.gmgn){say('Downloading GMGN leaderboard…');bar(5);try{collectWallets(await lbFetch(LB_GMGN)).forEach(o=>{rows[o.w]=rows[o.w]||lbRow(o,'gmgn',Q.per);});}catch(e){errs.push('GMGN: '+e.message);}}
       if(Q.src.kolscan){say('Downloading Kolscan leaderboard…');bar(10);try{collectWallets(await lbFetch(LB_KOLSCAN)).forEach(o=>{rows[o.w]=rows[o.w]||lbRow(o,'kolscan',Q.per);});}catch(e){errs.push('Kolscan: '+e.message);}}
       if(Q.src.birdeye){say('Loading Birdeye top traders…');bar(15);
-        try{for(let off=0;off<300&&!lbStop;off+=100){const j=await beGet(`/trader/gainers-losers?type=${Q.per==='30d'?'30d':'1W'}&sort_by=realized_pnl&sort_type=desc&offset=${off}&limit=100${Q.minTrades?'&min_trade='+Q.minTrades:''}${Q.minProfit&&Q.minProfit>=1000?'&min_realized_pnl='+Q.minProfit:''}`);
+        try{for(let off=0;off<300&&!lbStop;off+=100){if(off)await sleep(1200);   // free Birdeye plan: 1 request / second
+            const j=await beGet(`/trader/gainers-losers?type=${Q.per==='30d'?'30d':'1W'}&sort_by=realized_pnl&sort_type=desc&offset=${off}&limit=100${Q.minTrades?'&min_trade='+Q.minTrades:''}${Q.minProfit&&Q.minProfit>=1000?'&min_realized_pnl='+Q.minProfit:''}`);
             const it=j?.data?.items||[];it.forEach(t=>{const w=t.address;if(!w||!B58.test(w)||rows[w])return;const tc=pick(t,'trade_count');
               rows[w]={w,src:'birdeye',cats:[],tags:[],name:'',x:'',wr:null,profit:pick(t,'realized_pnl','pnl'),trades:tc,tpd:tc!=null?tc/(Q.per==='30d'?30:7):null,hold:null,bal:null,last:null};});
             if(it.length<100)break;}}catch(e){errs.push(e.message);}}
