@@ -185,6 +185,9 @@ html{transition:background .2s}
 .kav{overflow:hidden}.kav img{width:100%;height:100%;object-fit:cover}
 .kbar{flex-wrap:wrap}
 .kn{cursor:pointer}
+.hrt{background:none;border:0;font-size:16px;line-height:1;color:var(--mut);padding:0 4px;margin-left:2px}.hrt.on{color:#f43f5e}
+.tc.fav .kpav{width:44px;height:44px;flex:0 0 44px}
+.kpr[data-hm]{cursor:pointer}
 .wl.plain{font-family:inherit;font-size:13px;cursor:pointer}
 .kph{display:flex;gap:12px;align-items:center}
 .kpav{width:52px;height:52px;flex:0 0 52px;border-radius:50%;overflow:hidden;background:var(--kav);display:grid;place-items:center;font-weight:800;color:var(--gold)}.kpav img{width:100%;height:100%;object-fit:cover}
@@ -361,6 +364,10 @@ const KOL_PRESET_SET=new Set(KOL_PRESET.map(x=>x[0]));
 let KOLX=store.get('hs_kolx',{});            // wallet -> X handle
 function seedKOL(){let n=0;KOL_PRESET.forEach(([w,name,x])=>{if(!KOL[w]){KOL[w]=name;n++;}if(x&&!KOLX[w])KOLX[w]=x;});store.set('hs_kol',KOL);store.set('hs_kolx',KOLX);store.set('hs_kol_seeded3',1);return n;}
 if(!store.get('hs_kol_seeded3',0))seedKOL();
+let FAV=new Set(store.get('hs_fav',[]));
+const saveFav=()=>store.set('hs_fav',[...FAV]);
+const heart=w=>`<button class="hrt ${FAV.has(w)?'on':''}" data-fav="${w}" aria-label="favorite">${FAV.has(w)?'❤':'♡'}</button>`;
+function toggleFav(w){FAV.has(w)?FAV.delete(w):FAV.add(w);saveFav();document.querySelectorAll(`[data-fav="${w}"]`).forEach(b=>{b.classList.toggle('on',FAV.has(w));b.textContent=FAV.has(w)?'❤':'♡';});toast(FAV.has(w)?'Added to favorites':'Removed from favorites');}
 let KACT=store.get('hs_kact',{});            // wallet -> {t: checked ms, last: blockTime s}
 let ACTIVE_DAYS=store.get('hs_actdays',7);
 const kolActive=w=>{const a=KACT[w];return!a||a.last==null?null:(Date.now()/1000-a.last)<ACTIVE_DAYS*86400;};
@@ -409,7 +416,7 @@ async function txHistory(addr,pages){
   }
   return{txs:all,complete};
 }
-async function pool(items,n,fn){let i=0;await Promise.all(Array.from({length:Math.min(n,items.length)},async()=>{while(i<items.length&&!stopScan){const k=i++;await fn(items[k],k);}}));}
+async function pool(items,n,fn,stop){let i=0;await Promise.all(Array.from({length:Math.min(n,items.length)},async()=>{while(i<items.length&&!(stop&&stop())){const k=i++;await fn(items[k],k);}}));}
 
 // ================= launchpad / stage =================
 const isCurveDex=id=>/^(pumpfun|pump\.fun)$/i.test(id||'')||/launchlab|dbc/i.test(id||'');
@@ -576,7 +583,7 @@ let SOLUSD=store.get('hs_solusd',null);
 let KBAL={};                                    // wallet -> {sol,t}
 let KTR=store.get('hs_ktr',[]);                // [{s,w,m,side,sol,ts}]
 const KTR_KEYS=new Set(KTR.map(x=>x.s+x.w+x.m));
-let kolCursor=store.get('hs_kcur',0),kolScanning=false;
+let kolCursor=store.get('hs_kcur',0),kolScanning=false,kolStop=false;
 if(FILT.kol&&!FILT.kol.pos)FILT.kol.pos='all';
 if(!FILT.kol)FILT.kol={pos:'all',preset:'all',mode:'trades',side:'all',sol:[null,null],win:60,lp:['pump','bonk','bags','launchlab','dbc','other'],stage:'all',mc:[null,null],age:[null,null],minKols:1};
 function parseTrade(tx,w){
@@ -598,10 +605,10 @@ function addTrade(tx,w){
 }
 async function loadKolBal(ws){
   const need=ws.filter(w=>!KBAL[w]||Date.now()-KBAL[w].t>60e3);
-  for(let i=0;i<need.length;i+=100){try{const r=await rpc('getMultipleAccounts',[need.slice(i,i+100),{encoding:'base64',dataSlice:{offset:0,length:0}}]);(r?.value||[]).forEach((a,k)=>{KBAL[need[i+k]]={sol:a?a.lamports/1e9:0,t:Date.now()};});}catch(e){}}
+  for(let i=0;i<need.length;i+=100){const ch=need.slice(i,i+100);try{const r=await rpc('getMultipleAccounts',[ch,{encoding:'base64',dataSlice:{offset:0,length:0}}]);(r?.value||[]).forEach((a,k)=>{KBAL[ch[k]]={sol:a?a.lamports/1e9:0,t:Date.now()};});}catch(e){ch.forEach(w=>{if(!KBAL[w])KBAL[w]={sol:null,t:Date.now()};});}}
   if(SOLUSD)store.set('hs_solusd',SOLUSD);
 }
-const balTxt=w=>KBAL[w]?SOLI+num(KBAL[w].sol,KBAL[w].sol<10?2:1):'';
+const balTxt=w=>KBAL[w]&&KBAL[w].sol!=null?SOLI+num(KBAL[w].sol,KBAL[w].sol<10?2:1):'';
 function saveKTR(){const cut=Date.now()/1000-86400;KTR=KTR.filter(x=>x.ts>cut&&KOL[x.w]).sort((a,b)=>b.ts-a.ts).slice(0,800);store.set('hs_ktr',KTR);}
 async function txRecent(addr,limit){return enhGet('/v0/addresses/'+addr+'/transactions?api-key='+encodeURIComponent(KEY)+'&limit='+limit);}
 async function kolPoll(n,onStep){
@@ -609,24 +616,25 @@ async function kolPoll(n,onStep){
   const batch=[];for(let i=0;i<Math.min(n,ws.length);i++)batch.push(ws[(kolCursor+i)%ws.length]);
   kolCursor=(kolCursor+batch.length)%ws.length;store.set('hs_kcur',kolCursor);
   let added=0,done=0;
-  await pool(batch,LIMITS[PLAN].par+1,async w=>{try{const txs=await txRecent(w,25);(Array.isArray(txs)?txs:[]).forEach(tx=>{if(addTrade(tx,w))added++;});}catch(e){}onStep&&onStep(++done,batch.length);});
+  await pool(batch,LIMITS[PLAN].par+1,async w=>{if(kolStop)return;try{const txs=await txRecent(w,25);(Array.isArray(txs)?txs:[]).forEach(tx=>{if(addTrade(tx,w))added++;});}catch(e){}onStep&&onStep(++done,batch.length);});
   saveKTR();return added;
 }
 async function kolScanAll(){
-  if(kolScanning)return;kolScanning=true;stopScan=false;
+  if(kolScanning)return;kolScanning=true;kolStop=false;
   const total=Object.keys(KOL).filter(kolOK).length;let done=0;
   const step=LIMITS[PLAN].par*5;
-  try{while(done<total&&!stopScan){const n=Math.min(step,total-done);await kolPoll(n,(d)=>{$('cnt').textContent=`scanning KOLs ${Math.min(total,done+d)}/${total}`;});done+=n;
+  try{while(done<total&&!kolStop){const n=Math.min(step,total-done);await kolPoll(n,(d)=>{$('cnt').textContent=`scanning KOLs ${Math.min(total,done+d)}/${total}`;});done+=n;
     await loadMarket();renderList();}}
-  finally{kolScanning=false;stopScan=false;renderList();}
+  finally{kolScanning=false;kolStop=false;renderList();}
 }
 const KOL_PRESETS=[['all','All trades',{side:'all',sol:[null,null],minKols:1,mode:'trades'}],['buys','🟢 Buys',{side:'buy',sol:[null,null],minKols:1,mode:'trades'}],
   ['big','🐋 Big buys ≥5 SOL',{side:'buy',sol:[5,null],minKols:1,mode:'trades'}],['cons','👑 2+ KOLs buying',{side:'buy',sol:[null,null],minKols:2,mode:'tokens'}],
-  ['fresh','🌱 New tokens <1h',{side:'buy',sol:[null,null],age:[null,60],minKols:1,mode:'trades'}],['sells','🔴 Sells',{side:'sell',sol:[null,null],minKols:1,mode:'trades'}],['hold','💎 Still holding',{side:'buy',pos:'holding',sol:[null,null],minKols:1,mode:'trades'}]];
+  ['fresh','🌱 New tokens <1h',{side:'buy',sol:[null,null],age:[null,60],minKols:1,mode:'trades'}],['sells','🔴 Sells',{side:'sell',sol:[null,null],minKols:1,mode:'trades'}],['hold','💎 Still holding',{side:'buy',pos:'holding',sol:[null,null],minKols:1,mode:'trades'}],['favt','❤ Favorites\' trades',{side:'all',favOnly:true,sol:[null,null],minKols:1,mode:'trades'}]];
 function kolTradesFiltered(){
   const f=FILT.kol,now=Date.now()/1000;
   return KTR.filter(x=>{
     if(!KOL[x.w]||!kolOK(x.w))return false;
+    if(f.favOnly&&!FAV.has(x.w))return false;
     if(now-x.ts>f.win*60)return false;
     if(f.side!=='all'&&x.side!==f.side)return false;
     if(!inR(x.sol,f.sol))return false;
@@ -654,13 +662,13 @@ let POSBAL={};                                   // w|m -> {bal, t}
 function kolPos(w,m){
   const tr=KTR.filter(x=>x.w===w&&x.m===m);let bought=0,sold=0,inSol=0,outSol=0,first=null,lastSell=null,lastBuy=null;
   tr.forEach(x=>{if(x.side==='buy'){bought+=x.amt||0;inSol+=x.sol;first=first==null?x.ts:Math.min(first,x.ts);lastBuy=Math.max(lastBuy||0,x.ts);}else{sold+=x.amt||0;outSol+=x.sol;lastSell=Math.max(lastSell||0,x.ts);}});
-  const pb=POSBAL[w+'|'+m],bal=pb?pb.bal:null,now=Date.now()/1000;
+  const pb=POSBAL[w+'|'+m],bal=pb&&pb.bal!=null?pb.bal:null,now=Date.now()/1000;
   let st='unknown',left=null;
   if(bal!=null){if(bal<=0)st='sold';else if(bought>0&&bal<bought*0.9){st='partial';left=Math.min(100,bal/bought*100);}else st='holding';}
   else if(bought>0){if(sold>=bought*0.95)st='sold';else if(sold>0){st='partial';left=(1-sold/bought)*100;}else st='holding?';}
   else if(sold>0)st='sold';
   const held=first==null?null:(st==='sold'?(lastSell&&lastSell>=first?lastSell-first:null):now-first);
-  return{st,left,held,first,lastSell,inSol,outSol,pnl:outSol-inSol,bal,checked:!!pb};
+  return{st,left,held,first,lastSell,inSol,outSol,pnl:outSol-inSol,bal,checked:bal!=null};
 }
 function posChip(p,short_){
   const d=p.held!=null?dur(p.held):'';
@@ -673,11 +681,12 @@ function posChip(p,short_){
 let posQ=new Set(),posRunning=false;
 async function loadPositions(pairs){
   pairs.forEach(k=>{const pb=POSBAL[k];if(!pb||Date.now()-pb.t>60e3)posQ.add(k);});
+  if(!KEY)return;
   if(posRunning||!posQ.size)return;posRunning=true;
   const items=[...posQ].slice(0,40);items.forEach(k=>posQ.delete(k));
-  await pool(items,4,async k=>{const [w,m]=k.split('|');try{const r=await rpc('getTokenAccountsByOwner',[w,{mint:m},{encoding:'jsonParsed'}]);
-    const bal=(r?.value||[]).reduce((a,x)=>a+(+x.account?.data?.parsed?.info?.tokenAmount?.uiAmount||0),0);POSBAL[k]={bal,t:Date.now()};}catch(e){}});
-  posRunning=false;if(TAB==='kol'&&$('vDetail').classList.contains('hide')&&$('sheet').classList.contains('hide'))renderKol();
+  let changed=0;await pool(items,4,async k=>{const [w,m]=k.split('|');try{const r=await rpc('getTokenAccountsByOwner',[w,{mint:m},{encoding:'jsonParsed'}]);
+    const bal=(r?.value||[]).reduce((a,x)=>a+(+x.account?.data?.parsed?.info?.tokenAmount?.uiAmount||0),0);POSBAL[k]={bal,t:Date.now()};changed++;}catch(e){POSBAL[k]={bal:null,t:Date.now()};}});
+  posRunning=false;if(changed&&TAB==='kol'&&$('vDetail').classList.contains('hide')&&$('sheet').classList.contains('hide'))renderKol();
 }
 function kolIni(w){return esc((KOL[w]||'?').replace(/[^A-Za-z0-9]/g,'').slice(0,2).toUpperCase()||'K');}
 function tokMini(m){const t=TOK.get(m);if(!t||!t.pair)return `<div class="ktok"><div><b>${short(m)}</b><div class="note">loading…</div></div></div>`;
@@ -686,14 +695,15 @@ function tokMini(m){const t=TOK.get(m);if(!t||!t.pair)return `<div class="ktok">
 function renderKol(){
   const f=FILT.kol,tr=kolTradesFiltered(),nK=Object.keys(KOL).length;
   $('c-kol').textContent=tr.length||'';
-  let h=`<div class="kbar"><div class="seg2" id="kMode"><button data-v="trades" class="${f.mode==='trades'?'on':''}">Trades</button><button data-v="tokens" class="${f.mode==='tokens'?'on':''}">Tokens</button></div>
+  let h=`<div class="kbar"><div class="seg2" id="kMode"><button data-v="trades" class="${f.mode==='trades'?'on':''}">Trades</button><button data-v="tokens" class="${f.mode==='tokens'?'on':''}">Tokens</button><button data-v="favs" class="${f.mode==='favs'?'on':''}">❤ ${FAV.size||''}</button></div>
    <button class="fbtn" id="kScan">${kolScanning?'⏹ Stop':'⟳ Scan '+Object.keys(KOL).filter(kolOK).length+' active'}</button><button class="fbtn" id="kAddW">＋ Add wallet</button><button class="fbtn" id="kMan">👑 Manage (${nK})</button></div>`;
   if(!nK){$('list').innerHTML=h+'<div class="empty">No KOLs saved. Add them in ⚙︎ Settings → KOL wallets.</div>';wireKol();return;}
+  if(f.mode==='favs'){$('list').innerHTML=h+favHTML();wireKol();loadFavs();return;}
   if(!tr.length){h+=`<div class="empty">No KOL trades match yet.<br><br>Tap <b>Scan all KOLs</b> to load recent trades (takes ~${Math.round(nK/LIMITS[PLAN].enh/60)+1} min on your plan). New trades also arrive with every refresh.</div>`;$('list').innerHTML=h;wireKol();return;}
   if(f.mode==='trades'){
     h+=tr.slice(0,120).map(x=>`<div class="kt" data-m="${x.m}"><span data-kw="${x.w}">${kolAv(x.w,'kav')}</span>
-     <div class="mid"><div class="nm"><b class="kn" data-kw="${x.w}">${esc(KOL[x.w])}</b><span class="side ${x.side}">${x.side.toUpperCase()}</span><b class="${x.side==='buy'?'up':'dn'}">${SOLI}${num(x.sol,x.sol<1?2:1)}</b></div>
-     <div class="sub">${KOLX[x.w]?'@'+esc(KOLX[x.w])+' · ':''}${KBAL[x.w]?'bal '+balTxt(x.w)+' · ':''}${ago(x.ts)}</div>${x.side==='buy'?`<div class="sub" style="margin-top:4px">${posChip(kolPos(x.w,x.m))}</div>`:''}</div>${tokMini(x.m)}</div>`).join('');
+     <div class="mid"><div class="nm"><b class="kn" data-kw="${x.w}">${esc(KOL[x.w])}</b>${heart(x.w)}<span class="side ${x.side}">${x.side.toUpperCase()}</span><b class="${x.side==='buy'?'up':'dn'}">${SOLI}${num(x.sol,x.sol<1?2:1)}</b></div>
+     <div class="sub">${KOLX[x.w]?'@'+esc(KOLX[x.w])+' · ':''}${balTxt(x.w)?'bal '+balTxt(x.w)+' · ':''}${ago(x.ts)}</div>${x.side==='buy'?`<div class="sub" style="margin-top:4px">${posChip(kolPos(x.w,x.m))}</div>`:''}</div>${tokMini(x.m)}</div>`).join('');
     loadPositions([...new Set(tr.slice(0,60).filter(x=>x.side==='buy').map(x=>x.w+'|'+x.m))]);
     {const ws=[...new Set(tr.slice(0,80).map(x=>x.w))];if(ws.some(w=>!KBAL[w]))loadKolBal(ws).then(()=>{if(TAB==='kol'&&$('sheet').classList.contains('hide'))renderKol();});}
   }else{
@@ -708,7 +718,7 @@ function renderKol(){
 function wireKol(){
   const m=$('kMode');if(m)m.querySelectorAll('button').forEach(b=>b.onclick=()=>{FILT.kol.mode=b.dataset.v;saveFilt();renderKol();});
   const a=$('kAddW');if(a)a.onclick=addWalletSheet;const mg=$('kMan');if(mg)mg.onclick=()=>manageSheet('');
-  const s=$('kScan');if(s)s.onclick=()=>{if(kolScanning){stopScan=true;}else kolScanAll();renderKol();};
+  const s=$('kScan');if(s)s.onclick=()=>{if(kolScanning){kolStop=true;}else kolScanAll();renderKol();};
 }
 function addWalletSheet(){
   openSheet(`<h3>Add wallet to track</h3>
@@ -726,6 +736,45 @@ function addWalletSheet(){
     closeSheet();toast('Wallet added');try{const r=await rpc('getSignaturesForAddress',[w,{limit:1}]);KACT[w]={t:Date.now(),last:r&&r[0]?r[0].blockTime:0};store.set('hs_kact',KACT);}catch(e){}
     if(ty!=='smart'){try{const txs=await txRecent(w,25);(Array.isArray(txs)?txs:[]).forEach(tx=>addTrade(tx,w));saveKTR();await loadMarket();}catch(e){}}renderList();};
 }
+// ---------- import public KOL / smart-wallet lists straight from GitHub (no copy errors) ----------
+const PUB_SRC=[
+  {id:'kolscan',name:'Kolscan leaderboard (1D/7D/30D)',url:'https://raw.githubusercontent.com/nirholas/kol-quest/main/output/kolscan-leaderboard.json',kind:'kol'},
+  {id:'gmgn',name:'GMGN smart money (named + unnamed)',url:'https://raw.githubusercontent.com/nirholas/kol-quest/main/solwallets.json',kind:'mixed'}];
+const B58=/^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+function harvest(node,out,depth){
+  if(!node||depth>8)return;
+  if(Array.isArray(node)){node.forEach(n=>harvest(n,out,depth+1));return;}
+  if(typeof node!=='object')return;
+  const w=node.wallet_address||node.address||node.wallet;
+  if(typeof w==='string'&&B58.test(w)&&(node.name!=null||node.twitter!=null||node.twitter_username!=null||node.last_active!=null||node.realized_profit_7d!=null)){
+    let x=node.twitter_username||node.twitter||'';if(typeof x==='string'){x=x.replace(/^https?:\/\/(www\.)?(x|twitter)\.com\//,'').replace(/^@+/,'').split(/[/?]/)[0];}else x='';
+    const nm=(node.name||node.nickname||node.twitter_name||'').toString().trim();
+    const o=out[w]||(out[w]={w,n:'',x:'',last:0,tags:new Set()});if(nm&&!o.n)o.n=nm.slice(0,40);if(x&&!o.x)o.x=x;if(+node.last_active>o.last)o.last=+node.last_active;(node.tags||[]).forEach(t=>o.tags.add(t));
+    return;}
+  for(const k in node)if(typeof node[k]==='object')harvest(node[k],out,depth+1);
+}
+function importSheet(){
+  openSheet(`<h3>🌐 Import public wallet lists</h3>
+  <div class="note">Downloads the public lists directly from GitHub and adds every valid wallet. Named wallets (with name or X handle) become 👑 KOLs; unnamed GMGN wallets can be added as 🧠 smart wallets. Your activity check then hides inactive ones.</div>
+  ${PUB_SRC.map(s=>`<div class="sw"><span>${s.name}</span><input type="checkbox" data-src="${s.id}" checked></div>`).join('')}
+  <div class="sw"><span>Only wallets active in the last</span><select id="imDays" style="width:auto">${[3,7,14,30,0].map(d=>`<option value="${d}" ${d===7?'selected':''}>${d?d+' days':'any time'}</option>`).join('')}</select></div>
+  <div class="sw"><span>Add unnamed GMGN wallets as smart wallets</span><input type="checkbox" id="imSmart" checked></div>
+  <button class="btn" id="imGo">Import now</button><div class="note" id="imTxt" style="margin-top:10px"></div>
+  <div class="note" style="margin-top:12px">Axiom, Padre/Terminal and Fomo don't publish their KOL lists, so they can't be imported. GMGN's data does tag which wallets trade through Padre.</div>`);
+  $('imGo').onclick=async()=>{
+    const srcs=PUB_SRC.filter(s=>$('sheet').querySelector(`[data-src="${s.id}"]`).checked),days=+$('imDays').value,addSmart=$('imSmart').checked,cut=days?Date.now()/1000-days*86400:0;
+    $('imGo').disabled=true;let newK=0,newS=0,named=0,seen=0;const out={};
+    for(const s of srcs){$('imTxt').textContent='Downloading '+s.name+'…';
+      try{const r=await fetch(s.url);if(!r.ok)throw new Error('HTTP '+r.status);const j=await r.json();harvest(j,out,0);}catch(e){$('imTxt').textContent=s.name+' failed: '+e.message;}}
+    Object.values(out).forEach(o=>{seen++;if(o.last&&cut&&o.last<cut)return;if(!o.last&&cut&&!o.n&&!o.x)return;
+      if(o.n||o.x){named++;if(!KOL[o.w]){KOL[o.w]=o.n||o.x;newK++;}if(o.x&&!KOLX[o.w])KOLX[o.w]=o.x;if(o.last)KACT[o.w]={t:0,last:o.last};}
+      else if(addSmart&&!SMART[o.w]){SMART[o.w]={t:Date.now(),src:'gmgn'};newS++;}});
+    store.set('hs_kol',KOL);store.set('hs_kolx',KOLX);store.set('hs_smart',SMART);store.set('hs_kact',KACT);
+    $('imTxt').innerHTML=`Found <b>${seen}</b> wallets · added <b>${newK}</b> new KOLs and <b>${newS}</b> smart wallets. Now checking which are active on-chain…`;
+    $('imGo').disabled=false;await checkKolActivity(false);const act=Object.keys(KOL).filter(w=>kolActive(w)===true).length;
+    if($('imTxt'))$('imTxt').innerHTML+=` Done: <b>${act}</b> active KOLs (traded in ${ACTIVE_DAYS} days).`;renderList();
+  };
+}
 function manageSheet(q){
   const all=Object.keys(KOL),act=all.filter(w=>kolActive(w)===true).length,inact=all.filter(w=>kolActive(w)===false).length;
   const list=all.filter(w=>!q||(KOL[w]+' '+(KOLX[w]||'')+' '+w).toLowerCase().includes(q.toLowerCase()))
@@ -734,18 +783,56 @@ function manageSheet(q){
   <div class="note">${all.length} saved · <b style="color:var(--good)">${act} active</b> · ${inact} inactive (no trade in ${ACTIVE_DAYS} days, hidden from the feed) · ${all.length-act-inact} not checked yet</div>
   <div class="g2" style="margin-top:10px"><input id="mQ" placeholder="Search name or @handle" value="${esc(q)}"><select id="mDays">${[3,7,14,30].map(d=>`<option value="${d}" ${ACTIVE_DAYS===d?'selected':''}>Active = traded in ${d}d</option>`).join('')}</select></div>
   <div style="display:flex;gap:8px"><button class="btn gh" id="mCheck" style="margin-top:10px">${actRunning?'Checking…':'⟳ Check activity'}</button><button class="btn gh" id="mPrune" style="margin-top:10px">Remove inactive</button></div>
-  <div style="margin-top:10px;max-height:52vh;overflow:auto">${list.slice(0,300).map(w=>{const a=kolActive(w),l=KACT[w]?.last;return `<div class="wl"><div class="wl-l"><span data-kw="${w}">${kolAv(w,'wav')}</span><div style="min-width:0">${kolLink(w)}<div class="note">${short(w)}${KBAL[w]?' · '+balTxt(w):''}${l?' · last trade '+ago(l):''}</div></div></div><span class="stt ${a?'on':'off'}">${a===true?'active':a===false?'inactive':'—'}</span><button data-mrm="${w}">✕</button></div>`;}).join('')||'<div class="note">No match.</div>'}</div>
-  <button class="btn" id="mAdd">＋ Add wallet</button>`);
+  <div style="margin-top:10px;max-height:52vh;overflow:auto">${list.slice(0,300).map(w=>{const a=kolActive(w),l=KACT[w]?.last;return `<div class="wl"><div class="wl-l"><span data-kw="${w}">${kolAv(w,'wav')}</span><div style="min-width:0">${kolLink(w)}<div class="note">${short(w)}${KBAL[w]?' · '+balTxt(w):''}${l?' · last trade '+ago(l):''}</div></div></div><span class="stt ${a?'on':'off'}">${a===true?'active':a===false?'inactive':'—'}</span>${heart(w)}<button data-mrm="${w}">✕</button></div>`;}).join('')||'<div class="note">No match.</div>'}</div>
+  <div style="display:flex;gap:8px"><button class="btn" id="mAdd">＋ Add wallet</button><button class="btn gh" id="mImp">🌐 Import public lists</button></div>`);
   $('mQ').oninput=e=>{clearTimeout(manageSheet.t);manageSheet.t=setTimeout(()=>{manageSheet(e.target.value);const el=$('mQ');el.focus();el.setSelectionRange(el.value.length,el.value.length);},300);};
   $('mDays').onchange=e=>{ACTIVE_DAYS=+e.target.value;store.set('hs_actdays',ACTIVE_DAYS);manageSheet(q);renderList();};
   $('mCheck').onclick=async()=>{toast('Checking '+all.length+' wallets…');await checkKolActivity(true);manageSheet(q);};
   $('mPrune').onclick=()=>{let n=0;all.forEach(w=>{if(kolActive(w)===false){delete KOL[w];delete KOLX[w];n++;}});store.set('hs_kol',KOL);store.set('hs_kolx',KOLX);toast(n+' inactive removed');manageSheet(q);renderList();};
   $('sheet').querySelectorAll('[data-mrm]').forEach(b=>b.onclick=()=>{delete KOL[b.dataset.mrm];delete KOLX[b.dataset.mrm];store.set('hs_kol',KOL);store.set('hs_kolx',KOLX);manageSheet(q);});
-  $('mAdd').onclick=addWalletSheet;
+  $('mAdd').onclick=addWalletSheet;$('mImp').onclick=importSheet;
   $('sheet').querySelectorAll('[data-kw]').forEach(b=>b.onclick=()=>openKol(b.dataset.kw));
   if(list.slice(0,300).some(w=>!KBAL[w]))loadKolBal(list.slice(0,300)).then(()=>{if(!$('sheet').classList.contains('hide')&&$('mQ'))manageSheet(q);});
 }
 // ================= KOL profile + PnL =================
+// ---------- favorites: current holdings + trades + PnL per favorite KOL ----------
+const FAVD={};                                   // wallet -> {t, P, hold}
+let favLoading=false;
+async function getHoldings(w,pos){
+  const progs=['TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA','TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb'],agg={};
+  for(const pg of progs){const r=await rpc('getTokenAccountsByOwner',[w,{programId:pg},{encoding:'jsonParsed'}]);(r?.value||[]).forEach(a=>{const i=a.account?.data?.parsed?.info;const amt=+i?.tokenAmount?.uiAmount||0;if(amt>0&&!SKIP.has(i.mint))agg[i.mint]=(agg[i.mint]||0)+amt;});}
+  const mints=Object.keys(agg).slice(0,90),price={};
+  for(let i=0;i<mints.length;i+=30){try{const arr=await getJSON('https://api.dexscreener.com/tokens/v1/solana/'+mints.slice(i,i+30).join(','));(Array.isArray(arr)?arr:[]).forEach(p=>{const m=p.baseToken?.address;if(m&&(!price[m]||(p.liquidity?.usd||0)>(price[m].liq||0)))price[m]={usd:+p.priceUsd||0,liq:p.liquidity?.usd||0,sym:p.baseToken?.symbol,img:p.info?.imageUrl,mc:p.marketCap||p.fdv};});}catch(e){}}
+  pos=pos||{};
+  return Object.entries(agg).filter(([m])=>price[m]&&price[m].liq>500).map(([m,amt])=>{const v=amt*price[m].usd,c=pos[m]&&pos[m].q>0?pos[m].c*Math.min(1,amt/pos[m].q):null;
+    return{m,amt,sym:price[m].sym,img:price[m].img,mc:price[m].mc,usd:v,cost:c,upnl:c!=null&&SOLUSD?v/SOLUSD-c:null,since:pos[m]?.first||null};}).sort((a,b)=>b.usd-a.usd).slice(0,15);
+}
+async function loadFavs(){
+  if(favLoading)return;favLoading=true;
+  const ws=[...FAV].filter(w=>KOL[w]||SMART[w]).slice(0,25);
+  await loadKolBal(ws);
+  for(const w of ws){const d=FAVD[w];if(d&&Date.now()-d.t<3*60e3)continue;
+    try{const h=await kolHistory(w,1);const P=pnlCalc(w,h.txs);const hold=await getHoldings(w,P.pos);FAVD[w]={t:Date.now(),P,hold,complete:h.complete};}catch(e){}
+    if(TAB==='kol'&&FILT.kol.mode==='favs'&&$('sheet').classList.contains('hide'))$('list').querySelector('#favList')&&($('list').querySelector('#favList').outerHTML=favListHTML());}
+  favLoading=false;
+}
+function favListHTML(){
+  const ws=[...FAV].filter(w=>KOL[w]||SMART[w]);
+  return `<div id="favList">${ws.map(w=>{const d=FAVD[w],b=KBAL[w],a=kolActive(w),P=d?.P,S7=P?pnlWindow(P,7*86400,d.complete):null,S1=P?pnlWindow(P,86400,d.complete):null;
+    const last=P&&P.trades.length?P.trades[P.trades.length-1]:null,cls=v=>v>=0?'up':'dn';
+    return `<div class="tc fav">
+      <div class="r1"><span data-kw="${w}">${kolAv(w,'kpav')}</span><div class="mid"><div class="nm"><b class="kn" data-kw="${w}">${esc(KOL[w]||short(w))}</b>${heart(w)}</div>
+        <div class="sub">${KOLX[w]?'@'+esc(KOLX[w])+' · ':''}${a===true?'<span class="stt on">active</span>':a===false?'<span class="stt off">inactive</span>':''}${last?' · last trade '+ago(last.ts):''}</div></div>
+        <div class="rt"><div class="mc">Balance</div><b>${b?SOLI+num(b.sol,2):'…'}</b></div></div>
+      ${P?`<div class="r2"><span>PnL 1D <b class="${cls(S1.pnl)}">${SOLI}${(S1.pnl>=0?'+':'')+num(S1.pnl,2)}</b></span><span>PnL 7D <b class="${cls(S7.pnl)}">${SOLI}${(S7.pnl>=0?'+':'')+num(S7.pnl,2)}</b></span><span>WR 7D <b>${S7.wr!=null?Math.round(S7.wr)+'%':'—'}</b></span><span>Trades 7D <b>${S7.buys+S7.sells}</b></span></div>`:'<div class="note" style="margin-top:8px">Loading PnL & holdings…</div>'}
+      ${d?`<div class="fl" style="margin:10px 0 4px">Holding now (${d.hold.length})</div>${d.hold.length?d.hold.slice(0,5).map(x=>`<div class="kpr" data-hm="${x.m}">${x.img?`<img src="${esc(x.img)}" style="width:22px;height:22px;border-radius:6px;object-fit:cover" onerror="this.remove()">`:''}<b>${esc(x.sym||short(x.m))}</b><span class="note">MC ${usd(x.mc)}${x.since?' · '+dur(Date.now()/1000-x.since):''}</span><span style="margin-left:auto;text-align:right"><b>${usd(x.usd)}</b>${x.upnl!=null?` <span class="${cls(x.upnl)}" style="font-size:11px">${SOLI}${(x.upnl>=0?'+':'')+num(x.upnl,2)}</span>`:''}</span></div>`).join(''):'<div class="note">No token holdings with liquidity.</div>'}
+      <div class="fl" style="margin:10px 0 4px">Recent trades</div>${P.trades.slice(-5).reverse().map(x=>`<div class="kpr" data-hm="${x.m}"><span class="side ${x.side}">${x.side.toUpperCase()}</span><b>${esc(TOK.get(x.m)?.sym||short(x.m))}</b>${x.side==='buy'?posChip(kolPos(w,x.m),true):''}<span style="margin-left:auto" class="${x.side==='buy'?'up':'dn'}">${SOLI}${num(x.sol,2)} <span class="note">${ago(x.ts)}</span></span></div>`).join('')||'<div class="note">No SOL trades in recent history.</div>'}`:''}
+    </div>`;}).join('')}</div>`;
+}
+function favHTML(){
+  if(!FAV.size)return '<div class="empty">No favorite KOLs yet.<br><br>Tap ♡ next to any KOL name in the trade feed, their profile, or 👑 Manage.</div>';
+  return favListHTML();
+}
 const KHIST={};                                  // wallet -> {txs, before, complete}
 async function kolHistory(w,pages){
   const h=KHIST[w]||(KHIST[w]={txs:[],before:null,complete:false,seen:new Set()});
@@ -784,14 +871,7 @@ async function openKol(w){
   loadKolHoldings(w);
 }
 async function loadKolHoldings(w){
-  try{const progs=['TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA','TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb'];const hs=[];
-    for(const pg of progs){const r=await rpc('getTokenAccountsByOwner',[w,{programId:pg},{encoding:'jsonParsed'}]);(r?.value||[]).forEach(a=>{const i=a.account?.data?.parsed?.info;const amt=+i?.tokenAmount?.uiAmount||0;if(amt>0&&!SKIP.has(i.mint))hs.push({m:i.mint,amt});});}
-    const agg={};hs.forEach(h=>{agg[h.m]=(agg[h.m]||0)+h.amt;});hs.length=0;Object.entries(agg).forEach(([m,amt])=>hs.push({m,amt}));
-    const mints=hs.map(h=>h.m).slice(0,90),price={};
-    for(let i=0;i<mints.length;i+=30){try{const arr=await getJSON('https://api.dexscreener.com/tokens/v1/solana/'+mints.slice(i,i+30).join(','));(Array.isArray(arr)?arr:[]).forEach(p=>{const m=p.baseToken?.address;if(m&&(!price[m]||(p.liquidity?.usd||0)>(price[m].liq||0)))price[m]={usd:+p.priceUsd||0,liq:p.liquidity?.usd||0,sym:p.baseToken?.symbol,img:p.info?.imageUrl};});}catch(e){}}
-    const pos=KP.P?.pos||{};
-    KP.hold=hs.filter(h=>price[h.m]&&price[h.m].liq>500).map(h=>{const v=h.amt*price[h.m].usd,c=pos[h.m]&&pos[h.m].q>0?pos[h.m].c*Math.min(1,h.amt/pos[h.m].q):null;return{...h,sym:price[h.m].sym,img:price[h.m].img,usd:v,cost:c,upnl:c!=null&&SOLUSD?v/SOLUSD-c:null};}).sort((a,b)=>b.usd-a.usd).slice(0,15);
-  }catch(e){KP.hold=[];}
+  try{KP.hold=await getHoldings(w,KP.P?.pos);}catch(e){KP.hold=[];}
   if(KP.w===w&&!$('sheet').classList.contains('hide')&&$('kpCard'))drawKol();
 }
 function drawKol(){
@@ -799,7 +879,7 @@ function drawKol(){
   const per=PNL_P.find(x=>x[0]===KP.per),S=KP.P?pnlWindow(KP.P,per[2],h&&h.complete):null;
   const cls=v=>v==null?'':v>=0?'up':'dn',sgn=v=>v==null?'—':(v>=0?'+':'')+num(v,Math.abs(v)<10?2:1);
   const usdv=v=>v!=null&&SOLUSD?` <span class="note">(${v>=0?'+':'-'}${usd(Math.abs(v*SOLUSD))})</span>`:'';
-  openSheet(`<div class="kph">${kolAv(w,'kpav')}<div style="min-width:0;flex:1"><div style="font-size:18px;font-weight:800">${esc(KOL[w]||short(w))}</div>
+  openSheet(`<div class="kph">${kolAv(w,'kpav')}<div style="min-width:0;flex:1"><div style="font-size:18px;font-weight:800">${esc(KOL[w]||short(w))} ${heart(w)}</div>
     <div class="note">${KOLX[w]?`<a href="${kolX(w)}" target="_blank" rel="noopener" style="color:var(--acc);text-decoration:none">@${esc(KOLX[w])}</a> · `:''}${short(w)} <button class="cp" id="kpCp">⧉</button> ${act===true?'<span class="stt on">active</span>':act===false?'<span class="stt off">inactive</span>':''}</div></div>
     <div style="text-align:right"><div class="note">Balance</div><div style="font-size:17px;font-weight:800" id="kpBal">${bal?SOLI+num(bal.sol,2):'…'}</div><div class="note" id="kpBalU">${bal&&SOLUSD?usd(bal.sol*SOLUSD):''}</div></div></div>
   <div class="links" style="margin:10px 0"><a href="https://gmgn.ai/sol/address/${w}" target="_blank" rel="noopener">GMGN</a><a href="https://solscan.io/account/${w}" target="_blank" rel="noopener">Solscan</a><a href="https://kolscan.io/account/${w}" target="_blank" rel="noopener">Kolscan</a>${KOLX[w]?`<a href="${kolX(w)}" target="_blank" rel="noopener">𝕏</a>`:''}</div>
@@ -860,6 +940,7 @@ async function refresh(manual){
   try{
     await discover();
     if(Object.keys(KOL).length&&!kolScanning)await kolPoll(TAB==='kol'?LIMITS[PLAN].par*5:LIMITS[PLAN].par*2);
+    if(FAV.size){const fw=[...FAV].filter(w=>KOL[w]).slice(0,10);await pool(fw,3,async w=>{try{const txs=await txRecent(w,15);(Array.isArray(txs)?txs:[]).forEach(tx=>addTrade(tx,w));}catch(e){}});saveKTR();if(TAB==='kol'&&FILT.kol.mode==='favs')fw.forEach(w=>{if(FAVD[w])FAVD[w].t=0;});}
     KTR.forEach(x=>{const t=tok(x.m);if(!t.seen)t.seen=Date.now();});
     await loadMarket();await loadAuth();
     lastRefresh=Date.now();setLive(SET.auto?'on':'',new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',hour12:false}));
@@ -1170,7 +1251,7 @@ async function scanHolders(t,onStep){
   hs.forEach((h,i)=>{const o=oi?.value?.[i];h.pool=BURN.has(h.owner)||POOL_AUTH.has(h.owner)||h.owner===t.pair?.pairAddress||(o&&o.owner!==SYSTEM)||!o;});
   const people=hs.filter(h=>!h.pool),toScan=people.slice(0,SCAN.nHold);
   let done=0;stopScan=false;
-  await pool(toScan,LIMITS[PLAN].par,async h=>{try{h.a=await walletFor(h.owner,t.mint);h.smart=isSmart(h.a);}catch(e){h.err=1;}onStep(++done,toScan.length);});
+  await pool(toScan,LIMITS[PLAN].par,async h=>{try{h.a=await walletFor(h.owner,t.mint);h.smart=isSmart(h.a);}catch(e){h.err=1;}onStep(++done,toScan.length);},()=>stopScan);
   const bySlot={},byF={};
   toScan.forEach(h=>{const s=h.a?.target?.slot;if(s)(bySlot[s]=bySlot[s]||[]).push(h);const f=h.a?.funder;if(f)(byF[f]=byF[f]||[]).push(h);});
   Object.values(bySlot).forEach(g=>{if(g.length>1)g.forEach(h=>h.bundled=true);});
@@ -1345,6 +1426,7 @@ function holderHTML(h){
 }
 window.addEventListener('popstate',()=>{if(!$('vDetail').classList.contains('hide')){stopScan=true;DT=null;if(chartObj){try{chartObj.remove();}catch(e){}chartObj=null;}$('vDetail').classList.add('hide');}else if(!$('sheet').classList.contains('hide'))closeSheet();});
 
+document.addEventListener('click',e=>{const b=e.target.closest('[data-fav]');if(b){e.preventDefault();e.stopPropagation();toggleFav(b.dataset.fav);if(TAB==='kol'&&FILT.kol.mode==='favs'&&$('sheet').classList.contains('hide'))renderKol();}},true);
 // ================= theme =================
 function applyTheme(th){document.documentElement.dataset.theme=th;$('themeBtn').textContent=th==='light'?'🌙':'☀️';document.querySelector('meta[name=theme-color]').setAttribute('content',th==='light'?'#f4f6fb':'#090b10');}
 let THEME=store.get('hs_theme',null)||(window.matchMedia&&matchMedia('(prefers-color-scheme: light)').matches?'light':'dark');
@@ -1354,11 +1436,12 @@ $('themeBtn').onclick=()=>{THEME=THEME==='light'?'dark':'light';store.set('hs_th
 // ================= wiring =================
 $('tabs').onclick=e=>{const b=e.target.closest('button');if(!b)return;TAB=b.dataset.t;store.set('hs_tab',TAB);renderControls();renderList();queueTop10();window.scrollTo(0,0);};
 $('tfRow').onclick=e=>{const b=e.target.closest('[data-tf]');if(!b)return;FILT[TAB].tf=b.dataset.tf;FILT[TAB].sort='vol';saveFilt();renderControls();renderList();queueTop10();};
-$('presets').addEventListener('click',e=>{const b=e.target.closest('[data-kp]');if(!b)return;const p=KOL_PRESETS.find(x=>x[0]===b.dataset.kp);FILT.kol={...FILT.kol,age:[null,null],pos:'all',...p[2],preset:p[0]};saveFilt();renderControls();renderList();});
+$('presets').addEventListener('click',e=>{const b=e.target.closest('[data-kp]');if(!b)return;const p=KOL_PRESETS.find(x=>x[0]===b.dataset.kp);FILT.kol={...FILT.kol,age:[null,null],pos:'all',favOnly:false,...p[2],preset:p[0]};saveFilt();renderControls();renderList();});
 $('presets').onclick=e=>{const b=e.target.closest('[data-p]');if(b)applyPreset(b.dataset.p);};
 $('sortSel').onchange=()=>{FILT[TAB].sort=$('sortSel').value;saveFilt();renderList();};
 $('filtBtn').onclick=()=>TAB==='kol'?kolFilterSheet():filterSheet();$('setBtn').onclick=settingsSheet;$('srchBtn').onclick=searchSheet;$('refBtn').onclick=()=>refresh(true);
-$('list').onclick=e=>{if(e.target.closest('a'))return;const kw=e.target.closest('[data-kw]');if(kw){e.stopPropagation();openKol(kw.dataset.kw);return;}const cp=e.target.closest('[data-cp]');if(cp){e.stopPropagation();copy(cp.dataset.cp);return;}const c=e.target.closest('.tc,.kt');if(c&&TOK.get(c.dataset.m)?.pair)openDetail(c.dataset.m);};
+$('list').onclick=async e=>{if(e.target.closest('a'))return;const kw=e.target.closest('[data-kw]');if(kw){e.stopPropagation();openKol(kw.dataset.kw);return;}
+  const hm=e.target.closest('[data-hm]');if(hm){e.stopPropagation();const m=hm.dataset.hm;let t=TOK.get(m);if(!t||!t.pair){try{const arr=await getJSON('https://api.dexscreener.com/tokens/v1/solana/'+m);t=tok(m);t.seen=Date.now();t.pairs=(Array.isArray(arr)?arr:[]).filter(p=>p.baseToken?.address===m);if(t.pairs.length)derive(t);}catch(err){}}if(t&&t.pair)openDetail(m);else toast('No market data for this token');return;}const cp=e.target.closest('[data-cp]');if(cp){e.stopPropagation();copy(cp.dataset.cp);return;}const c=e.target.closest('.tc,.kt');if(c&&TOK.get(c.dataset.m)?.pair)openDetail(c.dataset.m);};
 $('kPlan').querySelectorAll('button').forEach(b=>b.onclick=()=>{$('kPlan').querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');});
 $('kGo').onclick=async()=>{const k=$('kIn').value.trim();if(k.length<20){$('kErr').textContent='That key looks too short.';return;}
   KEY=k;PLAN=$('kPlan').querySelector('.on').dataset.v;$('kGo').textContent='Checking…';
