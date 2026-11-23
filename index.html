@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0d10">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Holder Scanner</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{--bg:#0b0d10;--bg2:#12151a;--card:#15191f;--line:#222831;--txt:#e8edf2;--mut:#7d8896;--good:#2ecc71;--bad:#ff4d5e;--warn:#f5a623;--acc:#5aa9ff;--smart:#b07cff;--gold:#ffd166}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--txt);font:14px/1.35 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,sans-serif;overscroll-behavior-y:contain}
+button{font:inherit;color:inherit;cursor:pointer}
+input,textarea,select{font:inherit;color:var(--txt);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;width:100%}
+.hide{display:none!important}
+/* header */
+.top{position:sticky;top:0;z-index:20;background:rgba(11,13,16,.96);backdrop-filter:blur(8px);padding:calc(env(safe-area-inset-top) + 8px) 12px 0;border-bottom:1px solid var(--line)}
+.hdr{display:flex;align-items:center;gap:8px}
+.hdr .logo{font-weight:800;font-size:17px;letter-spacing:-.01em}
+.hdr .logo span{color:var(--smart)}
+.hdr .sp{flex:1}
+.live{font-size:11px;color:var(--mut);display:flex;align-items:center;gap:5px}
+.live i{width:7px;height:7px;border-radius:50%;background:var(--mut)}
+.live.on i{background:var(--good);box-shadow:0 0 6px var(--good)}
+.live.busy i{background:var(--warn);animation:bl 1s infinite}
+@keyframes bl{50%{opacity:.3}}
+.ib{background:var(--bg2);border:1px solid var(--line);border-radius:10px;width:36px;height:36px;display:grid;place-items:center;font-size:16px}
+.instBtn{background:var(--smart);color:#140a24;border:0;border-radius:10px;padding:8px 10px;font-weight:700;font-size:12px}
+.tabs{display:flex;margin-top:10px}
+.tabs button{flex:1;background:none;border:0;padding:10px 0 11px;color:var(--mut);font-weight:600;font-size:14px;border-bottom:2px solid transparent}
+.tabs button.on{color:var(--txt);border-color:var(--acc)}
+.tabs button b{font-size:11px;color:var(--mut);font-weight:600;margin-left:3px}
+/* controls */
+.ctl{padding:10px 12px 4px}
+.presets{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:6px}
+.presets::-webkit-scrollbar{display:none}
+.pr{flex:0 0 auto;background:var(--bg2);border:1px solid var(--line);border-radius:20px;padding:7px 12px;font-size:13px;color:var(--mut);white-space:nowrap}
+.pr.on{border-color:var(--acc);color:var(--txt);background:rgba(90,169,255,.12)}
+.bar2{display:flex;gap:6px;align-items:center;margin-top:4px}
+.bar2 select{width:auto;padding:7px 8px;font-size:13px;background:var(--bg2)}
+.fbtn{background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:7px 11px;font-size:13px;display:flex;gap:6px;align-items:center}
+.fbtn .n{background:var(--acc);color:#05121f;border-radius:10px;padding:0 6px;font-size:11px;font-weight:700}
+.cnt{margin-left:auto;font-size:12px;color:var(--mut)}
+/* list + cards */
+.list{padding:6px 10px calc(env(safe-area-inset-bottom) + 30px)}
+.tc{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:11px 12px 9px;margin-bottom:8px;position:relative;overflow:hidden}
+.tc:active{background:#1a1f26}
+.r1{display:flex;gap:10px;align-items:center}
+.av{position:relative;flex:0 0 46px;height:46px}
+.av img,.av .ini{width:46px;height:46px;border-radius:12px;object-fit:cover;background:#222a35;display:grid;place-items:center;font-weight:800;font-size:16px;color:#cfd8e3}
+.av .lp{position:absolute;right:-4px;bottom:-4px;font-size:9px;font-weight:800;padding:1px 4px;border-radius:6px;border:2px solid var(--card);color:#0b0d10}
+.lp-pump{background:#5ee08f}.lp-bonk{background:#ff9f43}.lp-bags{background:#7ed6ff}.lp-launchlab{background:#c39bff}.lp-dbc{background:#9fb4c7}.lp-other{background:#7d8896}
+.mid{flex:1;min-width:0}
+.nm{display:flex;align-items:baseline;gap:6px;white-space:nowrap;overflow:hidden}
+.nm b{font-size:15px}
+.nm .full{color:var(--mut);font-size:12px;overflow:hidden;text-overflow:ellipsis}
+.sub{display:flex;align-items:center;gap:6px;margin-top:3px;font-size:12px;color:var(--mut)}
+.age{color:var(--good);font-weight:600}
+.cp{background:none;border:0;color:var(--mut);padding:0 2px;font-size:13px}
+.rt{text-align:right;flex:0 0 auto}
+.mc{font-size:12px;color:var(--mut)}.mc b{color:var(--txt);font-size:15px}
+.chg{font-size:12px;font-weight:700;margin-top:2px}
+.up{color:var(--good)}.dn{color:var(--bad)}
+.r2{display:flex;gap:12px;margin-top:9px;font-size:12px;color:var(--mut);flex-wrap:wrap}
+.r2 b{color:var(--txt);font-weight:600}
+.r3{display:flex;gap:5px;margin-top:8px;flex-wrap:wrap}
+.bd{font-size:11px;font-weight:700;padding:3px 7px;border-radius:7px;background:#1e242c;color:var(--mut)}
+.bd.sm{background:rgba(176,124,255,.15);color:var(--smart)}
+.bd.sp{background:rgba(255,209,102,.13);color:var(--gold)}
+.bd.ok{background:rgba(46,204,113,.12);color:var(--good)}
+.bd.bad{background:rgba(255,77,94,.13);color:var(--bad)}
+.bd.wn{background:rgba(245,166,35,.13);color:var(--warn)}
+.bs{display:flex;height:3px;border-radius:3px;overflow:hidden;margin-top:9px;background:var(--bad)}
+.bs i{background:var(--good)}
+.empty{text-align:center;color:var(--mut);padding:40px 20px;font-size:14px}
+.skel{height:108px;border-radius:14px;background:linear-gradient(90deg,#14181d,#1b2027,#14181d);background-size:200% 100%;animation:sk 1.2s infinite;margin-bottom:8px}
+@keyframes sk{to{background-position:-200% 0}}
+/* sheets */
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:40}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:41;background:var(--bg2);border-radius:18px 18px 0 0;max-height:88vh;overflow:auto;padding:8px 14px calc(env(safe-area-inset-bottom) + 16px);border-top:1px solid var(--line)}
+.grab{width:40px;height:4px;border-radius:4px;background:#333b46;margin:4px auto 10px}
+.sheet h3{margin:0 0 12px;font-size:17px}
+.fl{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em;margin:14px 0 6px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.chipsel{display:flex;flex-wrap:wrap;gap:6px}
+.chipsel button{background:var(--bg);border:1px solid var(--line);border-radius:20px;padding:7px 12px;font-size:13px;color:var(--mut)}
+.chipsel button.on{border-color:var(--acc);color:var(--txt);background:rgba(90,169,255,.12)}
+.sw{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line)}
+.sw input{width:auto;transform:scale(1.3)}
+.btn{display:block;width:100%;border:0;border-radius:12px;padding:13px;font-weight:700;font-size:15px;background:var(--acc);color:#05121f;margin-top:14px}
+.btn.gh{background:var(--card);color:var(--txt);border:1px solid var(--line)}
+.btn.pu{background:var(--smart);color:#140a24}
+.note{font-size:12px;color:var(--mut)}
+/* detail page */
+.page{position:fixed;inset:0;z-index:30;background:var(--bg);overflow:auto;padding-bottom:calc(env(safe-area-inset-bottom) + 30px)}
+.ph{position:sticky;top:0;background:rgba(11,13,16,.96);backdrop-filter:blur(8px);display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top) + 8px) 12px 10px;border-bottom:1px solid var(--line);z-index:2}
+.sec{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin:10px}
+.sec h4{margin:0 0 10px;font-size:14px;display:flex;justify-content:space-between;align-items:center}
+.sg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.st{background:var(--bg);border-radius:10px;padding:8px}
+.st span{display:block;font-size:10px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em}
+.st b{font-size:14px}
+.links{display:flex;gap:8px;flex-wrap:wrap}
+.links a{flex:1;text-align:center;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:9px 6px;color:var(--txt);text-decoration:none;font-size:13px;font-weight:600}
+.ck{display:flex;gap:9px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px}
+.ck:last-child{border:0}
+.dt{flex:0 0 9px;height:9px;border-radius:50%;margin-top:4px}
+.d-pass{background:var(--good)}.d-warn{background:var(--warn)}.d-fail{background:var(--bad)}.d-info{background:var(--mut)}
+.hd{background:var(--bg);border-radius:10px;padding:9px;margin-bottom:6px}
+.hd .t{display:flex;justify-content:space-between;align-items:center;gap:6px}
+.hd a{color:var(--acc);text-decoration:none;font-family:ui-monospace,Menlo,monospace;font-size:12px}
+.hm{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:6px;font-size:11px;color:var(--mut)}
+.hm b{display:block;color:var(--txt);font-size:13px}
+.star{background:none;border:1px solid var(--line);border-radius:8px;padding:3px 8px;font-size:12px;color:var(--mut)}
+.star.on{color:var(--gold);border-color:var(--gold)}
+.verdict{font-size:20px;font-weight:800;margin:2px 0 8px}
+.prog{height:3px;background:var(--line);border-radius:3px;overflow:hidden;margin-top:8px}
+.prog i{display:block;height:100%;background:var(--smart);width:0;transition:width .3s}
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 24px);transform:translateX(-50%);background:#232a33;border:1px solid var(--line);padding:9px 14px;border-radius:12px;font-size:13px;z-index:60;transition:opacity .3s}
+.wl{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--line);font-family:ui-monospace,Menlo,monospace;font-size:12px}
+.wl button{background:none;border:0;color:var(--bad)}
+.setup{padding:calc(env(safe-area-inset-top) + 40px) 18px 20px;max-width:480px;margin:auto}
+.setup h1{font-size:26px;margin:16px 0 6px}
+.setup img{width:64px;height:64px;border-radius:16px}
+</style>
+</head>
+<body>
+
+<!-- SETUP -->
+<div id="vSetup" class="setup hide">
+  <img src="icon-192.png" alt="">
+  <h1>Holder Scanner</h1>
+  <div class="note" style="font-size:14px">Launchpad screener with smart-wallet and rug analysis. Paste your free Helius API key to start. It's stored only on this phone.</div>
+  <div class="fl">Helius API key</div>
+  <input id="kIn" type="password" placeholder="from dashboard.helius.dev" autocomplete="off">
+  <div class="fl">Helius plan</div>
+  <div class="chipsel" id="kPlan"><button data-v="free" class="on">Free</button><button data-v="paid">Paid</button></div>
+  <button class="btn" id="kGo">Start scanning</button>
+  <div class="note" id="kErr" style="color:var(--bad);margin-top:10px"></div>
+</div>
+
+<!-- MAIN -->
+<div id="vMain" class="hide">
+  <div class="top">
+    <div class="hdr">
+      <div class="logo">Holder<span>Scan</span></div>
+      <div class="live" id="live"><i></i><span id="liveTxt">idle</span></div>
+      <div class="sp"></div>
+      <button class="instBtn hide" id="instBtn">Install</button>
+      <button class="ib" id="srchBtn" aria-label="Search">🔍</button>
+      <button class="ib" id="refBtn" aria-label="Refresh">↻</button>
+      <button class="ib" id="setBtn" aria-label="Settings">⚙︎</button>
+    </div>
+    <div class="tabs" id="tabs">
+      <button data-t="trend" class="on">🔥 Trending<b id="c-trend"></b></button>
+      <button data-t="curve">🌱 New<b id="c-curve"></b></button>
+      <button data-t="mig">🎓 Graduated<b id="c-mig"></b></button>
+    </div>
+  </div>
+  <div class="ctl">
+    <div class="presets" id="presets"></div>
+    <div class="bar2">
+      <button class="fbtn" id="filtBtn">⚙ Filters <span class="n hide" id="fN"></span></button>
+      <select id="sortSel">
+        <option value="score">Sort: Hot score</option>
+        <option value="new">Sort: Newest</option>
+        <option value="mc">Sort: Market cap</option>
+        <option value="vol">Sort: Volume</option>
+        <option value="chg">Sort: Price change</option>
+        <option value="smart">Sort: Smart wallets</option>
+        <option value="spike">Sort: Volume spike</option>
+      </select>
+      <span class="cnt" id="cnt"></span>
+    </div>
+  </div>
+  <div class="list" id="list"></div>
+</div>
+
+<!-- DETAIL -->
+<div id="vDetail" class="page hide"></div>
+
+<div class="ov hide" id="ov"></div>
+<div class="sheet hide" id="sheet"></div>
+<div class="toast hide" id="toast"></div>
+
+<script>
+'use strict';
+// ================= config =================
+const LIMITS={free:{rpc:8,enh:2,par:2,pages:1},paid:{rpc:40,enh:9,par:6,pages:2}};
+const SCAN={pages:1,nHold:10,minClosed:8,minWR:55,minTok:8,minHoldMin:10,minSol:0.05};
+const CACHE_TTL=3*3600e3, TOKEN_TTL=25*60e3, REFRESH_MS=75e3;
+const WSOL='So11111111111111111111111111111111111111112';
+const SKIP=new Set([WSOL,'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v','Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB']);
+const SYSTEM='11111111111111111111111111111111';
+const BURN=new Set(['1nc1nerator11111111111111111111111111111111']);
+const POOL_AUTH=new Set(['5Q544fKrFoe6tsEbD7S8EmxGTJYAKtTVhAW5Q5pge4j1','GpMZbSM2GgvTKHJirzeGfMFoaZ8UR2X7F4v8vHTvxFbL','WLHv2UAZm6z4KyaaELi5pjdbJh6RESMva1Rnn8pJVVh']);
+const PROGRAMS={curve:['6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P','LanMV9sAd7wArD4vJFi2qDdfnVhFxYSUg6eADduJ3uj','dbcij3LWUppWqq96dh6gJWwBifmcGfLSB5D4DuSMaqN'],mig:['pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA']};
+const DS_LISTS=['https://api.dexscreener.com/token-profiles/latest/v1','https://api.dexscreener.com/token-boosts/latest/v1','https://api.dexscreener.com/token-boosts/top/v1','https://api.dexscreener.com/community-takeovers/latest/v1'];
+const ENH=['https://api-mainnet.helius-rpc.com','https://api.helius.xyz'];
+const LPN={pump:'Pump.fun',bonk:'Bonk.fun',bags:'Bags',launchlab:'LaunchLab',dbc:'Meteora DBC',other:'Other'};
+const LPS={pump:'PF',bonk:'BK',bags:'BG',launchlab:'LL',dbc:'DB',other:'?'};
+
+// ---- filter presets per tab ----
+const BASE={
+  trend:{lp:['pump','bonk','bags','launchlab'],stage:'all',mcMin:10000,mcMax:0,liqMin:0,volKey:'h1',volMin:5000,ageMinM:0,ageMaxH:0,buysMin:20,chgMin:'',spikeMin:0,buyRatioMin:0,smartMin:0,hideRisky:true,top10Max:0,sort:'score'},
+  curve:{lp:['pump','bonk','bags','launchlab'],stage:'curve',mcMin:0,mcMax:0,liqMin:0,volKey:'h1',volMin:1000,ageMinM:0,ageMaxH:24,buysMin:10,chgMin:'',spikeMin:0,buyRatioMin:0,smartMin:0,hideRisky:true,top10Max:0,sort:'new'},
+  mig:{lp:['pump','bonk','bags','launchlab'],stage:'mig',mcMin:20000,mcMax:0,liqMin:10000,volKey:'h1',volMin:3000,ageMinM:0,ageMaxH:0,buysMin:20,chgMin:'',spikeMin:0,buyRatioMin:0,smartMin:0,hideRisky:true,top10Max:0,sort:'score'}
+};
+const PRESETS={
+  trend:[['hot','🔥 Hot',{}],['spike','⚡ Volume spike',{spikeMin:2,volKey:'m5',volMin:1000,sort:'spike'}],['smart','🧠 Smart money',{smartMin:1,volMin:0,buysMin:0,sort:'smart'}],['buy','🟢 Buy pressure',{buyRatioMin:1.5,sort:'score'}],['runner','🚀 Runners',{chgMin:50,sort:'chg'}]],
+  curve:[['all','All',{}],['fresh','🌱 Fresh <30m',{ageMaxH:0.5,volMin:300,buysMin:5,sort:'new'}],['near','🎓 Near graduation',{mcMin:35000,sort:'mc'}],['spike','⚡ Spiking',{spikeMin:2,volKey:'m5',volMin:500,sort:'spike'}],['smart','🧠 Smart money',{smartMin:1,volMin:0,buysMin:0,sort:'smart'}]],
+  mig:[['all','All',{}],['just','🆕 Just graduated',{gradMaxH:6,sort:'new'}],['spike','⚡ Volume spike',{spikeMin:2,volKey:'m5',volMin:1000,sort:'spike'}],['liq','💧 Strong liquidity',{liqMin:50000,mcMin:100000}],['smart','🧠 Smart money',{smartMin:1,volMin:0,buysMin:0,sort:'smart'}]]
+};
+
+// ================= utils =================
+const $=id=>document.getElementById(id);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const short=a=>a?a.slice(0,4)+'…'+a.slice(-4):'—';
+const num=(x,d=2)=>x==null||isNaN(x)?'—':Number(x).toLocaleString(undefined,{maximumFractionDigits:d});
+const usd=x=>x==null||isNaN(x)?'—':'$'+(x>=1e9?num(x/1e9,2)+'B':x>=1e6?num(x/1e6,2)+'M':x>=1e3?num(x/1e3,1)+'K':num(x,x<1?6:2));
+const pct=x=>x==null||isNaN(x)?'—':(x>0?'+':'')+num(x,x>=100||x<=-100?0:1)+'%';
+function dur(s){if(s==null||isNaN(s))return'—';s=Math.abs(s);if(s<60)return Math.round(s)+'s';if(s<3600)return Math.round(s/60)+'m';if(s<86400)return Math.round(s/3600)+'h';return Math.round(s/86400)+'d';}
+function median(a){if(!a.length)return null;const s=[...a].sort((x,y)=>x-y),m=s.length>>1;return s.length%2?s[m]:(s[m-1]+s[m])/2;}
+const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v);}catch(e){return d;}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}};
+function toast(t){const el=$('toast');el.textContent=t;el.classList.remove('hide');el.style.opacity=1;clearTimeout(toast.t);toast.t=setTimeout(()=>{el.style.opacity=0;setTimeout(()=>el.classList.add('hide'),300);},1800);}
+async function copy(t){try{await navigator.clipboard.writeText(t);toast('Address copied');}catch(e){toast('Copy failed');}}
+
+// ================= state =================
+let KEY=store.get('hs_key',''),PLAN=store.get('hs_plan','free');
+let SET=store.get('hs_set',{auto:true});
+let SMART=store.get('hs_smart',{});            // wallet -> {t,src,wr,closed}
+let WCACHE=store.get('hs_wc',{});              // wallet -> {t,p}
+let FILT=store.get('hs_filt',null)||{trend:{preset:'hot',...BASE.trend},curve:{preset:'all',...BASE.curve},mig:{preset:'all',...BASE.mig}};
+const TOK=new Map();                           // mint -> token
+let TAB=store.get('hs_tab','trend'),busy=false,lastRefresh=0,timer=null,enhBase=null,stopScan=false,deferredPrompt=null;
+
+// ================= network =================
+function throttle(getRps){let next=0;return async()=>{const gap=1000/getRps(),now=Date.now(),w=Math.max(0,next-now);next=Math.max(now,next)+gap;if(w)await sleep(w);};}
+const TH={rpc:throttle(()=>LIMITS[PLAN].rpc),enh:throttle(()=>LIMITS[PLAN].enh),ds:throttle(()=>4)};
+async function getJSON(url,opts,th){
+  for(let i=0;i<4;i++){
+    await (th||TH.ds)();let r;
+    try{r=await fetch(url,opts);}catch(e){if(i===3)throw new Error('Network error');await sleep(700);continue;}
+    if(r.status===429){await sleep(1200*(i+1));continue;}
+    if(r.status===401||r.status===403)throw new Error('Helius rejected the API key');
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    return r.json();
+  }
+  throw new Error('Rate limited');
+}
+async function rpc(method,params){
+  const j=await getJSON('https://mainnet.helius-rpc.com/?api-key='+encodeURIComponent(KEY),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method,params})},TH.rpc);
+  if(j.error)throw new Error(j.error.message||'RPC error');return j.result;
+}
+async function enhGet(path){const bs=enhBase?[enhBase]:ENH;let last;for(const b of bs){try{const d=await getJSON(b+path,null,TH.enh);enhBase=b;return d;}catch(e){last=e;}}throw last;}
+async function txHistory(addr,pages){
+  const all=[];let before=null,complete=false;
+  for(let p=0;p<pages;p++){
+    const d=await enhGet('/v0/addresses/'+addr+'/transactions?api-key='+encodeURIComponent(KEY)+'&limit=100'+(before?'&before='+before:''));
+    if(!Array.isArray(d))break;all.push(...d);
+    if(d.length<100){complete=true;break;}before=d[d.length-1].signature;
+  }
+  return{txs:all,complete};
+}
+async function pool(items,n,fn){let i=0;await Promise.all(Array.from({length:Math.min(n,items.length)},async()=>{while(i<items.length&&!stopScan){const k=i++;await fn(items[k],k);}}));}
+
+// ================= launchpad / stage =================
+const isCurveDex=id=>/^(pumpfun|pump\.fun)$/i.test(id||'')||/launchlab|dbc/i.test(id||'');
+function detectLp(mint,pairs){if(/pump$/.test(mint))return'pump';if(/bonk$/.test(mint))return'bonk';if(/BAGS$/.test(mint))return'bags';if(pairs.some(p=>/launchlab/i.test(p.dexId||'')))return'launchlab';if(pairs.some(p=>/dbc/i.test(p.dexId||'')))return'dbc';return'other';}
+const detectStage=pairs=>!pairs.length?'unknown':pairs.some(p=>!isCurveDex(p.dexId))?'mig':'curve';
+const lpOK=(lp,list)=>list.includes(lp)||(lp==='dbc'&&list.includes('bags'))||(lp==='launchlab'&&list.includes('bonk'));
+
+// ================= discovery =================
+function tok(m){let t=TOK.get(m);if(!t){t={mint:m,seen:0,act:{n:0,w:new Set(),sm:new Set()}};TOK.set(m,t);}return t;}
+async function discover(){
+  const pages=LIMITS[PLAN].pages,now=Date.now();
+  // decay activity
+  TOK.forEach(t=>{t.act.n=Math.floor(t.act.n*0.5);if(t.act.w.size>200)t.act.w=new Set([...t.act.w].slice(-100));});
+  const sampleProg=async addr=>{
+    try{const h=await txHistory(addr,pages);
+      h.txs.forEach(tx=>{const seen=new Set();(tx.tokenTransfers||[]).forEach(x=>{if(!x.mint||SKIP.has(x.mint)||seen.has(x.mint))return;seen.add(x.mint);const t=tok(x.mint);t.seen=now;t.act.n++;if(tx.feePayer){t.act.w.add(tx.feePayer);if(SMART[tx.feePayer])t.act.sm.add(tx.feePayer);}});});
+    }catch(e){console.warn('sample',addr,e.message);if(/API key/.test(e.message))throw e;}
+  };
+  const lists=async url=>{try{let a=await getJSON(url);if(!Array.isArray(a))a=a?[a]:[];a.filter(x=>x.chainId==='solana'&&x.tokenAddress).forEach(x=>{const t=tok(x.tokenAddress);t.seen=now;t.listed=true;});}catch(e){}};
+  await Promise.all([...PROGRAMS.curve.map(sampleProg),...PROGRAMS.mig.map(sampleProg),...DS_LISTS.map(lists)]);
+  // drop stale
+  TOK.forEach((t,m)=>{if(now-t.seen>TOKEN_TTL)TOK.delete(m);});
+}
+async function loadMarket(){
+  const mints=[...TOK.keys()],chunks=[];for(let i=0;i<mints.length;i+=30)chunks.push(mints.slice(i,i+30));
+  await Promise.all(chunks.map(async ch=>{
+    try{const arr=await getJSON('https://api.dexscreener.com/tokens/v1/solana/'+ch.join(','));
+      const by={};(Array.isArray(arr)?arr:[]).forEach(p=>{const m=p.baseToken?.address;if(m&&ch.includes(m))(by[m]=by[m]||[]).push(p);});
+      Object.entries(by).forEach(([m,ps])=>{const t=TOK.get(m);if(!t)return;t.pairs=ps;derive(t);});
+    }catch(e){}
+  }));
+}
+async function loadAuth(){
+  const need=[...TOK.values()].filter(t=>t.pair&&!t.auth).map(t=>t.mint);
+  for(let i=0;i<need.length;i+=100){
+    try{const r=await rpc('getMultipleAccounts',[need.slice(i,i+100),{encoding:'jsonParsed'}]);
+      (r?.value||[]).forEach((a,k)=>{const t=TOK.get(need[i+k]);const inf=a?.data?.parsed?.info;if(t&&inf)t.auth={mint:!!inf.mintAuthority,freeze:!!inf.freezeAuthority,t22:a.owner==='TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb',supply:+inf.supply/10**inf.decimals};});
+    }catch(e){}
+  }
+}
+function derive(t){
+  const ps=t.pairs||[];if(!ps.length)return;
+  t.lp=detectLp(t.mint,ps);t.stage=detectStage(ps);
+  const cand=t.stage==="mig"?ps.filter(p=>!isCurveDex(p.dexId)):ps;
+  const p=cand.sort((a,b)=>(b.liquidity?.usd||0)-(a.liquidity?.usd||0)||(b.volume?.h24||0)-(a.volume?.h24||0))[0]||ps[0];
+  t.pair=p;
+  const sum=(k,s)=>ps.reduce((a,x)=>a+(x[k]?.[s]||0),0);
+  t.vol={m5:sum('volume','m5'),h1:sum('volume','h1'),h6:sum('volume','h6'),h24:sum('volume','h24')};
+  t.buys={m5:ps.reduce((a,x)=>a+(x.txns?.m5?.buys||0),0),h1:ps.reduce((a,x)=>a+(x.txns?.h1?.buys||0),0),h24:ps.reduce((a,x)=>a+(x.txns?.h24?.buys||0),0)};
+  t.sells={m5:ps.reduce((a,x)=>a+(x.txns?.m5?.sells||0),0),h1:ps.reduce((a,x)=>a+(x.txns?.h1?.sells||0),0),h24:ps.reduce((a,x)=>a+(x.txns?.h24?.sells||0),0)};
+  t.mc=p.marketCap||p.fdv||0;t.liq=p.liquidity?.usd||0;t.price=+p.priceUsd||null;t.chg=p.priceChange||{};
+  t.name=p.baseToken?.name||'';t.sym=p.baseToken?.symbol||short(t.mint);t.img=p.info?.imageUrl||ps.find(x=>x.info?.imageUrl)?.info?.imageUrl||null;
+  const created=ps.map(x=>x.pairCreatedAt).filter(Boolean);
+  t.created=created.length?Math.min(...created):null;
+  t.gradAt=t.stage==='mig'?(p.pairCreatedAt||null):null;
+  t.socials=p.info?.socials||[];t.sites=p.info?.websites||[];
+  t.spike=t.vol.h1>0?(t.vol.m5*12)/t.vol.h1:(t.vol.m5>0?3:0);
+  t.br=t.buys.h1/(t.sells.h1+1);
+  t.score=Math.log10(t.vol.h1+1)*10+Math.min(t.spike,5)*8+Math.min(t.br,3)*5+t.act.sm.size*15+Math.log2(t.act.w.size+1)*4+Math.max(-20,Math.min(20,(t.chg.h1||0)/5));
+}
+async function loadTop10(t){
+  if(t.top10!=null||t.top10Loading)return;t.top10Loading=true;
+  try{
+    const la=await rpc('getTokenLargestAccounts',[t.mint]);const acc=(la?.value||[]).slice(0,20);
+    const ta=await rpc('getMultipleAccounts',[acc.map(a=>a.address),{encoding:'jsonParsed'}]);
+    const hs=acc.map((a,i)=>({amt:a.uiAmount||0,owner:ta?.value?.[i]?.data?.parsed?.info?.owner})).filter(h=>h.owner);
+    const oi=await rpc('getMultipleAccounts',[hs.map(h=>h.owner),{encoding:'base64',dataSlice:{offset:0,length:0}}]);
+    const sup=t.auth?.supply||hs.reduce((a,h)=>a+h.amt,0)||1;
+    const people=hs.filter((h,i)=>{const o=oi?.value?.[i];return!(BURN.has(h.owner)||POOL_AUTH.has(h.owner)||h.owner===t.pair?.pairAddress||(o&&o.owner!==SYSTEM)||!o);});
+    t.top10=people.slice(0,10).reduce((a,h)=>a+h.amt,0)/sup*100;
+  }catch(e){t.top10=null;}
+  t.top10Loading=false;
+}
+
+// ================= refresh loop =================
+function setLive(state,txt){const l=$('live');l.className='live '+state;$('liveTxt').textContent=txt;}
+async function refresh(manual){
+  if(busy||!KEY)return;busy=true;setLive('busy','updating…');
+  if(!TOK.size)renderList(true);
+  try{
+    await discover();await loadMarket();await loadAuth();
+    lastRefresh=Date.now();setLive(SET.auto?'on':'','live · '+new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}));
+    renderList();
+    queueTop10();
+  }catch(e){setLive('',e.message);if(/API key/.test(e.message))toast('Check your Helius key in settings');renderList();}
+  busy=false;
+}
+let t10running=false;
+async function queueTop10(){
+  if(t10running)return;t10running=true;
+  const vis=filtered(TAB).slice(0,15).filter(t=>t.top10==null);
+  for(const t of vis){await loadTop10(t);updateCard(t);}
+  t10running=false;
+}
+function schedule(){clearInterval(timer);if(SET.auto)timer=setInterval(()=>{if(document.visibilityState==='visible'&&$('vDetail').classList.contains('hide'))refresh();},REFRESH_MS);}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&SET.auto&&Date.now()-lastRefresh>REFRESH_MS)refresh();});
+
+// ================= filtering =================
+function filtered(tab){
+  const f=FILT[tab],now=Date.now();
+  const arr=[...TOK.values()].filter(t=>{
+    if(!t.pair)return false;
+    if(!lpOK(t.lp,f.lp))return false;
+    if(f.stage!=='all'&&t.stage!==f.stage)return false;
+    if(t.stage==='unknown')return false;
+    if(f.mcMin&&t.mc<f.mcMin)return false;
+    if(f.mcMax&&t.mc>f.mcMax)return false;
+    if(f.liqMin&&t.stage==='mig'&&t.liq<f.liqMin)return false;
+    if(f.volMin&&(t.vol[f.volKey]||0)<f.volMin)return false;
+    const ageM=t.created?(now-t.created)/60000:null;
+    if(f.ageMinM&&ageM!=null&&ageM<f.ageMinM)return false;
+    if(f.ageMaxH&&ageM!=null&&ageM>f.ageMaxH*60)return false;
+    if(f.gradMaxH&&(!t.gradAt||(now-t.gradAt)/3600e3>f.gradMaxH))return false;
+    if(f.buysMin&&t.buys.h1<f.buysMin)return false;
+    if(f.chgMin!==''&&f.chgMin!=null&&(t.chg.h1??-999)<+f.chgMin)return false;
+    if(f.spikeMin&&t.spike<f.spikeMin)return false;
+    if(f.buyRatioMin&&t.br<f.buyRatioMin)return false;
+    if(f.smartMin&&t.act.sm.size<f.smartMin)return false;
+    if(f.hideRisky&&t.auth&&(t.auth.mint||t.auth.freeze))return false;
+    if(f.top10Max&&t.top10!=null&&t.top10>f.top10Max)return false;
+    return true;
+  });
+  const key={score:t=>t.score,new:t=>t.created||0,mc:t=>t.mc,vol:t=>t.vol[f.volKey]||0,chg:t=>t.chg.h1||0,smart:t=>t.act.sm.size*1e6+t.score,spike:t=>t.spike}[f.sort]||(t=>t.score);
+  return arr.sort((a,b)=>key(b)-key(a));
+}
+function activeCount(tab){const f=FILT[tab],b={...BASE[tab],...(PRESETS[tab].find(p=>p[0]===f.preset)?.[2]||{})};let n=0;for(const k of Object.keys(BASE[tab])){if(k==='sort')continue;if(JSON.stringify(f[k])!==JSON.stringify(b[k]))n++;}return n;}
+
+// ================= rendering =================
+function avatar(t){const ini=esc((t.sym||'?').replace('$','').slice(0,2).toUpperCase());return `<div class="av">${t.img?`<img src="${esc(t.img)}" loading="lazy" onerror="this.outerHTML='<div class=ini>${ini}</div>'">`:`<div class="ini">${ini}</div>`}<span class="lp lp-${t.lp}">${LPS[t.lp]}</span></div>`;}
+function badges(t){
+  const b=[];
+  if(t.act.sm.size)b.push(`<span class="bd sm">🧠 ${t.act.sm.size} smart</span>`);
+  if(t.spike>=2)b.push(`<span class="bd sp">⚡ ${num(t.spike,1)}x vol</span>`);
+  if(t.br>=1.5&&t.buys.h1>=20)b.push(`<span class="bd ok">🟢 ${num(t.br,1)} B/S</span>`);
+  if(t.auth){if(t.auth.mint||t.auth.freeze)b.push(`<span class="bd bad">⚠ ${t.auth.mint?'Mint':''}${t.auth.mint&&t.auth.freeze?'+':''}${t.auth.freeze?'Freeze':''} on</span>`);else b.push('<span class="bd ok">✓ Auth off</span>');}
+  if(t.top10!=null)b.push(`<span class="bd ${t.top10>50?'bad':t.top10>30?'wn':''}">Top10 ${num(t.top10,0)}%</span>`);
+  if(t.act.w.size)b.push(`<span class="bd">👥 ${t.act.w.size} traders</span>`);
+  return b.join('');
+}
+function cardHTML(t){
+  const f=FILT[TAB],ch=t.chg.h1,ageS=t.created?(Date.now()-t.created)/1000:null;
+  const tot=t.buys.h1+t.sells.h1,bp=tot?t.buys.h1/tot*100:50;
+  return `<div class="tc" data-m="${t.mint}" id="c-${t.mint}">
+  <div class="r1">${avatar(t)}
+   <div class="mid"><div class="nm"><b>${esc(t.sym)}</b><span class="full">${esc(t.name)}</span></div>
+    <div class="sub"><span class="age">${dur(ageS)}</span>·<span>${short(t.mint)}</span><button class="cp" data-cp="${t.mint}">⧉</button>${t.stage==='mig'?'<span>· 🎓</span>':''}</div></div>
+   <div class="rt"><div class="mc">MC <b>${usd(t.mc)}</b></div><div class="chg ${ch>=0?'up':'dn'}">${pct(ch)} <span style="color:var(--mut);font-weight:500">1h</span></div></div>
+  </div>
+  <div class="r2"><span>V5m <b>${usd(t.vol.m5)}</b></span><span>V1h <b>${usd(t.vol.h1)}</b></span>${t.stage==='mig'?`<span>Liq <b>${usd(t.liq)}</b></span>`:''}<span>TX1h <b>${num(tot,0)}</b></span><span>5m <b class="${(t.chg.m5||0)>=0?'up':'dn'}">${pct(t.chg.m5)}</b></span></div>
+  <div class="r3">${badges(t)}</div>
+  <div class="bs"><i style="width:${bp}%"></i></div></div>`;
+}
+function updateCard(t){const el=$('c-'+t.mint);if(el)el.outerHTML=cardHTML(t);}
+function renderList(loading){
+  ['trend','curve','mig'].forEach(tb=>{$('c-'+tb).textContent=TOK.size?filtered(tb).length:'';});
+  if(loading){$('list').innerHTML='<div class="skel"></div>'.repeat(6);return;}
+  const arr=filtered(TAB);
+  $('cnt').textContent=arr.length+' tokens';
+  if(!arr.length){$('list').innerHTML=`<div class="empty">${TOK.size?'No tokens match these filters right now.<br><br>Try another preset or loosen Filters. The list refreshes every ~75s and grows the longer the app is open.':busy?'Loading…':'Pull ↻ to load tokens.'}</div>`;return;}
+  $('list').innerHTML=arr.slice(0,80).map(cardHTML).join('');
+}
+function renderControls(){
+  const f=FILT[TAB];
+  $('presets').innerHTML=PRESETS[TAB].map(([id,label])=>`<button class="pr ${f.preset===id?'on':''}" data-p="${id}">${label}</button>`).join('')+(f.preset==='custom'?'<button class="pr on">Custom</button>':'');
+  $('sortSel').value=f.sort;
+  const n=activeCount(TAB);$('fN').textContent=n;$('fN').classList.toggle('hide',!n);
+  document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.t===TAB));
+}
+function saveFilt(){store.set('hs_filt',FILT);}
+
+// ================= sheets =================
+function openSheet(html){$('sheet').innerHTML='<div class="grab"></div>'+html;$('sheet').classList.remove('hide');$('ov').classList.remove('hide');$('sheet').scrollTop=0;}
+function closeSheet(){$('sheet').classList.add('hide');$('ov').classList.add('hide');}
+$('ov').onclick=closeSheet;
+
+function filterSheet(){
+  const f=FILT[TAB];
+  const lpBtns=['pump','bonk','bags','launchlab'].map(v=>`<button data-v="${v}" class="${f.lp.includes(v)?'on':''}">${{pump:'Pump.fun',bonk:'Bonk.fun',bags:'Bags',launchlab:'Stonk / LaunchLab'}[v]}</button>`).join('');
+  const inp=(id,val,ph)=>`<input id="${id}" type="number" inputmode="decimal" placeholder="${ph||'any'}" value="${val===0||val===''||val==null?'':val}">`;
+  openSheet(`<h3>Filters · ${{trend:'Trending',curve:'New (bonding curve)',mig:'Graduated'}[TAB]}</h3>
+  <div class="fl">Launchpad</div><div class="chipsel" id="fLp">${lpBtns}</div>
+  ${TAB==='trend'?`<div class="fl">Stage</div><div class="chipsel" id="fStage">${[['all','All'],['curve','Bonding curve'],['mig','Graduated']].map(([v,l])=>`<button data-v="${v}" class="${f.stage===v?'on':''}">${l}</button>`).join('')}</div>`:''}
+  <div class="fl">Market cap ($)</div><div class="g2">${inp('fMcMin',f.mcMin,'min')}${inp('fMcMax',f.mcMax,'max')}</div>
+  <div class="fl">Volume</div><div class="g2"><select id="fVolKey">${['m5','h1','h6','h24'].map(k=>`<option value="${k}" ${f.volKey===k?'selected':''}>${{m5:'Last 5 min',h1:'Last 1 hour',h6:'Last 6 hours',h24:'Last 24 hours'}[k]}</option>`).join('')}</select>${inp('fVolMin',f.volMin,'min $')}</div>
+  <div class="g2"><div><div class="fl">Min age (min)</div>${inp('fAgeMin',f.ageMinM)}</div><div><div class="fl">Max age (hours)</div>${inp('fAgeMax',f.ageMaxH)}</div></div>
+  ${TAB!=='curve'?`<div class="g2"><div><div class="fl">Min liquidity ($)</div>${inp('fLiq',f.liqMin)}</div><div><div class="fl">Graduated within (h)</div>${inp('fGrad',f.gradMaxH)}</div></div>`:''}
+  <div class="g2"><div><div class="fl">Min buys (1h)</div>${inp('fBuys',f.buysMin)}</div><div><div class="fl">Min 1h change (%)</div>${inp('fChg',f.chgMin)}</div></div>
+  <div class="g2"><div><div class="fl">Volume spike (x)</div>${inp('fSpike',f.spikeMin,'e.g. 2')}</div><div><div class="fl">Buy/sell ratio</div>${inp('fBr',f.buyRatioMin,'e.g. 1.5')}</div></div>
+  <div class="g2"><div><div class="fl">Min smart wallets</div>${inp('fSmart',f.smartMin)}</div><div><div class="fl">Max top-10 hold (%)</div>${inp('fTop',f.top10Max)}</div></div>
+  <div class="sw"><span>Hide tokens with mint/freeze authority on</span><input type="checkbox" id="fRisk" ${f.hideRisky?'checked':''}></div>
+  <div class="note" style="margin-top:8px">Volume spike = last 5 min volume compared with the 1-hour average. Smart wallets = wallets in your smart list seen trading the token.</div>
+  <button class="btn" id="fApply">Apply</button><button class="btn gh" id="fReset">Reset to preset</button>`);
+  $('sheet').querySelectorAll('.chipsel').forEach(g=>g.querySelectorAll('button').forEach(b=>b.onclick=()=>{if(g.id==='fLp')b.classList.toggle('on');else{g.querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');}}));
+  const v=id=>{const el=$(id);return el?(el.value===''?0:+el.value):undefined;};
+  $('fApply').onclick=()=>{
+    const lp=[...$('fLp').querySelectorAll('.on')].map(b=>b.dataset.v);if(!lp.length){toast('Pick at least one launchpad');return;}
+    Object.assign(f,{lp,mcMin:v('fMcMin'),mcMax:v('fMcMax'),volKey:$('fVolKey').value,volMin:v('fVolMin'),ageMinM:v('fAgeMin'),ageMaxH:v('fAgeMax'),buysMin:v('fBuys'),chgMin:$('fChg').value,spikeMin:v('fSpike'),buyRatioMin:v('fBr'),smartMin:v('fSmart'),top10Max:v('fTop'),hideRisky:$('fRisk').checked,preset:'custom'});
+    if($('fLiq'))f.liqMin=v('fLiq');if($('fGrad'))f.gradMaxH=v('fGrad');
+    if($('fStage'))f.stage=$('fStage').querySelector('.on').dataset.v;
+    saveFilt();closeSheet();renderControls();renderList();queueTop10();
+  };
+  $('fReset').onclick=()=>{applyPreset(f.preset==='custom'?PRESETS[TAB][0][0]:f.preset);closeSheet();};
+}
+function applyPreset(id){const p=PRESETS[TAB].find(x=>x[0]===id);FILT[TAB]={preset:id,...BASE[TAB],...p[2]};saveFilt();renderControls();renderList();queueTop10();}
+
+function settingsSheet(){
+  const list=Object.entries(SMART).sort((a,b)=>b[1].t-a[1].t);
+  openSheet(`<h3>Settings</h3>
+  <div class="fl">Helius API key</div><input id="sKey" type="password" value="${esc(KEY)}">
+  <div class="fl">Plan</div><div class="chipsel" id="sPlan"><button data-v="free" class="${PLAN==='free'?'on':''}">Free</button><button data-v="paid" class="${PLAN==='paid'?'on':''}">Paid</button></div>
+  <div class="sw"><span>Auto-refresh every ~75s</span><input type="checkbox" id="sAuto" ${SET.auto?'checked':''}></div>
+  <button class="btn" id="sSave">Save</button>
+  <div class="fl" style="margin-top:22px">Smart wallet list (${list.length})</div>
+  <div class="note">Trending uses this list to spot smart-money buys. It grows automatically when you open tokens, or build it from today's winners.</div>
+  <button class="btn pu" id="sLearn">🧠 Find smart wallets from today's winners</button>
+  <div class="prog hide" id="lProg"><i id="lFill"></i></div><div class="note" id="lTxt" style="margin-top:6px"></div>
+  <div class="fl">Add wallets you trust (one per line)</div>
+  <textarea id="sAdd" rows="3" placeholder="wallet addresses"></textarea>
+  <button class="btn gh" id="sAddBtn">Add to list</button>
+  <div style="margin-top:10px;max-height:240px;overflow:auto">${list.map(([w,v])=>`<div class="wl"><a href="https://solscan.io/account/${w}" style="color:var(--acc);text-decoration:none">${short(w)}</a><span class="note">${v.src==='manual'?'added by you':v.wr!=null?Math.round(v.wr)+'% WR · '+v.closed+' trades':'auto'}</span><button data-rm="${w}">✕</button></div>`).join('')||'<div class="note">Empty for now.</div>'}</div>
+  <button class="btn gh" id="sClear">Clear wallet cache</button>`);
+  $('sPlan').querySelectorAll('button').forEach(b=>b.onclick=()=>{$('sPlan').querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');});
+  $('sSave').onclick=()=>{KEY=$('sKey').value.trim();PLAN=$('sPlan').querySelector('.on').dataset.v;SET.auto=$('sAuto').checked;store.set('hs_key',KEY);store.set('hs_plan',PLAN);store.set('hs_set',SET);schedule();toast('Saved');closeSheet();refresh(true);};
+  $('sAddBtn').onclick=()=>{let n=0;$('sAdd').value.split(/[\s,]+/).filter(x=>x.length>=32&&x.length<=44).forEach(w=>{SMART[w]={t:Date.now(),src:'manual'};n++;});store.set('hs_smart',SMART);toast(n+' wallets added');settingsSheet();};
+  $('sheet').querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{delete SMART[b.dataset.rm];store.set('hs_smart',SMART);settingsSheet();});
+  $('sClear').onclick=()=>{WCACHE={};store.set('hs_wc',{});toast('Cache cleared');};
+  $('sLearn').onclick=learnFromWinners;
+}
+
+function searchSheet(){
+  openSheet(`<h3>Check any token</h3><input id="qIn" placeholder="paste token address" autocomplete="off"><button class="btn" id="qGo">Open</button>`);
+  $('qGo').onclick=async()=>{
+    const m=$('qIn').value.trim();if(m.length<32){toast('Invalid address');return;}
+    $('qGo').textContent='Loading…';
+    try{const arr=await getJSON('https://api.dexscreener.com/tokens/v1/solana/'+m);const t=tok(m);t.seen=Date.now();t.pairs=(Array.isArray(arr)?arr:[]).filter(p=>p.baseToken?.address===m);
+      if(!t.pairs.length){toast('No market data for this token yet');$('qGo').textContent='Open';return;}
+      derive(t);closeSheet();openDetail(m);}catch(e){toast(e.message);$('qGo').textContent='Open';}
+  };
+}
+
+// ================= wallet analysis =================
+function buildProfile(w,hist){
+  const txs=hist.txs.filter(t=>!t.transactionError).sort((a,b)=>a.timestamp-b.timestamp);
+  const pos={};let funder=null;const P=m=>pos[m]||(pos[m]={c:0,r:0,b:0,s:0,f:null,fs:null,l:null,fi:0});
+  for(const tx of txs){
+    const tt=tx.tokenTransfers||[];
+    if(!funder&&hist.complete){const nt=(tx.nativeTransfers||[]).find(n=>n.toUserAccount===w&&n.fromUserAccount&&n.fromUserAccount!==w&&n.amount>1e6);if(nt)funder=nt.fromUserAccount;}
+    const ins={},outs={};
+    for(const x of tt){if(SKIP.has(x.mint))continue;const a=+x.tokenAmount||0;if(x.toUserAccount===w)ins[x.mint]=(ins[x.mint]||0)+a;if(x.fromUserAccount===w)outs[x.mint]=(outs[x.mint]||0)+a;}
+    const im=Object.keys(ins),om=Object.keys(outs);if(!im.length&&!om.length)continue;
+    const ad=(tx.accountData||[]).find(a=>a.account===w);let sol=(ad?ad.nativeBalanceChange:0)/1e9;
+    for(const x of tt){if(x.mint!==WSOL)continue;if(x.toUserAccount===w)sol+=+x.tokenAmount||0;if(x.fromUserAccount===w)sol-=+x.tokenAmount||0;}
+    if(im.length===1&&!om.length){const p=P(im[0]);if(-sol>=Math.max(SCAN.minSol,0.002)){p.c+=-sol;p.b+=ins[im[0]];}else p.fi+=ins[im[0]];if(p.f==null){p.f=tx.timestamp;p.fs=tx.slot;}}
+    else if(om.length===1&&!im.length){const p=P(om[0]);if(sol>=0.002){p.r+=sol;p.s+=outs[om[0]];p.l=tx.timestamp;}}
+  }
+  const span=txs.length>1?txs[txs.length-1].timestamp-txs[0].timestamp:0;
+  return{w,n:txs.length,complete:hist.complete,funder,perHour:span>0?txs.length/(span/3600):0,oldest:txs.length?txs[0].timestamp:null,pos};
+}
+function scoreWallet(pr,mint){
+  const closed=[],holds=[];
+  for(const [m,p] of Object.entries(pr.pos)){if(m===mint)continue;if(p.c>=SCAN.minSol&&p.b>0&&p.s>=p.b*0.8){closed.push({pnl:p.r-p.c,x:p.r/p.c});if(p.f&&p.l)holds.push(p.l-p.f);}}
+  const wins=closed.filter(c=>c.pnl>0).length,t=mint?pr.pos[mint]:null;
+  return{w:pr.w,closed:closed.length,wins,wr:closed.length?wins/closed.length*100:null,tokens:Object.keys(pr.pos).length,pnl:closed.reduce((s,c)=>s+c.pnl,0),bigWins:closed.filter(c=>c.x>=3).length,medHold:median(holds),funder:pr.funder,
+    fresh:pr.complete&&(pr.n<20||(pr.oldest&&Date.now()/1000-pr.oldest<3*86400)),bot:pr.perHour>40&&pr.n>=100,target:t?{firstBuy:t.f,slot:t.fs,cost:t.c,free:t.fi>0&&t.c===0,sold:t.s>0}:null};
+}
+const isSmart=a=>a.closed>=SCAN.minClosed&&a.wr>=SCAN.minWR&&a.tokens>=SCAN.minTok&&a.pnl>0&&(a.medHold==null||a.medHold/60>=SCAN.minHoldMin)&&!a.fresh&&!a.bot;
+function saveWC(){const e=Object.entries(WCACHE).filter(([,v])=>Date.now()-v.t<CACHE_TTL).sort((a,b)=>b[1].t-a[1].t).slice(0,350);WCACHE=Object.fromEntries(e);store.set('hs_wc',WCACHE);}
+async function walletFor(w,mint){
+  const c=WCACHE[w];if(c&&Date.now()-c.t<CACHE_TTL&&(c.p.pos[mint]||c.p.complete))return scoreWallet(c.p,mint);
+  const pr=buildProfile(w,await txHistory(w,SCAN.pages));WCACHE[w]={t:Date.now(),p:pr};return scoreWallet(pr,mint);
+}
+async function scanHolders(t,onStep){
+  const mi=await rpc('getAccountInfo',[t.mint,{encoding:'jsonParsed'}]);const info=mi?.value?.data?.parsed?.info;if(!info)throw new Error('Not a token');
+  const supply=+info.supply/10**info.decimals;
+  const la=await rpc('getTokenLargestAccounts',[t.mint]);const acc=(la?.value||[]).slice(0,20);
+  const ta=await rpc('getMultipleAccounts',[acc.map(a=>a.address),{encoding:'jsonParsed'}]);
+  const hs=acc.map((a,i)=>({pct:supply?(a.uiAmount||0)/supply*100:0,owner:ta?.value?.[i]?.data?.parsed?.info?.owner})).filter(h=>h.owner);
+  const oi=await rpc('getMultipleAccounts',[hs.map(h=>h.owner),{encoding:'base64',dataSlice:{offset:0,length:0}}]);
+  hs.forEach((h,i)=>{const o=oi?.value?.[i];h.pool=BURN.has(h.owner)||POOL_AUTH.has(h.owner)||h.owner===t.pair?.pairAddress||(o&&o.owner!==SYSTEM)||!o;});
+  const people=hs.filter(h=>!h.pool),toScan=people.slice(0,SCAN.nHold);
+  let done=0;stopScan=false;
+  await pool(toScan,LIMITS[PLAN].par,async h=>{try{h.a=await walletFor(h.owner,t.mint);h.smart=isSmart(h.a);}catch(e){h.err=1;}onStep(++done,toScan.length);});
+  const bySlot={},byF={};
+  toScan.forEach(h=>{const s=h.a?.target?.slot;if(s)(bySlot[s]=bySlot[s]||[]).push(h);const f=h.a?.funder;if(f)(byF[f]=byF[f]||[]).push(h);});
+  Object.values(bySlot).forEach(g=>{if(g.length>1)g.forEach(h=>h.bundled=true);});
+  Object.values(byF).forEach(g=>{if(g.length>1)g.forEach(h=>h.cluster=short(g[0].a.funder));});
+  const launch=t.created?t.created/1000:null;
+  toScan.forEach(h=>{const fb=h.a?.target?.firstBuy;if(fb&&launch){h.entry=fb-launch;h.sniper=h.entry<=30&&h.entry>=-5;}if(h.smart&&(h.bundled||h.cluster||h.a.target?.free))h.smart=false;
+    if(h.smart&&!SMART[h.owner])SMART[h.owner]={t:Date.now(),src:'auto',wr:h.a.wr,closed:h.a.closed};});
+  store.set('hs_smart',SMART);saveWC();
+  // rug checks
+  const top10=people.slice(0,10).reduce((s,h)=>s+h.pct,0);t.top10=top10;
+  const sc=toScan.filter(h=>h.a),smart=sc.filter(h=>h.smart),sumP=f=>toScan.filter(f).reduce((s,h)=>s+h.pct,0);
+  const bun=sumP(h=>h.bundled),clu=sumP(h=>h.cluster),fr=sumP(h=>h.a?.target?.free),fresh=sc.length?sc.filter(h=>h.a.fresh).length/sc.length*100:0;
+  const ck=[],add=(l,x,p)=>ck.push({l,x,p:p||0});
+  info.mintAuthority?add('fail','Mint authority ON — dev can print tokens',30):add('pass','Mint authority revoked');
+  info.freezeAuthority?add('fail','Freeze authority ON — dev can freeze wallets',30):add('pass','Freeze authority revoked');
+  const a=`Top 10 holders own ${num(top10,1)}% (pools excluded)`;top10>50?add('fail',a,20):top10>30?add('warn',a,10):add('pass',a);
+  const b=`Bundled buys (same block): ${num(bun,1)}%`;bun>15?add('fail',b,20):bun>5?add('warn',b,10):add('pass',b);
+  const c=`Linked wallets (same funder): ${num(clu,1)}%`;clu>15?add('fail',c,20):clu>5?add('warn',c,10):add('pass',c);
+  fr>5?add('warn',`Received by transfer, not bought: ${num(fr,1)}%`,10):add('pass','No big transfer-in holders');
+  fresh>40?add('warn',`${Math.round(fresh)}% of top holders are fresh wallets`,10):add('pass',`${Math.round(fresh)}% fresh wallets among top holders`);
+  const safety=Math.max(0,100-ck.reduce((s,x)=>s+x.p,0)),fail=ck.some(x=>x.l==='fail');
+  const verdict=fail?['High risk','var(--bad)']:smart.length>=3&&safety>=70?['Strong holders','var(--good)']:smart.length>=1&&safety>=60?['Some good holders','var(--warn)']:['No clear edge','var(--mut)'];
+  return{ck,safety,smart,sc,toScan,verdict};
+}
+
+async function learnFromWinners(){
+  const winners=[...TOK.values()].filter(t=>t.pair&&t.stage==='mig'&&(t.chg.h24||0)>=100&&t.vol.h24>=50000).sort((a,b)=>(b.chg.h24||0)-(a.chg.h24||0)).slice(0,5);
+  if(!winners.length){toast('No big winners loaded yet — let the app refresh a few times');return;}
+  $('lProg').classList.remove('hide');const before=Object.keys(SMART).length;
+  for(let i=0;i<winners.length;i++){const t=winners[i];$('lTxt').textContent=`Checking holders of ${t.sym} (${i+1}/${winners.length})…`;
+    try{await scanHolders(t,(d,n)=>{$('lFill').style.width=((i+d/n)/winners.length*100)+'%';});}catch(e){}}
+  const added=Object.keys(SMART).length-before;$('lTxt').textContent=`Done — ${added} new smart wallets found.`;$('lFill').style.width='100%';
+  TOK.forEach(t=>t.act.w.forEach(w=>{if(SMART[w])t.act.sm.add(w);}));
+}
+
+// ================= detail page =================
+async function openDetail(mint){
+  const t=TOK.get(mint);if(!t)return;
+  const p=t.pair,ageS=t.created?(Date.now()-t.created)/1000:null;
+  const st=(l,v,c)=>`<div class="st"><span>${l}</span><b class="${c||''}">${v}</b></div>`;
+  const cls=x=>x==null?'':x>=0?'up':'dn';
+  const soc=[...(t.sites||[]).map(s=>[s.label||'Web',s.url]),...(t.socials||[]).map(s=>[s.type,s.url])].slice(0,4);
+  $('vDetail').innerHTML=`<div class="ph"><button class="ib" id="back">←</button>${avatar(t)}<div class="mid"><div class="nm"><b>${esc(t.sym)}</b><span class="full">${esc(t.name)}</span></div><div class="sub"><span class="age">${dur(ageS)}</span>·<span>${LPN[t.lp]}</span>·<span>${t.stage==='mig'?'🎓 Graduated':'🌱 Bonding curve'}</span></div></div></div>
+  <div class="sec"><div style="display:flex;justify-content:space-between;align-items:end"><div><div class="note">Price</div><div style="font-size:22px;font-weight:800">${usd(t.price)}</div></div><div style="text-align:right"><div class="note">Market cap</div><div style="font-size:18px;font-weight:800">${usd(t.mc)}</div></div></div>
+   <div class="sg" style="margin-top:10px">${st('5m',pct(t.chg.m5),cls(t.chg.m5))}${st('1h',pct(t.chg.h1),cls(t.chg.h1))}${st('24h',pct(t.chg.h24),cls(t.chg.h24))}
+   ${st('Vol 5m',usd(t.vol.m5))}${st('Vol 1h',usd(t.vol.h1))}${st('Vol 24h',usd(t.vol.h24))}
+   ${st('Buys 1h',num(t.buys.h1,0),'up')}${st('Sells 1h',num(t.sells.h1,0),'dn')}${st(t.stage==='mig'?'Liquidity':'Traders seen',t.stage==='mig'?usd(t.liq):num(t.act.w.size,0))}
+   ${st('Vol spike',num(t.spike,1)+'x',t.spike>=2?'up':'')}${st('Buy/Sell',num(t.br,2),t.br>=1?'up':'dn')}${st('Smart seen',t.act.sm.size,t.act.sm.size?'up':'')}</div>
+   <div style="display:flex;gap:6px;margin-top:10px;align-items:center"><div class="mono" style="flex:1;font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--mut);word-break:break-all">${t.mint}</div><button class="star" id="dCopy">Copy</button></div>
+   <div class="links" style="margin-top:10px">${p?.url?`<a href="${esc(p.url)}">Chart</a>`:''}<a href="https://gmgn.ai/sol/token/${t.mint}">GMGN</a><a href="https://solscan.io/token/${t.mint}">Solscan</a>${t.lp==='pump'?`<a href="https://pump.fun/coin/${t.mint}">Pump</a>`:''}</div>
+   ${soc.length?`<div class="links" style="margin-top:8px">${soc.map(([l,u])=>`<a href="${esc(u)}">${esc(l)}</a>`).join('')}</div>`:''}
+  </div>
+  ${t.act.sm.size?`<div class="sec"><h4>🧠 Smart wallets trading it</h4>${[...t.act.sm].map(w=>`<div class="wl"><a href="https://solscan.io/account/${w}" style="color:var(--acc);text-decoration:none">${short(w)}</a><span class="note">${SMART[w]?.wr!=null?Math.round(SMART[w].wr)+'% WR':SMART[w]?.src==='manual'?'your list':''}</span></div>`).join('')}</div>`:''}
+  <div class="sec" id="hSec"><h4>Holder analysis <span class="note" id="hTxt">starting…</span></h4><div class="prog"><i id="hFill"></i></div></div>
+  <div class="note" style="padding:0 14px">On-chain behaviour, not a promise. Smart-looking wallets can be insiders. Never risk more than you can afford to lose.</div>`;
+  $('vDetail').classList.remove('hide');$('vDetail').scrollTop=0;
+  history.pushState({d:1},'');
+  $('back').onclick=()=>history.back();
+  $('dCopy').onclick=()=>copy(t.mint);
+  try{
+    const r=await scanHolders(t,(d,n)=>{const el=$('hFill');if(el){el.style.width=(d/n*100)+'%';$('hTxt').textContent=`${d}/${n} wallets`;}});
+    if($('vDetail').classList.contains('hide'))return;
+    const sorted=[...r.toScan].sort((a,b)=>(b.smart-a.smart)||(b.pct-a.pct));
+    $('hSec').outerHTML=`<div class="sec"><div class="verdict" style="color:${r.verdict[1]}">${r.verdict[0]}</div>
+     <div class="sg">${st('Safety',r.safety+'/100',r.safety>=70?'up':r.safety<50?'dn':'')}${st('Smart holders',r.smart.length+'/'+r.sc.length,r.smart.length?'up':'')}${st('Smart supply',num(r.smart.reduce((s,h)=>s+h.pct,0),1)+'%')}</div></div>
+     <div class="sec"><h4>Rug checks</h4>${r.ck.map(c=>`<div class="ck"><span class="dt d-${c.l}"></span><span>${c.x}</span></div>`).join('')}</div>
+     <div class="sec"><h4>Top holders <span class="note">tap ☆ to track a wallet</span></h4>${sorted.map(holderHTML).join('')}</div>`;
+    $('vDetail').querySelectorAll('[data-star]').forEach(b=>b.onclick=()=>{const w=b.dataset.star;if(SMART[w]){delete SMART[w];b.classList.remove('on');b.textContent='☆';}else{SMART[w]={t:Date.now(),src:'manual'};b.classList.add('on');b.textContent='★';}store.set('hs_smart',SMART);});
+    updateCard(t);
+  }catch(e){const el=$('hTxt');if(el)el.textContent='failed: '+e.message;}
+}
+function holderHTML(h){
+  const a=h.a,c=[];
+  if(h.smart)c.push('<span class="bd sm">SMART</span>');if(h.bundled)c.push('<span class="bd bad">bundled</span>');if(h.cluster)c.push(`<span class="bd bad">linked ${h.cluster}</span>`);
+  if(h.sniper)c.push('<span class="bd wn">sniper</span>');if(a?.target?.free)c.push('<span class="bd bad">transfer-in</span>');if(a?.fresh)c.push('<span class="bd wn">fresh</span>');if(a?.bot)c.push('<span class="bd wn">bot</span>');
+  if(a?.bigWins)c.push(`<span class="bd ok">${a.bigWins}× 3x+</span>`);if(a?.target?.sold)c.push('<span class="bd">sold some</span>');if(h.err)c.push('<span class="bd">no data</span>');
+  const wr=a?.wr==null?'':a.wr>=60?'up':a.wr<40?'dn':'';
+  return `<div class="hd"><div class="t"><a href="https://solscan.io/account/${h.owner}">${short(h.owner)}</a><span style="display:flex;gap:8px;align-items:center"><b>${num(h.pct,2)}%</b><button class="star ${SMART[h.owner]?'on':''}" data-star="${h.owner}">${SMART[h.owner]?'★':'☆'}</button></span></div>
+  ${c.length?`<div class="r3" style="margin-top:6px">${c.join('')}</div>`:''}
+  ${a?`<div class="hm"><div>Win rate<b class="${wr}">${a.wr==null?'—':Math.round(a.wr)+'%'}</b></div><div>Trades<b>${a.closed}</b></div><div>PnL<b class="${a.pnl>=0?'up':'dn'}">${num(a.pnl,1)} SOL</b></div><div>Tokens<b>${a.tokens}</b></div><div>Hold<b>${dur(a.medHold)}</b></div><div>Entry<b>${h.entry!=null?dur(h.entry):'—'}</b></div></div>`:''}</div>`;
+}
+window.addEventListener('popstate',()=>{if(!$('vDetail').classList.contains('hide')){stopScan=true;$('vDetail').classList.add('hide');}else if(!$('sheet').classList.contains('hide'))closeSheet();});
+
+// ================= wiring =================
+$('tabs').onclick=e=>{const b=e.target.closest('button');if(!b)return;TAB=b.dataset.t;store.set('hs_tab',TAB);renderControls();renderList();queueTop10();window.scrollTo(0,0);};
+$('presets').onclick=e=>{const b=e.target.closest('[data-p]');if(b)applyPreset(b.dataset.p);};
+$('sortSel').onchange=()=>{FILT[TAB].sort=$('sortSel').value;saveFilt();renderList();};
+$('filtBtn').onclick=filterSheet;$('setBtn').onclick=settingsSheet;$('srchBtn').onclick=searchSheet;$('refBtn').onclick=()=>refresh(true);
+$('list').onclick=e=>{const cp=e.target.closest('[data-cp]');if(cp){e.stopPropagation();copy(cp.dataset.cp);return;}const c=e.target.closest('.tc');if(c)openDetail(c.dataset.m);};
+$('kPlan').querySelectorAll('button').forEach(b=>b.onclick=()=>{$('kPlan').querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');});
+$('kGo').onclick=async()=>{const k=$('kIn').value.trim();if(k.length<20){$('kErr').textContent='That key looks too short.';return;}
+  KEY=k;PLAN=$('kPlan').querySelector('.on').dataset.v;$('kGo').textContent='Checking…';
+  try{await rpc('getSlot',[]);store.set('hs_key',KEY);store.set('hs_plan',PLAN);start();}catch(e){$('kErr').textContent=e.message;}
+  $('kGo').textContent='Start scanning';};
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;$('instBtn').classList.remove('hide');});
+$('instBtn').onclick=async()=>{if(!deferredPrompt)return;deferredPrompt.prompt();await deferredPrompt.userChoice;deferredPrompt=null;$('instBtn').classList.add('hide');};
+if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
+
+function start(){$('vSetup').classList.add('hide');$('vMain').classList.remove('hide');renderControls();renderList(true);refresh(true);schedule();}
+if(KEY)start();else $('vSetup').classList.remove('hide');
+</script>
+</body>
+</html>
