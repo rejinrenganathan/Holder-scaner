@@ -215,6 +215,99 @@ html{transition:background .2s}
 .wl .wl-l{display:flex;align-items:center;min-width:0;flex:1}
 .stt{font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;margin-left:6px}
 .stt.on{background:rgba(34,197,94,.14);color:var(--good)}.stt.off{background:var(--chip);color:var(--mut)}
+/* ===== token page v2 ===== */
+#vDetail{padding-bottom:calc(env(safe-area-inset-bottom) + 28px)}
+.dh{position:sticky;top:0;z-index:5;background:var(--glass);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top) + 8px) 12px 9px;border-bottom:1px solid var(--line)}
+.dh .av{flex:0 0 40px;height:40px}.dh .av img,.dh .av .ini{width:40px!important;height:40px!important;border-radius:12px;font-size:14px}
+.dh .mid{flex:1;min-width:0}
+.dh .nm{display:flex;align-items:baseline;gap:6px;min-width:0}.dh .nm b{font-size:17px;font-weight:800;white-space:nowrap}
+.dh .nm .full{color:var(--mut);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dh .sub{display:flex;align-items:center;gap:6px;margin-top:3px;font-size:11.5px;color:var(--mut);white-space:nowrap;overflow:hidden}
+.dh .sub .age{color:var(--good);font-weight:700}
+.lpn{display:inline-flex;align-items:center;gap:4px}.lpn img{width:13px;height:13px;border-radius:3px}
+.stg{font-size:10.5px;font-weight:700;padding:2px 6px;border-radius:6px}.stg.mig{background:rgba(251,191,36,.14);color:var(--gold)}.stg.curve{background:rgba(34,197,94,.13);color:var(--good)}
+.ib.acc{color:var(--acc)}
+.dbar{display:flex;align-items:center;gap:6px;padding:10px 12px 2px;overflow-x:auto;scrollbar-width:none}.dbar::-webkit-scrollbar{display:none}
+.cachip{display:inline-flex;align-items:center;gap:6px;background:var(--chip);border:1px solid var(--line);border-radius:9px;padding:6px 9px;font-size:12px;color:var(--txt2);flex:0 0 auto}
+.mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px}
+.soc{flex:0 0 32px;height:32px;display:grid;place-items:center;border-radius:9px;background:var(--chip);border:1px solid var(--line);color:var(--txt2);text-decoration:none}
+.dhero{padding:10px 14px 4px}
+.dmc{display:flex;justify-content:space-between;align-items:flex-end;gap:10px}
+.dmc .lbl,.dpr .lbl{font-size:11px;color:var(--mut);font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+.dmc .big{font-size:30px;font-weight:900;letter-spacing:-.02em;line-height:1.1}
+.dpr{text-align:right}.dpr .mid2{font-size:15px;font-weight:700}.dpr sub{font-size:10px;vertical-align:-2px}
+.chgp{display:inline-block;margin-top:3px;font-size:12px;font-weight:800;padding:2px 8px;border-radius:7px}.chgp.up{background:rgba(34,197,94,.13)}.chgp.dn{background:rgba(244,63,94,.12)}
+.dkv{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin-top:12px;border:1px solid var(--line);border-radius:12px;background:var(--card)}
+.dkv>div{padding:8px 9px;border-left:1px solid var(--line);min-width:0}.dkv>div:first-child{border-left:0}
+.dkv span{display:block;font-size:10px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em;font-weight:600}.dkv b{font-size:13.5px;white-space:nowrap}
+.dcard{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px;margin:10px 10px 0;box-shadow:var(--shadow)}
+.dch{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}.dch b{font-size:14px}
+.chcard{padding:10px 8px 10px}
+.chcard .chbar{padding:0 4px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}.chcard .chbar::-webkit-scrollbar{display:none}
+.chcard .chbar{gap:5px}.chcard .chbar .seg2{flex:0 0 auto}.chcard .chbar .seg2 button{padding:5px 6.5px;font-size:11.5px}
+.chwrap{position:relative}
+.chart{height:330px;background:transparent;border-radius:10px}
+.chload{display:grid;place-items:center;height:100%;color:var(--mut);font-size:12px}
+.chleg{position:absolute;left:6px;top:4px;right:70px;display:flex;flex-wrap:wrap;gap:2px 8px;font-size:10.5px;color:var(--mut);pointer-events:none;z-index:2}.chleg b{color:var(--txt2);font-weight:700}
+.kstrip{display:flex;gap:6px;overflow-x:auto;padding:8px 2px 0;scrollbar-width:none}.kstrip::-webkit-scrollbar{display:none}
+.kchip{flex:0 0 auto;display:inline-flex;align-items:center;gap:5px;background:var(--bg);border:1px solid var(--line);border-radius:20px;padding:3px 9px 3px 3px;font-size:11.5px}
+.kchip.buy{border-color:rgba(34,197,94,.35)}.kchip.sell{border-color:rgba(244,63,94,.35)}
+.kchip.buy span{color:var(--good);font-weight:700}.kchip.sell span{color:var(--bad);font-weight:700}.kchip em{font-style:normal;color:var(--mut)}
+.wav.sm{width:20px!important;height:20px!important;min-width:20px!important;max-width:20px!important;flex:0 0 20px;font-size:8px}
+.dchg{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;background:var(--bg);border-radius:11px;padding:3px}
+.dchg button{background:none;border:0;border-radius:9px;padding:6px 0;display:flex;flex-direction:column;align-items:center;gap:1px}
+.dchg button span{font-size:10.5px;color:var(--mut);font-weight:700}.dchg button b{font-size:13px}
+.dchg button.on{background:var(--chip2);box-shadow:0 0 0 1px var(--line2) inset}
+.dst3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.dst3 span{display:block;font-size:10.5px;color:var(--mut);font-weight:600}.dst3 b{font-size:15px}
+.bsl{display:flex;justify-content:space-between;font-size:11.5px;font-weight:700;margin-top:10px}
+.bsbar{height:6px;border-radius:6px;background:var(--bad);overflow:hidden;margin-top:5px}.bsbar i{display:block;height:100%;background:var(--good);border-right:2px solid var(--card)}
+.rtg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.rt{background:var(--bg);border:1px solid var(--line);border-radius:11px;padding:8px 4px 7px;text-align:center;min-width:0}
+.rt b{display:block;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rt b small{font-size:10px;color:var(--mut);font-weight:600;margin-left:3px}
+.rt span{display:block;font-size:10px;color:var(--mut);margin-top:2px;font-weight:600}
+.rt.good b{color:var(--good)}.rt.warn b{color:var(--warn)}.rt.bad b{color:var(--bad)}
+.rt.bad{border-color:rgba(244,63,94,.35)}.rt.warn{border-color:rgba(245,158,11,.3)}
+.rt .solx{width:11px;height:11px}
+.skl{display:inline-block;width:34px;height:12px;border-radius:5px;background:linear-gradient(90deg,var(--skel1),var(--skel2),var(--skel1));background-size:200% 100%;animation:sk 1.2s infinite;vertical-align:middle}
+@keyframes sk{to{background-position:-200% 0}}
+.dtabs{position:sticky;top:calc(env(safe-area-inset-top) + 58px);z-index:4;display:flex;gap:4px;margin:12px 10px 0;background:var(--glass);backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:13px;padding:3px}
+.dtabs button{flex:1;background:none;border:0;border-radius:10px;padding:9px 0;font-weight:700;font-size:13px;color:var(--mut)}
+.dtabs button.on{background:var(--chip2);color:var(--txt)}.dtabs small{font-size:10.5px;color:var(--acc);margin-left:2px}
+.aud{display:flex;gap:14px;align-items:center}
+.ring{flex:0 0 86px;height:86px;border-radius:50%;background:conic-gradient(var(--c) calc(var(--p)*1%),var(--line) 0);display:grid;place-items:center}
+.ring>div{width:70px;height:70px;border-radius:50%;background:var(--card);display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ring b{font-size:24px;font-weight:900;line-height:1}.ring span{font-size:10px;color:var(--mut)}
+.audr{flex:1;min-width:0}.vd{font-size:19px;font-weight:900;letter-spacing:-.01em}
+.audk{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--mut);margin-top:4px}.audk b{color:var(--txt)}
+.cks{margin-top:12px;border-top:1px solid var(--line)}
+.ck2{display:flex;gap:10px;align-items:flex-start;padding:9px 2px;border-bottom:1px solid var(--line);font-size:13px;line-height:1.35}.ck2:last-child{border-bottom:0}
+.ck2 .ci{flex:0 0 20px;height:20px;border-radius:50%;display:grid;place-items:center;margin-top:-1px}
+.ck2.pass .ci{background:rgba(34,197,94,.15);color:var(--good)}.ck2.warn .ci{background:rgba(245,158,11,.15);color:var(--warn)}.ck2.fail .ci{background:rgba(244,63,94,.15);color:var(--bad)}.ck2.unk .ci{background:var(--chip);color:var(--mut)}
+.ck2.unk{color:var(--mut)}
+.xbtn{display:flex!important;align-items:center;justify-content:center;gap:8px;background:var(--inv)!important;color:var(--invtxt)!important}
+.hhead,.hrow{display:grid;grid-template-columns:22px 1fr 74px 72px;gap:8px;align-items:center}
+.hhead{font-size:10.5px;color:var(--mut);font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:0 2px 6px;border-bottom:1px solid var(--line)}
+.hhead span:nth-child(n+3){text-align:right}
+.hrow{padding:9px 2px;border-bottom:1px solid var(--line);cursor:pointer}.hrow.open{border-bottom:0}
+.hn{font-size:11px;color:var(--mut);font-weight:700}
+.hw{min-width:0}.hw .mono{color:var(--acc)}.hk{display:flex;align-items:center;gap:5px;min-width:0}.hk b{font-size:12.5px;color:var(--gold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.htg{display:flex;gap:3px;flex-wrap:nowrap;overflow:hidden;margin-top:4px}.hx .htg{flex-wrap:wrap}
+.tg{font-size:9px;font-weight:800;letter-spacing:.03em;padding:2px 5px;border-radius:5px;background:var(--chip);color:var(--mut)}
+.tg.sm{background:rgba(167,139,250,.15);color:var(--smart)}.tg.bad{background:rgba(244,63,94,.13);color:var(--bad)}.tg.wn{background:rgba(245,158,11,.13);color:var(--warn)}.tg.ok{background:rgba(34,197,94,.13);color:var(--good)}
+.hpc{text-align:right}.hpc b{font-size:13px}.hpc i{display:block;height:3px;background:var(--line);border-radius:3px;margin-top:4px;overflow:hidden}.hpc em{display:block;height:100%;background:var(--acc)}
+.hpl{text-align:right;font-size:12.5px;font-weight:700;white-space:nowrap}.hpl small{display:block;font-size:10px;color:var(--mut);font-weight:600}.hpl small.up{color:var(--good)}.hpl small.dn{color:var(--bad)}
+.hx{background:var(--bg);border-radius:12px;padding:10px;margin:0 0 8px;border:1px solid var(--line)}
+.hxg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.hxg span{display:block;font-size:10px;color:var(--mut)}.hxg b{font-size:13px}
+.hxb{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.hxb a,.hxb button{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:6px 10px;font-size:12px;font-weight:600;color:var(--txt);text-decoration:none}
+.hxb .on{color:var(--gold);border-color:var(--gold)}
+.krow{display:flex;align-items:center;gap:9px;padding:8px 2px;border-bottom:1px solid var(--line);text-decoration:none;color:var(--txt);cursor:pointer;justify-content:space-between}.krow:last-child{border-bottom:0}
+.krow .kmid{flex:1;min-width:0;display:flex;flex-direction:column}.krow .kmid b{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.krow .kr{display:flex;flex-direction:column;align-items:flex-end;gap:3px}
+.dlinks{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:12px 10px 10px}
+.dlinks a{text-align:center;background:var(--card);border:1px solid var(--line);border-radius:11px;padding:9px 2px;font-size:12px;font-weight:700;color:var(--txt2);text-decoration:none}
+.shprev{border-radius:12px;overflow:hidden;border:1px solid var(--line);aspect-ratio:1200/675;background:var(--bg)}.shprev img{width:100%;display:block}
 </style>
 </head>
 <body>
@@ -986,7 +1079,7 @@ async function fastRefresh(){
 async function detailLive(){
   if(!DT||!visible()||$('vDetail').classList.contains('hide'))return;
   try{const arr=await getJSON('https://api.dexscreener.com/tokens/v1/solana/'+DT.mint);const ps=(Array.isArray(arr)?arr:[]).filter(p=>p.baseToken?.address===DT.mint);
-    if(ps.length&&DT){DT.t.pairs=ps;derive(DT.t);const el=$('dTop');if(el){el.innerHTML=detailTop(DT.t);const c=$('dCopy');if(c)c.onclick=()=>copy(DT.t.mint);}lastFast=Date.now();}}catch(e){}
+    if(ps.length&&DT){DT.t.pairs=ps;derive(DT.t);refreshDetail();lastFast=Date.now();}}catch(e){}
 }
 async function kolProfLive(){
   if(!KP.w||$('sheet').classList.contains('hide')||!$('kpBal')||!visible())return;
@@ -1273,23 +1366,11 @@ async function scanHolders(t,onStep){
   toScan.forEach(h=>{const fb=h.a?.target?.firstBuy;if(fb&&launch){h.entry=fb-launch;h.sniper=h.entry<=15&&h.entry>=-5;}if(h.smart&&(h.bundled||h.cluster||h.a.target?.free))h.smart=false;
     if(h.smart&&!SMART[h.owner])SMART[h.owner]={t:Date.now(),src:'auto',wr:h.a.wr,closed:h.a.closed};});
   store.set('hs_smart',SMART);saveWC();
-  // rug checks
   const top10=people.slice(0,10).reduce((s,h)=>s+h.pct,0);t.top10=top10;
   const sc=toScan.filter(h=>h.a),smart=sc.filter(h=>h.smart),sumP=f=>toScan.filter(f).reduce((s,h)=>s+h.pct,0);
-  const bun=sumP(h=>h.bundled),clu=sumP(h=>h.cluster),fr=sumP(h=>h.a?.target?.free),fresh=sc.length?sc.filter(h=>h.a.fresh).length/sc.length*100:0;
-  const ck=[],add=(l,x,p)=>ck.push({l,x,p:p||0});
-  info.mintAuthority?add('fail','Mint authority ON — dev can print tokens',30):add('pass','Mint authority revoked');
-  info.freezeAuthority?add('fail','Freeze authority ON — dev can freeze wallets',30):add('pass','Freeze authority revoked');
-  {const x=readExt(info);x.tax>0?add(x.tax>=5?'fail':'warn',`Transfer tax ${num(x.tax,2)}% on every buy/sell`,x.tax>=5?25:10):add('pass','No transfer tax (0%)');if(x.hook)add('warn','Transfer hook program attached — transfers can be restricted',15);}
-  const a=`Top 10 holders own ${num(top10,1)}% (pools excluded)`;top10>50?add('fail',a,20):top10>30?add('warn',a,10):add('pass',a);
-  const bunV=t.hm&&t.hm.bundle!=null?Math.max(t.hm.bundle,bun):bun;const b=`Bundled buys (same block): ${num(bunV,1)}% of supply`;bunV>15?add('fail',b,20):bunV>5?add('warn',b,10):add('pass',b);
-  const c=`Linked wallets (same funder): ${num(clu,1)}%`;clu>15?add('fail',c,20):clu>5?add('warn',c,10):add('pass',c);
-  fr>5?add('warn',`Received by transfer, not bought: ${num(fr,1)}%`,10):add('pass','No big transfer-in holders');
-  {const fv=t.hm?t.hm.fresh:null;fv!=null?(fv>25?add('warn',`Fresh wallets (<3 days) hold ${num(fv,1)}% of supply`,10):add('pass',`Fresh wallets hold ${num(fv,1)}% of supply`)):(fresh>40?add('warn',`${Math.round(fresh)}% of top holders are fresh wallets`,10):add('pass',`${Math.round(fresh)}% fresh wallets among top holders`));}
-  if(t.hm&&t.hm.insider!=null){const iv=t.hm.insider;const x=`Snipers (in within 15s of launch) hold ${num(iv,1)}%`;iv>15?add('fail',x,15):iv>5?add('warn',x,5):add('pass',x);}
-  const safety=Math.max(0,100-ck.reduce((s,x)=>s+x.p,0)),fail=ck.some(x=>x.l==='fail');
-  const verdict=fail?['High risk','var(--bad)']:smart.length>=3&&safety>=70?['Strong holders','var(--good)']:smart.length>=1&&safety>=60?['Some good holders','var(--warn)']:['No clear edge','var(--mut)'];
-  return{ck,safety,smart,sc,toScan,verdict};
+  const ex=readExt(info),auth={mint:!!info.mintAuthority,freeze:!!info.freezeAuthority,tax:ex.tax,hook:ex.hook};
+  const R={toScan,sc,smart,top10,auth,bun:sumP(h=>h.bundled),snip:launch?sumP(h=>h.sniper):null,clu:sumP(h=>h.cluster),fr:sumP(h=>h.a?.target?.free)};
+  return Object.assign(R,buildChecks(t,R));
 }
 
 async function learnFromWinners(){
@@ -1303,63 +1384,297 @@ async function learnFromWinners(){
 }
 
 // ================= detail page =================
-function detailTop(t){
-  const p=t.pair;const st=(l,v,c)=>`<div class="st"><span>${l}</span><b class="${c||''}">${v}</b></div>`;const cls=x=>x==null?'':x>=0?'up':'dn';
-  const soc=[...(t.sites||[]).map(s=>[s.label||'Web',s.url]),...(t.socials||[]).map(s=>[s.type,s.url])].slice(0,4);
-  return `<div class="sec"><div style="display:flex;justify-content:space-between;align-items:end"><div><div class="note">Price</div><div style="font-size:22px;font-weight:800">${usd(t.price)}</div></div><div style="text-align:right"><div class="note">Market cap</div><div style="font-size:18px;font-weight:800">${usd(t.mc)}</div></div></div>
-   <div class="sg" style="margin-top:10px">${st('5m',pct(t.chg.m5),cls(t.chg.m5))}${st('1h',pct(t.chg.h1),cls(t.chg.h1))}${st('24h',pct(t.chg.h24),cls(t.chg.h24))}
-   ${st('Vol 5m',usd(t.vol.m5))}${st('Vol 1h',usd(t.vol.h1))}${st('Vol 24h',usd(t.vol.h24))}
-   ${st('Buys 1h',num(t.buys.h1,0),'up')}${st('Sells 1h',num(t.sells.h1,0),'dn')}${st(t.stage==='mig'?'Liquidity':'Traders seen',t.stage==='mig'?usd(t.liq):num(t.act.w.size,0))}
-   ${t.hm?st('Holders',t.hm.holders?num(t.hm.holders.n,0)+(t.hm.holders.more?'+':''):'—')+st('Bundle',t.hm.bundle!=null?num(t.hm.bundle,1)+'% · '+t.hm.bundleW+'w':'?',t.hm.bundle>15?'dn':'')+st('Snipers',t.hm.insider!=null?num(t.hm.insider,1)+'% · '+t.hm.sniperW+'w':'?',t.hm.insider>15?'dn':'')+st('Fresh wallets',t.hm.fresh!=null?num(t.hm.fresh,1)+'% · '+t.hm.freshW+'w':'?',t.hm.fresh>25?'dn':''):''}${st('Fees 24h (est.)',t.feeAvg!=null?SOLI+num(t.fees24,2):'checking…')}${st('Avg fee / trade',t.feeAvg!=null?SOLI+num(t.feeAvg,5):'—')}${st('Tax',t.auth?num(t.auth.tax,2)+'%':'—',t.auth?.tax>0?'dn':'up')}${st('KOLs',kolCount(t),kolCount(t)?'up':'')}${st('Vol spike',num(t.spike,1)+'x',t.spike>=2?'up':'')}${st('Buy/Sell',num(t.br,2),t.br>=1?'up':'dn')}${st('Smart seen',t.act.sm.size,t.act.sm.size?'up':'')}</div>
-   <div style="display:flex;gap:6px;margin-top:10px;align-items:center"><div class="mono" style="flex:1;font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--mut);word-break:break-all">${t.mint}</div><button class="star" id="dCopy">Copy</button></div>
-   <div class="links" style="margin-top:10px">${p?.url?`<a href="${esc(p.url)}">Chart</a>`:''}<a href="https://gmgn.ai/sol/token/${t.mint}">GMGN</a>${t.twitter?`<a href="${esc(t.twitter)}">𝕏 Profile</a>`:''}<a href="https://x.com/search?q=${encodeURIComponent(t.mint)}&f=live">𝕏 CA search</a><a href="https://solscan.io/token/${t.mint}">Solscan</a>${t.lp==='pump'?`<a href="https://pump.fun/coin/${t.mint}">Pump</a>`:''}</div>
-   ${soc.length?`<div class="links" style="margin-top:8px">${soc.map(([l,u])=>`<a href="${esc(u)}">${esc(l)}</a>`).join('')}</div>`:''}
+let DT=null;                                     // live detail state
+const ICO={
+  copy:'<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="9" y="9" width="11" height="11" rx="2.5"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>',
+  share:'<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 13v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6"/><path d="M16 7l-4-4-4 4"/><path d="M12 3v13"/></svg>',
+  x:'<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M18.9 2H22l-7.3 8.3L23.3 22h-6.7l-5.2-6.8L5.4 22H2.3l7.8-8.9L1.8 2h6.9l4.7 6.2L18.9 2zm-1.2 18h1.8L7.4 3.9H5.5L17.7 20z"/></svg>',
+  tg:'<svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M21.9 4.3 18.7 19.4c-.2 1-.9 1.3-1.8.8l-4.9-3.6-2.4 2.3c-.3.3-.5.5-1 .5l.3-5L18 6.2c.4-.4-.1-.6-.6-.2L6.2 13.1l-4.8-1.5c-1-.3-1-1 .2-1.5L20.5 3c.9-.3 1.6.2 1.4 1.3z"/></svg>',
+  web:'<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>',
+  dc:'<svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M19.6 5.3A17 17 0 0 0 15.4 4l-.5 1.1a15.6 15.6 0 0 0-5.8 0L8.6 4a17 17 0 0 0-4.2 1.3C1.7 9.3 1 13.2 1.3 17a17 17 0 0 0 5.2 2.6l1.1-1.8-1.8-.9.4-.3a12.2 12.2 0 0 0 11.6 0l.4.3-1.8.9 1.1 1.8a17 17 0 0 0 5.2-2.6c.4-4.4-.7-8.3-3.1-11.7zM8.5 14.7c-1 0-1.9-.9-1.9-2.1s.8-2.1 1.9-2.1 1.9 1 1.9 2.1-.8 2.1-1.9 2.1zm7 0c-1 0-1.9-.9-1.9-2.1s.8-2.1 1.9-2.1 1.9 1 1.9 2.1-.8 2.1-1.9 2.1z"/></svg>',
+  search:'<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>',
+  ok:'<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg>',
+  warn:'<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"><path d="M12 6v8M12 18.5v.1"/></svg>',
+  bad:'<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"><path d="M7 7l10 10M17 7 7 17"/></svg>',
+  unk:'<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 12h.1M12 12h.1M18 12h.1"/></svg>',
+  chev:'<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>'
+};
+const DTF=[['m5','5m'],['h1','1h'],['h6','6h'],['h24','24h']];
+// $0.0₅123 style for tiny prices (GMGN / Axiom style)
+function fmtPrice(p){
+  if(p==null||!isFinite(p)||p<=0)return'—';
+  if(p>=1)return'$'+num(p,4);
+  if(p>=0.0001)return'$'+p.toPrecision(4).replace(/0+$/,'');
+  const s=p.toFixed(20).slice(2),z=s.match(/^0*/)[0].length,d=s.slice(z,z+4).replace(/0+$/,'')||'0';
+  return `$0.0<sub>${z}</sub>${d}`;
+}
+const fmtPriceTxt=p=>fmtPrice(p).replace(/<sub>(\d+)<\/sub>/,(m,z)=>String(z).split('').map(c=>'₀₁₂₃₄₅₆₇₈₉'[c]).join(''));
+function socLinks(t){
+  const out=[],seen=new Set();
+  (t.socials||[]).forEach(s=>{const u=s.url;if(!u||seen.has(u))return;seen.add(u);const ty=(s.type||'').toLowerCase();
+    out.push({u,k:/twitter|^x$/.test(ty)||/\/\/(www\.)?(x|twitter)\.com/.test(u)?'x':/telegram/.test(ty)||/t\.me\//.test(u)?'tg':/discord/.test(ty)?'dc':'web'});});
+  (t.sites||[]).forEach(s=>{if(s.url&&!seen.has(s.url)){seen.add(s.url);out.push({u:s.url,k:'web'});}});
+  return out.slice(0,4);
+}
+// one source of truth for bundle/sniper/fresh numbers (tiles, checks and share card all agree)
+function rugVals(t,R){
+  const hm=t.hm,cnt=f=>(R?.toScan||[]).filter(f).length;
+  const pick=(hv,hw,rv,rw)=>hv!=null&&(rv==null||hv>=rv)?{v:hv,w:hw}:rv!=null?{v:rv,w:rw}:{v:null,w:0};
+  return{top10:hm?.top10??R?.top10??t.top10,
+    bun:pick(hm?.bundle,hm?.bundleW,R?R.bun:null,cnt(h=>h.bundled)),
+    snip:hm?.insider!=null?{v:hm.insider,w:hm.sniperW}:R&&R.snip!=null?{v:R.snip,w:cnt(h=>h.sniper)}:{v:null,w:0},
+    fresh:hm?.fresh!=null?{v:hm.fresh,w:hm.freshW}:{v:null,w:0}};
+}
+const lvlCls=(v,w,b)=>v==null?'':v>b?'bad':v>w?'warn':'good';
+function rugTiles(t){
+  const hm=t.hm,au=t.auth,ld=!hm&&t.hmLoading,V=rugVals(t,DT?.mint===t.mint?DT.R:null);
+  const pc=(v,n)=>v==null?(ld?'<i class="skl"></i>':'?'):num(v,1)+'%'+(n?`<small>${n}w</small>`:'');
+  const tile=(l,v,c)=>`<div class="rt ${c||''}"><b>${v}</b><span>${l}</span></div>`;
+  return `<div class="rtg">
+    ${tile('Top 10',pc(V.top10),lvlCls(V.top10,30,50))}
+    ${tile('Bundlers',pc(V.bun.v,V.bun.w),lvlCls(V.bun.v,5,15))}
+    ${tile('Snipers',pc(V.snip.v,V.snip.w),lvlCls(V.snip.v,5,15))}
+    ${tile('Fresh',pc(V.fresh.v,V.fresh.w),lvlCls(V.fresh.v,10,25))}
+    ${tile('Holders',hm?.holders?num(hm.holders.n,0)+(hm.holders.more?'+':''):ld?'<i class="skl"></i>':'—')}
+    ${tile('KOLs',kolCount(t),kolCount(t)?'good':'')}
+    ${tile('Smart',t.act.sm.size,t.act.sm.size?'good':'')}
+    ${tile('Tax',au?num(au.tax||0,2)+'%':'—',au?(au.tax>0?'bad':'good'):'')}
+    ${tile('Mint',au?(au.mint?'Enabled':'Revoked'):'—',au?(au.mint?'bad':'good'):'')}
+    ${tile('Freeze',au?(au.freeze?'Enabled':'Revoked'):'—',au?(au.freeze?'bad':'good'):'')}
+    ${tile('Fees 24h',t.fees24!=null?SOLI+num(t.fees24,2):ld?'<i class="skl"></i>':'—')}
+    ${tile('Fee/trade',t.feeAvg!=null?SOLI+num(t.feeAvg,4):'—')}
   </div>`;
 }
-let DT=null;                                     // live detail state
+function detailHero(t){
+  const cls=x=>x==null?'':x>=0?'up':'dn';
+  return `<div class="dhero"><div class="dmc"><div><div class="lbl">Market cap</div><div class="big">${usd(t.mc)}</div></div>
+     <div class="dpr"><div class="lbl">Price</div><div class="mid2">${fmtPrice(t.price)}</div><span class="chgp ${cls(t.chg.h24)}">${pct(t.chg.h24)} · 24h</span></div></div>
+   <div class="dkv"><div><span>Liquidity</span><b>${t.liq?usd(t.liq):'—'}</b></div><div><span>Vol 24h</span><b>${usd(t.vol.h24)}</b></div><div><span>Holders</span><b>${t.hm?.holders?num(t.hm.holders.n,0)+(t.hm.holders.more?'+':''):'—'}</b></div><div><span>Age</span><b>${dur(t.created?(Date.now()-t.created)/1000:null)}</b></div></div></div>`;
+}
+function detailStats(t){
+  const cls=x=>x==null?'':x>=0?'up':'dn',k=DT?.stf||'h1';
+  const b=t.buys[k]||0,s=t.sells[k]||0,tx=b+s,bp=tx?b/tx*100:50;
+  return `<div class="dcard"><div class="dchg">${DTF.map(([key,l])=>`<button data-stf="${key}" class="${k===key?'on':''}"><span>${l}</span><b class="${cls(t.chg[key])}">${pct(t.chg[key])}</b></button>`).join('')}</div>
+    <div class="dst3"><div><span>Volume</span><b>${usd(t.vol[k])}</b></div><div><span>Txns</span><b>${num(tx,0)}</b></div><div><span>Buy / sell</span><b class="${b>=s?'up':'dn'}">${num(b/(s||1),2)}</b></div></div>
+    <div class="bsl"><span class="up">${num(b,0)} buys</span><span class="note">5m spike ${num(t.spike,1)}x</span><span class="dn">${num(s,0)} sells</span></div>
+    <div class="bsbar"><i style="width:${bp}%"></i></div></div>
+   <div class="dcard"><div class="dch"><b>Token audit</b><span class="note">${t.hmAt?'checked '+dur((Date.now()-t.hmAt)/1000)+' ago':t.hmLoading?'checking on-chain…':''}</span></div>${rugTiles(t)}</div>`;
+}
+// all rug checks from the best data available right now (holder metrics + holder scan + mint account)
+function buildChecks(t,R){
+  const hm=t.hm,ck=[],add=(l,x,p)=>ck.push({l,x,p:p||0}),au=R?.auth||t.auth;
+  if(au){au.mint?add('fail','Mint authority ON — dev can print tokens',30):add('pass','Mint authority revoked');
+    au.freeze?add('fail','Freeze authority ON — dev can freeze wallets',30):add('pass','Freeze authority revoked');
+    const tx=au.tax||0;tx>0?add(tx>=5?'fail':'warn',`Transfer tax ${num(tx,2)}% on every buy/sell`,tx>=5?25:10):add('pass','No transfer tax (0%)');
+    if(au.hook)add('warn','Transfer hook attached — transfers can be restricted',15);}
+  else add('unk','Mint / freeze authority — checking…');
+  const V=rugVals(t,R),top10=V.top10;
+  if(top10!=null){const a=`Top 10 holders own ${num(top10,1)}% (pools excluded)`;top10>50?add('fail',a,20):top10>30?add('warn',a,10):add('pass',a);}else add('unk','Top 10 holders — checking…');
+  if(V.bun.v!=null){const v=V.bun.v,w=V.bun.w;const x=`Bundled buys: ${num(v,1)}% of supply${w?` · ${w} wallet${w>1?'s':''}`:''}`;v>15?add('fail',x,20):v>5?add('warn',x,10):add('pass',x);}
+  else add('unk',hm?'Bundles — no first-buy data':'Bundles — checking…');
+  if(V.snip.v!=null){const v=V.snip.v,w=V.snip.w;const x=`Snipers (first 15s) hold ${num(v,1)}%${w?` · ${w} wallet${w>1?'s':''}`:''}`;v>15?add('fail',x,15):v>5?add('warn',x,5):add('pass',x);}
+  else add('unk',hm?'Snipers — launch block not found, can’t measure':'Snipers — checking…');
+  if(hm?.fresh!=null){const v=hm.fresh,w=hm.freshW;const x=`Fresh wallets (<3 days) hold ${num(v,1)}%${w?` · ${w} wallet${w>1?'s':''}`:''}`;v>25?add('warn',x,10):add('pass',x);}
+  else if(R?.sc?.length){const f=R.sc.filter(h=>h.a.fresh).length/R.sc.length*100;f>40?add('warn',`${Math.round(f)}% of top holders are fresh wallets`,10):add('pass',`${Math.round(f)}% of top holders are fresh wallets`);}
+  else add('unk','Fresh wallets — checking…');
+  if(R){const c=`Linked wallets (same funder): ${num(R.clu,1)}%`;R.clu>15?add('fail',c,20):R.clu>5?add('warn',c,10):add('pass',c);
+    R.fr>5?add('warn',`Received by transfer, not bought: ${num(R.fr,1)}%`,10):add('pass','No big transfer-in holders');}
+  else{add('unk','Linked wallets — scanning holders…');}
+  const safety=Math.max(0,100-ck.reduce((s,x)=>s+x.p,0)),fail=ck.some(x=>x.l==='fail'),smart=R?.smart||[];
+  const verdict=fail?['High risk','var(--bad)']:!R?['Scanning…','var(--mut)']:smart.length>=3&&safety>=70?['Strong holders','var(--good)']:smart.length>=1&&safety>=60?['Some good holders','var(--warn)']:safety>=80?['Clean, no smart money','var(--txt2)']:['Mixed signals','var(--warn)'];
+  return{ck,safety,smart,sc:R?.sc||[],toScan:R?.toScan||[],verdict,pending:ck.some(c=>c.l==='unk'&&/checking|scanning/.test(c.x))};
+}
+function scoreCol(s){return s>=80?'var(--good)':s>=55?'var(--warn)':'var(--bad)';}
+function auditHTML(t){
+  const A=buildChecks(t,DT?.R),col=scoreCol(A.safety),sm=A.smart.reduce((s,h)=>s+h.pct,0);
+  const ic={pass:'ok',warn:'warn',fail:'bad',unk:'unk'};
+  return `<div class="dcard"><div class="aud">
+     <div class="ring" style="--p:${A.safety};--c:${col}"><div><b>${A.safety}</b><span>/100</span></div></div>
+     <div class="audr"><div class="vd" style="color:${A.verdict[1]}">${A.verdict[0]}</div>
+       <div class="audk"><span>Smart holders <b>${DT?.R?A.smart.length+'/'+A.sc.length:'…'}</b></span><span>Smart supply <b>${DT?.R?num(sm,1)+'%':'…'}</b></span></div>
+       ${DT?.R?'':`<div class="prog"><i id="hFill" style="width:${DT?.prog||0}%"></i></div><div class="note" id="hTxt">${DT?.progTxt||'Scanning top holders…'}</div>`}</div></div>
+     <div class="cks">${A.ck.map(c=>`<div class="ck2 ${c.l}"><span class="ci">${ICO[ic[c.l]]}</span><span>${esc(c.x)}</span></div>`).join('')}</div>
+     <button class="btn xbtn" data-act="share">${ICO.x} Share rug check on X</button></div>`;
+}
+function holderRow(h,i){
+  const a=h.a,w=h.owner,tg=[],open=DT?.open?.has(w);
+  if(h.smart)tg.push('<span class="tg sm">SMART</span>');if(h.bundled)tg.push('<span class="tg bad">BUNDLE</span>');if(h.cluster)tg.push('<span class="tg bad">LINKED</span>');
+  if(h.sniper)tg.push('<span class="tg wn">SNIPER</span>');if(a?.target?.free)tg.push('<span class="tg bad">TRANSFER</span>');if(a?.fresh)tg.push('<span class="tg wn">FRESH</span>');if(a?.bot)tg.push('<span class="tg wn">BOT</span>');
+  if(a?.bigWins)tg.push(`<span class="tg ok">${a.bigWins}× 3x+</span>`);if(a?.target?.sold)tg.push('<span class="tg">SOLD SOME</span>');
+  const name=KOL[w]?`<span class="hk">${kolAv(w,'wav sm')}<b>${esc(KOL[w])}</b></span>`:`<span class="mono">${short(w)}</span>`;
+  const wr=a?.wr==null?'':a.wr>=60?'up':a.wr<40?'dn':'';
+  return `<div class="hrow ${open?'open':''}" data-hx="${w}"><span class="hn">${i+1}</span>
+    <div class="hw">${name}${tg.length?`<div class="htg">${tg.slice(0,3).join('')}</div>`:''}</div>
+    <div class="hpc"><b>${num(h.pct,2)}%</b><i><em style="width:${Math.min(100,h.pct*10)}%"></em></i></div>
+    <div class="hpl ${a?(a.pnl>=0?'up':'dn'):''}">${a?SOLI+num(a.pnl,1):h.err?'—':'…'}<small class="${wr}">${a?.wr!=null?Math.round(a.wr)+'% WR':''}</small></div></div>
+   ${open?`<div class="hx"><div class="hxg"><div><span>Win rate</span><b class="${wr}">${a?.wr==null?'—':Math.round(a.wr)+'%'}</b></div><div><span>Closed trades</span><b>${a?.closed??'—'}</b></div><div><span>Tokens traded</span><b>${a?.tokens??'—'}</b></div><div><span>Median hold</span><b>${dur(a?.medHold)}</b></div><div><span>Entry after launch</span><b>${h.entry!=null?dur(h.entry):'—'}</b></div><div><span>PnL</span><b class="${a?.pnl>=0?'up':'dn'}">${a?SOLI+num(a.pnl,2):'—'}</b></div></div>
+     ${tg.length>3?`<div class="htg" style="margin-top:8px">${tg.join('')}</div>`:''}
+     <div class="hxb"><a href="https://solscan.io/account/${w}" target="_blank" rel="noopener">Solscan</a><a href="https://gmgn.ai/sol/address/${w}" target="_blank" rel="noopener">GMGN</a>${KOL[w]?`<button data-kw="${w}">KOL profile</button>`:''}<button class="${KOL[w]?'on':''}" data-kol="${w}">👑 ${KOL[w]?'Untag':'Tag KOL'}</button><button class="${SMART[w]?'on':''}" data-star="${w}">${SMART[w]?'★ Smart':'☆ Smart'}</button></div></div>`:''}`;
+}
+function holdersHTML(){
+  const R=DT?.R;
+  if(!R)return `<div class="dcard"><div class="note" style="text-align:center;padding:16px 0">Scanning the top holders' wallet history…<div class="prog"><i id="hFill" style="width:${DT?.prog||0}%"></i></div><div id="hTxt" style="margin-top:6px">${DT?.progTxt||''}</div></div></div>`;
+  const list=[...R.toScan].sort((a,b)=>b.pct-a.pct);
+  return `<div class="dcard"><div class="hhead"><span>#</span><span>Wallet</span><span>Held</span><span>PnL</span></div>${list.map(holderRow).join('')}<div class="note" style="margin-top:8px">Tap a row for wallet stats. Pools and burn addresses are excluded.</div></div>`;
+}
+function kolsHTML(t){
+  const ws=[...new Set([...t.act.kol,...(t.hm?.kols||[])])],sm=[...t.act.sm];
+  const kt=KTR.filter(x=>x.m===t.mint&&KOL[x.w]).sort((a,b)=>b.ts-a.ts);
+  if(!ws.length&&!sm.length)return '<div class="dcard"><div class="note" style="text-align:center;padding:18px 0">No tracked KOLs or smart wallets have traded this token yet.</div></div>';
+  return `${ws.length?`<div class="dcard"><div class="dch"><b>👑 KOLs</b><span class="note">${ws.length}</span></div>${ws.map(w=>{const tr=kt.filter(x=>x.w===w),bs=tr.filter(x=>x.side==='buy').reduce((s,x)=>s+x.sol,0),ss=tr.filter(x=>x.side==='sell').reduce((s,x)=>s+x.sol,0);
+      return `<div class="krow" data-kw="${w}">${kolAv(w,'wav')}<div class="kmid"><b>${esc(KOL[w]||short(w))}</b><span class="note">${KOLX[w]?'@'+esc(KOLX[w]):short(w)}${(t.hm?.kols||[]).includes(w)?' · top holder':''}</span></div><div class="kr">${posChip(kolPos(w,t.mint))}<span class="note">${bs||ss?SOLI:''}${bs?'<span class="up">+'+num(bs,2)+'</span>':''}${ss?' <span class="dn">-'+num(ss,2)+'</span>':''}</span></div></div>`;}).join('')}</div>`:''}
+   ${sm.length?`<div class="dcard"><div class="dch"><b>🧠 Smart wallets</b><span class="note">${sm.length}</span></div>${sm.map(w=>`<a class="krow" href="https://solscan.io/account/${w}" target="_blank" rel="noopener"><span class="mono">${short(w)}</span><span class="note">${SMART[w]?.wr!=null?Math.round(SMART[w].wr)+'% WR':SMART[w]?.src==='manual'?'your list':''}</span></a>`).join('')}</div>`:''}`;
+}
+function renderDBody(){
+  if(!DT||!$('dBody'))return;const t=DT.t;
+  const h=DT.tab==='holders'?holdersHTML():DT.tab==='kols'?kolsHTML(t):auditHTML(t);
+  if(h!==DT.lastBody){$('dBody').innerHTML=h;DT.lastBody=h;}
+  $('dTabs').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.dtab===DT.tab));
+}
+function renderDTabs(t){const n=kolCount(t)+t.act.sm.size;return `<button data-dtab="audit">Rug check</button><button data-dtab="holders">Top holders${DT?.R?` <small>${DT.R.toScan.length}</small>`:''}</button><button data-dtab="kols">KOLs${n?` <small>${n}</small>`:''}</button>`;}
+function refreshDetail(){
+  if(!DT||$('vDetail').classList.contains('hide'))return;const t=DT.t;
+  const a=$('dHero');if(a)a.innerHTML=detailHero(t);const b=$('dStats');if(b)b.innerHTML=detailStats(t);
+  const c=$('dTabs');if(c){c.innerHTML=renderDTabs(t);}const ag=$('dAge');if(ag)ag.textContent=dur(t.created?(Date.now()-t.created)/1000:null);
+  renderDBody();
+}
 async function openDetail(mint){
   const t=TOK.get(mint);if(!t)return;
-  const p=t.pair,ageS=t.created?(Date.now()-t.created)/1000:null;
-  const st=(l,v,c)=>`<div class="st"><span>${l}</span><b class="${c||''}">${v}</b></div>`;
-  const cls=x=>x==null?'':x>=0?'up':'dn';
-  const soc=[...(t.sites||[]).map(s=>[s.label||'Web',s.url]),...(t.socials||[]).map(s=>[s.type,s.url])].slice(0,4);
-  $('vDetail').innerHTML=`<div class="ph"><button class="ib" id="back">←</button>${avatar(t)}<div class="mid"><div class="nm"><b>${esc(t.sym)}</b><span class="full">${esc(t.name)}</span></div><div class="sub"><span class="age">${dur(ageS)}</span>·<span>${LPN[t.lp]}</span>·<span>${t.stage==='mig'?'🎓 Graduated':'🌱 Bonding curve'}</span></div></div></div>
-  <div id="dTop">${detailTop(t)}</div>
-  ${kolCount(t)?`<div class="sec"><h4>👑 KOLs trading / holding</h4>${[...new Set([...t.act.kol,...(t.hm?.kols||[])])].map(w=>`<div class="wl"><div class="wl-l">${kolAv(w,'wav')}${kolLink(w)}</div><span style="display:flex;gap:6px;align-items:center">${posChip(kolPos(w,t.mint))}${(t.hm?.kols||[]).includes(w)?'<span class="note">top holder</span>':''}</span></div>`).join('')}</div>`:''}
-  ${t.act.sm.size?`<div class="sec"><h4>🧠 Smart wallets trading it</h4>${[...t.act.sm].map(w=>`<div class="wl"><a href="https://solscan.io/account/${w}" style="color:var(--acc);text-decoration:none">${short(w)}</a><span class="note">${SMART[w]?.wr!=null?Math.round(SMART[w].wr)+'% WR':SMART[w]?.src==='manual'?'your list':''}</span></div>`).join('')}</div>`:''}
-  <div class="sec" id="chSec"><div class="chbar"><div class="seg2" id="chTf">${CH_TF.map(([k,l])=>`<button data-v="${k}" class="${CH.tf===k?'on':''}">${l}</button>`).join('')}</div>
-    <div class="seg2" id="chMode"><button data-v="mc" class="${CH.mode==='mc'?'on':''}">MCap</button><button data-v="price" class="${CH.mode==='price'?'on':''}">Price</button></div>
-    <button class="star" id="chSrc">${CH.src==='native'?'DexScreener view':'Simple view'}</button></div>
-    <div id="chart" class="chart"><div class="note" style="padding:20px;text-align:center">Loading chart…</div></div>
-    <div class="note" id="chNote" style="margin-top:6px"></div></div>
-  <div class="sec" id="hSec"><h4>Holder analysis <span class="note" id="hTxt">starting…</span></h4><div class="prog"><i id="hFill"></i></div></div>
-  <div class="note" style="padding:0 14px">On-chain behaviour, not a promise. Smart-looking wallets can be insiders. Never risk more than you can afford to lose.</div>`;
+  stopScan=true;await new Promise(r=>setTimeout(r,0));
+  DT={mint,t,stf:'h1',tab:'audit',R:null,open:new Set(),prog:0,progTxt:'',lastBody:''};
+  const so=socLinks(t),lpImg=LP_DOM[t.lp]?`<img src="${fav(LP_DOM[t.lp])}" alt="" onerror="this.remove()">`:'';
+  $('vDetail').innerHTML=`<div class="dh"><button class="ib" data-act="back" aria-label="Back">←</button>${avatar(t)}
+    <div class="mid"><div class="nm"><b>${esc(t.sym)}</b><span class="full">${esc(t.name)}</span></div>
+    <div class="sub"><span class="age" id="dAge">${dur(t.created?(Date.now()-t.created)/1000:null)}</span><span class="lpn">${lpImg}${LPN[t.lp]}</span><span class="stg ${t.stage}">${t.stage==='mig'?'Migrated':'Bonding curve'}</span></div></div>
+    <button class="ib acc" data-act="share" aria-label="Share rug check">${ICO.share}</button></div>
+   <div class="dbar"><button class="cachip" data-act="copy"><span class="mono">${t.mint.slice(0,6)}…${t.mint.slice(-6)}</span>${ICO.copy}</button>
+     ${so.map(s=>`<a class="soc" href="${esc(s.u)}" target="_blank" rel="noopener" aria-label="${s.k}">${ICO[s.k]}</a>`).join('')}
+     <a class="soc" href="https://x.com/search?q=${encodeURIComponent(t.mint)}&f=live" target="_blank" rel="noopener" aria-label="Search CA on X">${ICO.search}</a></div>
+   <div id="dHero">${detailHero(t)}</div>
+   <div class="dcard chcard" id="chSec"><div class="chbar"><div class="seg2" id="chTf">${CH_TF.map(([k,l])=>`<button data-v="${k}" class="${CH.tf===k?'on':''}">${l}</button>`).join('')}</div>
+     <div class="seg2" id="chMode"><button data-v="mc" class="${CH.mode==='mc'?'on':''}">MC</button><button data-v="price" class="${CH.mode==='price'?'on':''}">$</button></div>
+     <div class="seg2" id="chSrcSeg"><button data-v="native" class="${CH.src==='native'?'on':''}">Pro</button><button data-v="dex" class="${CH.src==='dex'?'on':''}">DexS</button></div></div>
+     <div class="chwrap"><div id="chart" class="chart"><div class="chload">Loading chart…</div></div><div class="chleg" id="chLeg"></div></div>
+     <div id="chKol"></div><div class="note" id="chNote" style="margin-top:6px"></div></div>
+   <div id="dStats">${detailStats(t)}</div>
+   <div class="dtabs" id="dTabs">${renderDTabs(t)}</div>
+   <div id="dBody"></div>
+   <div class="dlinks"><a href="https://gmgn.ai/sol/token/${t.mint}" target="_blank" rel="noopener">GMGN</a><a href="https://solscan.io/token/${t.mint}" target="_blank" rel="noopener">Solscan</a>${t.pair?.url?`<a href="${esc(t.pair.url)}" target="_blank" rel="noopener">DexScreener</a>`:''}${t.lp==='pump'?`<a href="https://pump.fun/coin/${t.mint}" target="_blank" rel="noopener">Pump.fun</a>`:''}</div>
+   <div class="note" style="padding:4px 16px 0;text-align:center">On-chain behaviour, not a promise. Never risk more than you can afford to lose.</div>`;
   $('vDetail').classList.remove('hide');$('vDetail').scrollTop=0;
-  if(kolCount(t))loadPositions([...new Set([...t.act.kol,...(t.hm?.kols||[])])].map(w=>w+'|'+t.mint)).then(()=>{});
+  renderDBody();
+  if(kolCount(t))loadPositions([...new Set([...t.act.kol,...(t.hm?.kols||[])])].map(w=>w+'|'+t.mint)).then(()=>{if(DT?.mint===mint&&DT.tab==='kols')renderDBody();});
   history.pushState({d:1},'');
-  $('back').onclick=()=>history.back();
-  $('dCopy').onclick=()=>copy(t.mint);
   wireChart(t);
-  DT={mint,t};
-  if(!t.hm)loadHM(t);
+  // holder metrics (bundles/snipers/fresh/holders/fees): wait for a run already in progress, else start one
+  (async()=>{if(!hmFresh(t))await loadHM(t);let n=0;while(t.hmLoading&&n++<120)await new Promise(r=>setTimeout(r,500));if(DT?.mint===mint)refreshDetail();})();
   try{
-    const r=await scanHolders(t,(d,n)=>{const el=$('hFill');if(el){el.style.width=(d/n*100)+'%';$('hTxt').textContent=`${d}/${n} wallets`;}});
-    if($('vDetail').classList.contains('hide'))return;
-    const sorted=[...r.toScan].sort((a,b)=>(b.smart-a.smart)||(b.pct-a.pct));
-    $('hSec').outerHTML=`<div class="sec"><div class="verdict" style="color:${r.verdict[1]}">${r.verdict[0]}</div>
-     <div class="sg">${st('Safety',r.safety+'/100',r.safety>=70?'up':r.safety<50?'dn':'')}${st('Smart holders',r.smart.length+'/'+r.sc.length,r.smart.length?'up':'')}${st('Smart supply',num(r.smart.reduce((s,h)=>s+h.pct,0),1)+'%')}</div></div>
-     <div class="sec"><h4>Rug checks</h4>${r.ck.map(c=>`<div class="ck"><span class="dt d-${c.l}"></span><span>${c.x}</span></div>`).join('')}</div>
-     <div class="sec"><h4>Top holders <span class="note">👑 tag KOL · ☆ smart</span></h4>${sorted.map(holderHTML).join('')}</div>`;
-    $('vDetail').querySelectorAll('[data-kol]').forEach(b=>b.onclick=()=>{const w=b.dataset.kol;if(KOL[w]){delete KOL[w];delete KOLX[w];store.set('hs_kolx',KOLX);b.classList.remove('on');toast('Removed from KOLs');}else{const n=prompt('KOL name and @handle for '+short(w)+' (e.g. Ansem @blknoiz06):','');if(n==null)return;const parts=n.trim().split(/\s+/),h=parts.find(x=>x.startsWith('@'));KOL[w]=parts.filter(x=>!x.startsWith('@')).join(' ')||(h?h.slice(1):short(w));if(h){KOLX[w]=h.slice(1);store.set('hs_kolx',KOLX);}b.classList.add('on');toast('Tagged as KOL');}store.set('hs_kol',KOL);});
-    $('vDetail').querySelectorAll('[data-star]').forEach(b=>b.onclick=()=>{const w=b.dataset.star;if(SMART[w]){delete SMART[w];b.classList.remove('on');b.textContent='☆';}else{SMART[w]={t:Date.now(),src:'manual'};b.classList.add('on');b.textContent='★';}store.set('hs_smart',SMART);});
-    updateCard(t);
-  }catch(e){const el=$('hTxt');if(el)el.textContent='failed: '+e.message;}
+    const r=await scanHolders(t,(d,n)=>{if(DT?.mint!==mint)return;DT.prog=d/n*100;DT.progTxt=`Analyzing wallet ${d} of ${n}`;const el=$('hFill');if(el){el.style.width=DT.prog+'%';const tx=$('hTxt');if(tx)tx.textContent=DT.progTxt;}});
+    if(DT?.mint!==mint||$('vDetail').classList.contains('hide'))return;
+    DT.R=r;refreshDetail();updateCard(t);
+  }catch(e){if(DT?.mint===mint){DT.progTxt='Holder scan failed: '+e.message;const tx=$('hTxt');if(tx)tx.textContent=DT.progTxt;}}
 }
-// ================= in-app chart =================
+$('vDetail').addEventListener('click',e=>{
+  if(!DT)return;const t=DT.t;
+  const act=e.target.closest('[data-act]');
+  if(act){const a=act.dataset.act;if(a==='back')history.back();else if(a==='copy')copy(t.mint);else if(a==='share')shareSheet(t);return;}
+  const sf=e.target.closest('[data-stf]');if(sf){DT.stf=sf.dataset.stf;$('dStats').innerHTML=detailStats(t);return;}
+  const tb=e.target.closest('[data-dtab]');if(tb){DT.tab=tb.dataset.dtab;renderDBody();return;}
+  const kw=e.target.closest('[data-kw]');if(kw){e.preventDefault();openKol(kw.dataset.kw);return;}
+  const kb=e.target.closest('[data-kol]');if(kb){const w=kb.dataset.kol;if(KOL[w]){delete KOL[w];delete KOLX[w];store.set('hs_kolx',KOLX);toast('Removed from KOLs');}else{const n=prompt('KOL name and @handle for '+short(w)+' (e.g. Ansem @blknoiz06):','');if(n==null)return;const parts=n.trim().split(/\s+/),h=parts.find(x=>x.startsWith('@'));KOL[w]=parts.filter(x=>!x.startsWith('@')).join(' ')||(h?h.slice(1):short(w));if(h){KOLX[w]=h.slice(1);store.set('hs_kolx',KOLX);}toast('Tagged as KOL');}store.set('hs_kol',KOL);renderDBody();return;}
+  const sb=e.target.closest('[data-star]');if(sb){const w=sb.dataset.star;if(SMART[w])delete SMART[w];else SMART[w]={t:Date.now(),src:'manual'};store.set('hs_smart',SMART);renderDBody();return;}
+  const hx=e.target.closest('[data-hx]');if(hx&&!e.target.closest('a,button')){const w=hx.dataset.hx;DT.open.has(w)?DT.open.delete(w):DT.open.add(w);renderDBody();return;}
+});
+// ================= share card (rug check → X) =================
+function loadImg(src){return new Promise(res=>{if(!src)return res(null);const im=new Image();im.crossOrigin='anonymous';im.onload=()=>res(im);im.onerror=()=>res(null);setTimeout(()=>res(null),4000);im.src=src;});}
+function rr(x,X,Y,W,H,R){x.beginPath();x.moveTo(X+R,Y);x.arcTo(X+W,Y,X+W,Y+H,R);x.arcTo(X+W,Y+H,X,Y+H,R);x.arcTo(X,Y+H,X,Y,R);x.arcTo(X,Y,X+W,Y,R);x.closePath();}
+async function drawShareCard(t,useImg){
+  const A=buildChecks(t,DT?.mint===t.mint?DT.R:null),W=1200,H=675,c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');
+  const F='-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,sans-serif',MONO='ui-monospace,Menlo,Consolas,monospace';
+  const good='#22c55e',bad='#f43f5e',warn='#f59e0b',mut='#8a94ab',txt='#eef1f7';
+  const sc=A.safety,scc=sc>=80?good:sc>=55?warn:bad;
+  // background
+  const g=x.createLinearGradient(0,0,W,H);g.addColorStop(0,'#0b0e16');g.addColorStop(1,'#121628');x.fillStyle=g;x.fillRect(0,0,W,H);
+  const gl=x.createRadialGradient(W-260,140,10,W-260,140,420);gl.addColorStop(0,scc+'33');gl.addColorStop(1,'transparent');x.fillStyle=gl;x.fillRect(0,0,W,H);
+  const gl2=x.createRadialGradient(120,H,10,120,H,420);gl2.addColorStop(0,'rgba(124,156,255,.18)');gl2.addColorStop(1,'transparent');x.fillStyle=gl2;x.fillRect(0,0,W,H);
+  // brand
+  x.fillStyle='#a78bfa';rr(x,56,44,34,34,9);x.fill();x.fillStyle='#140a24';x.font=`900 20px ${F}`;x.textAlign='center';x.fillText('H',73,68);x.textAlign='left';
+  x.fillStyle=txt;x.font=`800 22px ${F}`;x.fillText('Holder Scanner',100,68);const bw=x.measureText('Holder Scanner').width;x.fillStyle=mut;x.font=`600 18px ${F}`;x.fillText('·  On-chain rug check',100+bw+12,68);
+  x.textAlign='right';x.fillStyle=mut;x.font=`500 17px ${F}`;x.fillText(new Date().toISOString().slice(0,16).replace('T',' ')+' UTC',W-56,68);x.textAlign='left';
+  // token block
+  const iy=118;let img=useImg?await loadImg(t.img):null;
+  x.save();rr(x,56,iy,112,112,26);x.clip();
+  if(img){x.drawImage(img,56,iy,112,112);}else{x.fillStyle='#1c2130';x.fillRect(56,iy,112,112);x.fillStyle='#c9d1de';x.font=`800 40px ${F}`;x.textAlign='center';x.fillText((t.sym||'?').replace('$','').slice(0,2).toUpperCase(),112,iy+70);x.textAlign='left';}
+  x.restore();
+  x.fillStyle=txt;x.font=`900 56px ${F}`;let sym='$'+(t.sym||'').replace(/^\$/,'');while(x.measureText(sym).width>430&&sym.length>3)sym=sym.slice(0,-2)+'…';x.fillText(sym,192,iy+56);
+  x.fillStyle=mut;x.font=`500 22px ${F}`;let nm=t.name||'';while(x.measureText(nm).width>430&&nm.length>3)nm=nm.slice(0,-2)+'…';x.fillText(nm,192,iy+90);
+  // pills
+  let px=192;const pill=(s,col)=>{x.font=`700 16px ${F}`;const w=x.measureText(s).width+24;x.fillStyle=col+'26';rr(x,px,iy+104,w,30,9);x.fill();x.fillStyle=col;x.fillText(s,px+12,iy+125);px+=w+8;};
+  pill(LPN[t.lp]||'Solana','#7c9cff');pill(t.stage==='mig'?'Migrated':'Bonding curve',t.stage==='mig'?'#fbbf24':good);pill(dur(t.created?(Date.now()-t.created)/1000:null)+' old',mut);
+  // stats 2x2
+  const hold=t.hm?.holders?num(t.hm.holders.n,0)+(t.hm.holders.more?'+':''):'—';
+  const st=[['Market cap',usd(t.mc)],['Liquidity',t.liq?usd(t.liq):'—'],['Holders',hold],['Volume 24h',usd(t.vol.h24)]];
+  st.forEach(([l,v],i)=>{const X=56+(i%2)*276,Y=300+Math.floor(i/2)*112;x.fillStyle='rgba(255,255,255,.045)';rr(x,X,Y,262,98,18);x.fill();x.strokeStyle='rgba(255,255,255,.07)';x.lineWidth=1.5;x.stroke();
+    x.fillStyle=mut;x.font=`600 17px ${F}`;x.fillText(l.toUpperCase(),X+20,Y+34);x.fillStyle=txt;x.font=`800 32px ${F}`;x.fillText(v,X+20,Y+76);});
+  const ch=t.chg.h24;if(ch!=null){x.font=`800 17px ${F}`;x.fillStyle=ch>=0?good:bad;x.textAlign='right';x.fillText(`${pct(ch)} 24h`,56+262-20,300+34);x.textAlign='left';}
+  // score panel
+  const PX=640,PY=112,PW=W-PX-56,PH=440;x.fillStyle='rgba(255,255,255,.04)';rr(x,PX,PY,PW,PH,24);x.fill();x.strokeStyle='rgba(255,255,255,.08)';x.stroke();
+  const cx=PX+92,cy=PY+92;x.lineWidth=16;x.lineCap='round';x.strokeStyle='rgba(255,255,255,.08)';x.beginPath();x.arc(cx,cy,58,0,Math.PI*2);x.stroke();
+  x.strokeStyle=scc;x.beginPath();x.arc(cx,cy,58,-Math.PI/2,-Math.PI/2+Math.PI*2*sc/100);x.stroke();
+  x.fillStyle=txt;x.font=`900 44px ${F}`;x.textAlign='center';x.fillText(sc,cx,cy+12);x.fillStyle=mut;x.font=`600 15px ${F}`;x.fillText('SAFETY',cx,cy+34);x.textAlign='left';
+  x.fillStyle=mut;x.font=`600 17px ${F}`;x.fillText('VERDICT',PX+176,PY+70);
+  const vcol=A.verdict[0]==='High risk'?bad:sc>=80?good:sc>=55?warn:bad;x.fillStyle=vcol;x.font=`900 34px ${F}`;let vd=A.verdict[0]==='Scanning…'?(sc>=80?'Looks clean':sc>=55?'Some risk':'High risk'):A.verdict[0];x.fillText(vd,PX+176,PY+110);
+  x.fillStyle=mut;x.font=`500 16px ${F}`;x.fillText(`${A.ck.filter(c=>c.l==='pass').length} passed · ${(n=>n+' warning'+(n===1?'':'s'))(A.ck.filter(c=>c.l==='warn').length)} · ${A.ck.filter(c=>c.l==='fail').length} failed`,PX+176,PY+138);
+  // checks
+  const ord={fail:0,warn:1,pass:2,unk:3};const rows=A.ck.filter(c=>c.l!=='unk'||!/checking|scanning/.test(c.x)).map((c,i)=>({...c,i})).sort((a,b)=>ord[a.l]-ord[b.l]||a.i-b.i).slice(0,7).sort((a,b)=>a.i-b.i);let y=PY+196;
+  rows.forEach(r=>{const col=r.l==='pass'?good:r.l==='warn'?warn:r.l==='fail'?bad:mut;x.fillStyle=col+'2e';x.beginPath();x.arc(PX+40,y-7,13,0,Math.PI*2);x.fill();
+    x.strokeStyle=col;x.lineWidth=3.2;x.lineCap='round';x.beginPath();
+    if(r.l==='pass'){x.moveTo(PX+34,y-7);x.lineTo(PX+39,y-2);x.lineTo(PX+47,y-12);}else if(r.l==='fail'){x.moveTo(PX+35,y-12);x.lineTo(PX+45,y-2);x.moveTo(PX+45,y-12);x.lineTo(PX+35,y-2);}else if(r.l==='warn'){x.moveTo(PX+40,y-13);x.lineTo(PX+40,y-5);x.moveTo(PX+40,y-1);x.lineTo(PX+40,y-0.5);}else{x.moveTo(PX+35,y-7);x.lineTo(PX+45,y-7);}
+    x.stroke();x.fillStyle=r.l==='unk'?mut:'#dfe4ee';x.font=`500 18px ${F}`;let s=r.x.replace(/ — dev can.*$/,'').replace(/ on every buy\/sell/,'').replace(/ \(pools excluded\)/,'');while(x.measureText(s).width>PW-90&&s.length>4)s=s.slice(0,-2)+'…';x.fillText(s,PX+66,y);y+=37;});
+  // footer CA
+  x.fillStyle='rgba(255,255,255,.05)';rr(x,56,H-92,W-112,52,14);x.fill();x.fillStyle=mut;x.font=`700 15px ${F}`;x.fillText('CA',76,H-60);x.fillStyle='#c9d1de';x.font=`600 19px ${MONO}`;x.fillText(t.mint,112,H-59);
+  x.fillStyle=mut;x.font=`500 14px ${F}`;x.textAlign='right';x.fillText('Not financial advice · DYOR',W-76,H-60);x.textAlign='left';
+  return c;
+}
+async function shareCanvas(t){
+  let c=await drawShareCard(t,true);
+  try{c.toDataURL();}catch(e){c=await drawShareCard(t,false);}   // logo blocked by CORS → draw without it
+  return c;
+}
+function shareText(t){
+  const R=DT?.mint===t.mint?DT.R:null,A=buildChecks(t,R),V=rugVals(t,R),hm=t.hm,au=R?.auth||t.auth;const p=v=>v==null?'?':num(v,1)+'%';
+  const e=A.safety>=80?'🟢':A.safety>=55?'🟡':'🔴';
+  return `$${(t.sym||'').replace(/^\$/,'')} rug check ${e} Safety ${A.safety}/100\n\n`+
+    `${au?(au.mint?'❌':'✅')+' Mint '+(au.mint?'ON':'revoked')+'  '+(au.freeze?'❌':'✅')+' Freeze '+(au.freeze?'ON':'revoked'):''}\n`+
+    `Top10 ${p(V.top10)} · Bundles ${p(V.bun.v)} · Snipers ${p(V.snip.v)} · Fresh ${p(V.fresh.v)}\n`+
+    `MC ${usd(t.mc)} · ${hm?.holders?num(hm.holders.n,0)+' holders':''} · ${LPN[t.lp]}\n\nCA: ${t.mint}\n\n#Solana #memecoin`;
+}
+async function shareSheet(t){
+  openSheet(`<h3>Share rug check</h3><div class="shprev" id="shPrev"><div class="chload">Drawing card…</div></div>
+    <button class="btn xbtn" id="shImg">${ICO.share} Share image (pick X)</button>
+    <button class="btn gh" id="shTxt">${ICO.x} Post text on X</button>
+    <button class="btn gh" id="shSave">Save image</button>
+    <div class="note" style="margin-top:10px">On phones, "Share image" opens the share menu with the card attached — choose X. "Post text on X" opens a tweet with the summary and CA (you can attach the saved image).</div>`);
+  const c=await shareCanvas(t);const url=c.toDataURL('image/png');
+  $('shPrev').innerHTML=`<img src="${url}" alt="Rug check card">`;
+  const blob=await new Promise(r=>c.toBlob(r,'image/png'));const fn=`${(t.sym||'token').replace(/[^\w]/g,'')}-rugcheck.png`;
+  const file=blob?new File([blob],fn,{type:'image/png'}):null;
+  const save=()=>{const a=document.createElement('a');a.href=url;a.download=fn;document.body.appendChild(a);a.click();a.remove();toast('Image saved');};
+  $('shSave').onclick=save;
+  $('shTxt').onclick=()=>window.open('https://x.com/intent/post?text='+encodeURIComponent(shareText(t)),'_blank');
+  $('shImg').onclick=async()=>{
+    if(file&&navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],text:shareText(t)});}catch(e){if(e.name!=='AbortError')toast('Share failed');}}
+    else{save();window.open('https://x.com/intent/post?text='+encodeURIComponent(shareText(t)),'_blank');toast('Image saved — attach it to your post');}
+  };
+}
+// ================= in-app chart (bonding curve + migrated pool in one chart) =================
 const CH_TF=[['1m','1m'],['5m','5m'],['15m','15m'],['1h','1h'],['4h','4h'],['1d','1D']];
 const CH_API={'1m':['minute',1],'5m':['minute',5],'15m':['minute',15],'1h':['hour',1],'4h':['hour',4],'1d':['day',1]};
-let CH=store.get('hs_chart',{tf:'5m',mode:'mc',src:'native'}),chartObj=null,lwcLoading=null,CHS=null,CHPOOL=null;
+let CH=store.get('hs_chart',{tf:'5m',mode:'mc',src:'native'}),chartObj=null,lwcLoading=null,CHS=null,CHSEQ=0,chRO=null;
+if(CH.src!=='dex')CH.src='native';
 const cssVar=k=>getComputedStyle(document.documentElement).getPropertyValue(k).trim();
+const TZS=-new Date().getTimezoneOffset()*60;                       // show candles in the phone's local time
+const tfStep=tf=>{const[u,a]=CH_API[tf];return u==='minute'?a*60:u==='hour'?a*3600:86400;};
 function loadLWC(){
   if(window.LightweightCharts)return Promise.resolve();
   if(lwcLoading)return lwcLoading;
@@ -1367,77 +1682,128 @@ function loadLWC(){
     sc.onload=()=>res();sc.onerror=()=>{lwcLoading=null;rej(new Error('chart library failed to load'));};document.head.appendChild(sc);});
   return lwcLoading;
 }
-async function fetchOHLCV(pool,tf){
+async function fetchOHLCV(pool,tf,before,limit){
   const [unit,agg]=CH_API[tf];
-  const j=await getJSON(`https://api.geckoterminal.com/api/v2/networks/solana/pools/${pool}/ohlcv/${unit}?aggregate=${agg}&limit=300&currency=usd`,{headers:{Accept:'application/json'}},TH.gt);
+  const j=await getJSON(`https://api.geckoterminal.com/api/v2/networks/solana/pools/${pool}/ohlcv/${unit}?aggregate=${agg}&limit=${limit||1000}&currency=usd${before?'&before_timestamp='+before:''}`,{headers:{Accept:'application/json'}},TH.gt);
   const list=j?.data?.attributes?.ohlcv_list||[];
   return list.map(r=>({time:r[0],open:+r[1],high:+r[2],low:+r[3],close:+r[4],value:+r[5]})).filter(c=>c.time&&c.open>0).sort((a,b)=>a.time-b.time)
     .filter((c,i,a)=>i===0||c.time!==a[i-1].time);
 }
+const GTP={};
+async function gtPools(t){
+  const c=GTP[t.mint];if(c&&Date.now()-c.t<10*60e3)return c.l;
+  let l=[];try{const j=await getJSON(`https://api.geckoterminal.com/api/v2/networks/solana/tokens/${t.mint}/pools?page=1`,{headers:{Accept:'application/json'}},TH.gt);
+    l=(j?.data||[]).map(p=>({a:p.attributes?.address,dex:p.relationships?.dex?.data?.id||'',c:Date.parse(p.attributes?.pool_created_at)||0})).filter(x=>x.a);}catch(e){}
+  GTP[t.mint]={t:Date.now(),l};return l;
+}
+const CURVE_GT=/pump-fun|pumpfun|launchlab|meteora-dbc|dynamic-bonding|bonk|bags/i;
+function curvePool(t,gt){
+  const main=t.pair?.pairAddress;
+  const ds=(t.pairs||[]).filter(p=>isCurveDex(p.dexId)&&p.pairAddress!==main).sort((a,b)=>(a.pairCreatedAt||0)-(b.pairCreatedAt||0))[0]?.pairAddress;
+  return ds||(gt||[]).filter(p=>CURVE_GT.test(p.dex)&&p.a!==main).sort((a,b)=>a.c-b.c)[0]?.a||null;
+}
+function mergeCandles(...lists){
+  const m=new Map();
+  lists.flat().forEach(c=>{const o=m.get(c.time);if(!o)m.set(c.time,{...c});else{const big=c.value>o.value?c:o;m.set(c.time,{time:c.time,open:big.open,close:big.close,high:Math.max(o.high,c.high),low:Math.min(o.low,c.low),value:o.value+c.value});}});
+  return[...m.values()].sort((a,b)=>a.time-b.time);
+}
 function dexEmbed(t){
-  const p=t.pair;if(!p?.pairAddress){$('chart').innerHTML='<div class="note" style="padding:20px;text-align:center">No chart available for this token yet.</div>';return;}
+  const p=t.pair;if(!p?.pairAddress){$('chart').innerHTML='<div class="chload">No chart available for this token yet.</div>';return;}
   $('chart').innerHTML=`<iframe class="dsframe" src="https://dexscreener.com/solana/${p.pairAddress}?embed=1&loadChartSettings=0&trades=0&tabs=0&info=0&chartLeftToolbar=0&chartTheme=${THEME==='light'?'light':'dark'}&theme=${THEME==='light'?'light':'dark'}&chartStyle=1&chartType=${CH.mode==='mc'?'marketCap':'usd'}&interval=${{'1m':1,'5m':5,'15m':15,'1h':60,'4h':240,'1d':'1D'}[CH.tf]}" allow="clipboard-write" loading="lazy"></iframe>`;
-  $('chNote').textContent='Chart by DexScreener, shown inside the app.';
+  $('chLeg').innerHTML='';$('chKol').innerHTML='';$('chNote').textContent='DexScreener chart, shown inside the app.';
+}
+// snap a unix time to the candle that contains it
+function snapT(times,ts){let lo=0,hi=times.length-1,r=-1;while(lo<=hi){const m=(lo+hi)>>1;if(times[m]<=ts){r=m;lo=m+1;}else hi=m-1;}return r<0?null:times[r];}
+function chartMarkers(t,candles,up,dn){
+  const times=candles.map(c=>c.time),step=tfStep(CH.tf),last=times[times.length-1],agg={};
+  KTR.filter(x=>x.m===t.mint&&KOL[x.w]&&x.ts>=times[0]&&x.ts<last+step).forEach(x=>{const tm=snapT(times,x.ts);if(tm==null)return;const k=tm+x.side;(agg[k]=agg[k]||{time:tm,side:x.side,n:0,sol:0}).n++;agg[k].sol+=x.sol;});
+  const mk=Object.values(agg).map(a=>({time:a.time+TZS,position:a.side==='buy'?'belowBar':'aboveBar',color:a.side==='buy'?up:dn,shape:a.side==='buy'?'arrowUp':'arrowDown',size:1,text:a.n>1?String(a.n):''}));
+  const g=t.stage==='mig'&&t.gradAt?snapT(times,t.gradAt/1000):null;
+  if(g!=null&&g>times[0])mk.push({time:g+TZS,position:'aboveBar',color:cssVar('--gold')||'#fbbf24',shape:'circle',size:1,text:'Migrated'});
+  return mk.sort((a,b)=>a.time-b.time);
+}
+function kolStrip(t){
+  const kt=KTR.filter(x=>x.m===t.mint&&KOL[x.w]).sort((a,b)=>b.ts-a.ts).slice(0,15);
+  if(!kt.length)return'';
+  return `<div class="kstrip">${kt.map(x=>`<button class="kchip ${x.side}" data-kw="${x.w}">${kolAv(x.w,'wav sm')}<b>${esc((KOL[x.w]||'').slice(0,12))}</b><span>${x.side==='buy'?'B':'S'} ${SOLI}${num(x.sol,2)}</span><em>${dur(Date.now()/1000-x.ts)}</em></button>`).join('')}</div>`;
+}
+function setChartData(candles){
+  if(!CHS)return;const{t,se,vol,mult}=CHS,up=CHS.up,dn=CHS.dn;
+  se.setData(candles.map(c=>({time:c.time+TZS,open:c.open*mult,high:c.high*mult,low:c.low*mult,close:c.close*mult})));
+  vol.setData(candles.map(c=>({time:c.time+TZS,value:c.value,color:c.close>=c.open?up+'55':dn+'55'})));
+  se.setMarkers(chartMarkers(t,candles,up,dn));
+  CHS.candles=candles;CHS.last=candles[candles.length-1].time;
+  const n=candles.length;chartObj.timeScale().setVisibleLogicalRange({from:Math.max(-2,n-(n>140?120:n+2)),to:n+3});
+  legend(null);
+}
+function legend(c){
+  const el=$('chLeg');if(!el||!CHS)return;c=c||CHS.candles[CHS.candles.length-1];if(!c)return;const m=CHS.mult,f=CHS.fmt;
+  const ch=c.open?(c.close-c.open)/c.open*100:0;
+  el.innerHTML=`<span>O <b>${f(c.open*m)}</b></span><span>H <b>${f(c.high*m)}</b></span><span>L <b>${f(c.low*m)}</b></span><span>C <b class="${ch>=0?'up':'dn'}">${f(c.close*m)}</b></span><span class="${ch>=0?'up':'dn'}">${pct(ch)}</span><span>Vol <b>${usd(c.value)}</b></span>`;
 }
 async function drawChart(t){
+  const my=++CHSEQ;
+  if(chRO){try{chRO.disconnect();}catch(e){}chRO=null;}
   if(chartObj){try{chartObj.remove();}catch(e){}chartObj=null;}CHS=null;
+  if(!$('chart'))return;
   if(CH.src==='dex'){dexEmbed(t);return;}
-  const box=$('chart');box.innerHTML='<div class="note" style="padding:20px;text-align:center">Loading chart…</div>';
-  // pool: prefer the pair the token trades on now (migrated pool, else bonding curve)
-  const pools=[t.pair?.pairAddress,...(t.pairs||[]).map(x=>x.pairAddress)].filter((v,i,a)=>v&&a.indexOf(v)===i);
-  let candles=[];CHPOOL=null;
-  try{await loadLWC();for(const pl of pools){candles=await fetchOHLCV(pl,CH.tf);if(candles.length>=2){CHPOOL=pl;break;}}}
-  catch(e){console.warn('chart',e);}
-  if(!$('chart')||$('vDetail').classList.contains('hide'))return;
-  if(!window.LightweightCharts||candles.length<2){dexEmbed(t);$('chNote').textContent='Simple chart has no data for this token yet, showing the DexScreener chart instead.';return;}
-  const mult=CH.mode==='mc'&&t.price&&t.mc?t.mc/t.price:1;
-  const cs=candles.map(c=>({time:c.time,open:c.open*mult,high:c.high*mult,low:c.low*mult,close:c.close*mult}));
+  const box=$('chart');box.innerHTML='<div class="chload">Loading chart…</div>';$('chLeg').innerHTML='';$('chNote').textContent='';
+  let main=[],pool=t.pair?.pairAddress;
+  try{await loadLWC();
+    if(pool)main=await fetchOHLCV(pool,CH.tf);
+    if(main.length<2)for(const pl of(t.pairs||[]).map(x=>x.pairAddress).filter(a=>a&&a!==t.pair?.pairAddress)){main=await fetchOHLCV(pl,CH.tf);if(main.length>=2){pool=pl;break;}}
+  }catch(e){console.warn('chart',e);}
+  if(my!==CHSEQ||!$('chart')||$('vDetail').classList.contains('hide'))return;
+  if(!window.LightweightCharts||main.length<2){dexEmbed(t);$('chNote').textContent='No candle data yet — showing the DexScreener chart instead.';return;}
   box.innerHTML='';
-  const up=cssVar('--good')||'#22c55e',dn=cssVar('--bad')||'#f43f5e';
-  const ch=LightweightCharts.createChart(box,{height:300,width:box.clientWidth,layout:{background:{type:'solid',color:'transparent'},textColor:cssVar('--mut'),fontSize:11},
-    grid:{vertLines:{color:cssVar('--line')},horzLines:{color:cssVar('--line')}},rightPriceScale:{borderColor:cssVar('--line'),scaleMargins:{top:.1,bottom:.25}},
-    timeScale:{borderColor:cssVar('--line'),timeVisible:CH.tf!=='1d',secondsVisible:false},crosshair:{mode:0},handleScroll:true,handleScale:true});
-  const fmt=v=>CH.mode==='mc'?usd(v):(v<0.01?'$'+v.toPrecision(3):'$'+num(v,4));
+  const up=cssVar('--good')||'#22c55e',dn=cssVar('--bad')||'#f43f5e',mut=cssVar('--mut'),line=cssVar('--line');
+  const mult=CH.mode==='mc'&&t.price&&t.mc?t.mc/t.price:1;
+  const fmt=v=>v<0?'':CH.mode==='mc'?usd(v):fmtPriceTxt(v);
+  const ch=LightweightCharts.createChart(box,{height:box.clientHeight||330,width:box.clientWidth,
+    layout:{background:{type:'solid',color:'transparent'},textColor:mut,fontSize:11,fontFamily:'-apple-system,Roboto,Inter,sans-serif'},
+    grid:{vertLines:{visible:false},horzLines:{color:line,style:1}},
+    rightPriceScale:{borderVisible:false,scaleMargins:{top:.16,bottom:.22}},
+    timeScale:{borderVisible:false,timeVisible:CH.tf!=='1d',secondsVisible:false,rightOffset:3,barSpacing:7},
+    crosshair:{mode:0,vertLine:{color:mut,labelBackgroundColor:cssVar('--chip2')},horzLine:{color:mut,labelBackgroundColor:cssVar('--chip2')}},
+    handleScroll:true,handleScale:true});
   const se=ch.addCandlestickSeries({upColor:up,downColor:dn,borderUpColor:up,borderDownColor:dn,wickUpColor:up,wickDownColor:dn,priceFormat:{type:'custom',formatter:fmt,minMove:1e-12}});
-  se.setData(cs);
-  const vol=ch.addHistogramSeries({priceScaleId:'vol',priceFormat:{type:'volume'}});
-  ch.priceScale('vol').applyOptions({scaleMargins:{top:.8,bottom:0}});
-  vol.setData(candles.map(c=>({time:c.time,value:c.value,color:c.close>=c.open?up+'66':dn+'66'})));
-  // KOL buy/sell markers
-  const step=CH_API[CH.tf][0]==='minute'?CH_API[CH.tf][1]*60:CH_API[CH.tf][0]==='hour'?CH_API[CH.tf][1]*3600:86400;
-  const first=candles[0].time,last=candles[candles.length-1].time;
-  const mk=KTR.filter(x=>x.m===t.mint&&KOL[x.w]&&x.ts>=first&&x.ts<=last+step).map(x=>({time:Math.floor((x.ts-first)/step)*step+first,position:x.side==='buy'?'belowBar':'aboveBar',
-    color:x.side==='buy'?up:dn,shape:x.side==='buy'?'arrowUp':'arrowDown',text:(KOL[x.w]||'').slice(0,8)+' '+num(x.sol,1)})).sort((a,b)=>a.time-b.time);
-  se.setMarkers(mk);
-  ch.timeScale().fitContent();
-  chartObj=ch;CHS={t,se,vol,mult,tf:CH.tf,mode:CH.mode,last:candles[candles.length-1].time,pool:CHPOOL};
-  const ro=new ResizeObserver(()=>{try{ch.applyOptions({width:box.clientWidth});}catch(e){}});ro.observe(box);
-  $('chNote').textContent=`${CH.mode==='mc'?'Market cap':'Price'} · ${CH_TF.find(x=>x[0]===CH.tf)[1]} candles · data GeckoTerminal${mk.length?` · ${mk.length} KOL trades marked`:''}`;
+  const vol=ch.addHistogramSeries({priceScaleId:'vol',priceFormat:{type:'volume'},lastValueVisible:false,priceLineVisible:false});
+  ch.priceScale('vol').applyOptions({scaleMargins:{top:.82,bottom:0}});
+  chartObj=ch;CHS={t,se,vol,mult,fmt,up,dn,tf:CH.tf,mode:CH.mode,pool,candles:[],merged:false};
+  setChartData(main);
+  ch.subscribeCrosshairMove(p=>{if(!CHS)return;if(!p||!p.time){legend(null);return;}const c=CHS.candles.find(x=>x.time+TZS===p.time);legend(c);});
+  chRO=new ResizeObserver(()=>{try{ch.applyOptions({width:box.clientWidth});}catch(e){}});chRO.observe(box);
+  $('chKol').innerHTML=kolStrip(t);
+  const note=()=>{$('chNote').textContent=`${CH.mode==='mc'?'Market cap':'Price'} · ${CH_TF.find(x=>x[0]===CH.tf)[1]} candles${CHS?.merged?' · full history: bonding curve → migrated pool':''} · GeckoTerminal`;};
+  note();
+  // migrated token: stitch the bonding-curve candles in front of the AMM candles → one chart from launch
+  if(t.stage==='mig'){
+    try{
+      const cp=curvePool(t,await gtPools(t));if(my!==CHSEQ||!cp||cp===pool)return;
+      const step=tfStep(CH.tf);let pages=0;
+      while(main.length>=1000&&pages<2&&t.gradAt&&main[0].time>t.gradAt/1000+step){const more=await fetchOHLCV(pool,CH.tf,main[0].time);if(my!==CHSEQ)return;if(!more.length)break;main=mergeCandles(more,main);pages++;}
+      const curve=await fetchOHLCV(cp,CH.tf);if(my!==CHSEQ||!CHS)return;
+      if(curve.length&&curve[curve.length-1].time>=main[0].time-step*30){
+        const pre=curve.filter(c=>c.time<main[0].time);
+        if(pre.length){CHS.merged=true;setChartData(mergeCandles(pre,main,CHS.candles.filter(c=>c.time>main[main.length-1].time)));note();}
+      }else if(curve.length)$('chNote').textContent+=' · pick a bigger timeframe to see the bonding-curve part too';
+    }catch(e){}
+  }
 }
 async function chartLive(){
   if(!CHS||!chartObj||CH.src!=='native'||CHS.tf!==CH.tf||CHS.mode!==CH.mode||!CHS.pool)return;
-  try{const c=await fetchOHLCV(CHS.pool,CHS.tf);if(!CHS)return;const up=cssVar('--good'),dn=cssVar('--bad');
-    c.filter(x=>x.time>=CHS.last).forEach(x=>{CHS.se.update({time:x.time,open:x.open*CHS.mult,high:x.high*CHS.mult,low:x.low*CHS.mult,close:x.close*CHS.mult});CHS.vol.update({time:x.time,value:x.value,color:x.close>=x.open?up+'66':dn+'66'});CHS.last=x.time;});}catch(e){}
+  try{const c=await fetchOHLCV(CHS.pool,CHS.tf,null,3);if(!CHS)return;const up=CHS.up,dn=CHS.dn;
+    c.filter(x=>x.time>=CHS.last).forEach(x=>{CHS.se.update({time:x.time+TZS,open:x.open*CHS.mult,high:x.high*CHS.mult,low:x.low*CHS.mult,close:x.close*CHS.mult});CHS.vol.update({time:x.time+TZS,value:x.value,color:x.close>=x.open?up+'55':dn+'55'});
+      const i=CHS.candles.findIndex(y=>y.time===x.time);if(i>=0)CHS.candles[i]=x;else CHS.candles.push(x);CHS.last=x.time;});
+    CHS.se.setMarkers(chartMarkers(CHS.t,CHS.candles,up,dn));legend(null);const k=$('chKol');if(k)k.innerHTML=kolStrip(CHS.t);}catch(e){}
 }
 function wireChart(t){
   const saveCH=()=>store.set('hs_chart',CH);
   const seg=(id,key)=>$(id).querySelectorAll('button').forEach(b=>b.onclick=()=>{CH[key]=b.dataset.v;saveCH();$(id).querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));drawChart(t);});
-  seg('chTf','tf');seg('chMode','mode');
-  $('chSrc').onclick=()=>{CH.src=CH.src==='native'?'dex':'native';saveCH();$('chSrc').textContent=CH.src==='native'?'DexScreener view':'Simple view';drawChart(t);};
+  seg('chTf','tf');seg('chMode','mode');seg('chSrcSeg','src');
   drawChart(t);
 }
-function holderHTML(h){
-  const a=h.a,c=[];
-  if(KOL[h.owner])c.push(`<a class="bd sp" style="text-decoration:none" href="${kolX(h.owner)}" target="_blank" rel="noopener">👑 ${esc(KOL[h.owner])}${KOLX[h.owner]?' · @'+esc(KOLX[h.owner]):''}</a>`);
-  if(h.smart)c.push('<span class="bd sm">SMART</span>');if(h.bundled)c.push('<span class="bd bad">bundled</span>');if(h.cluster)c.push(`<span class="bd bad">linked ${h.cluster}</span>`);
-  if(h.sniper)c.push('<span class="bd wn">sniper</span>');if(a?.target?.free)c.push('<span class="bd bad">transfer-in</span>');if(a?.fresh)c.push('<span class="bd wn">fresh</span>');if(a?.bot)c.push('<span class="bd wn">bot</span>');
-  if(a?.bigWins)c.push(`<span class="bd ok">${a.bigWins}× 3x+</span>`);if(a?.target?.sold)c.push('<span class="bd">sold some</span>');if(h.err)c.push('<span class="bd">no data</span>');
-  const wr=a?.wr==null?'':a.wr>=60?'up':a.wr<40?'dn':'';
-  return `<div class="hd"><div class="t"><a href="https://solscan.io/account/${h.owner}">${short(h.owner)}</a><span style="display:flex;gap:8px;align-items:center"><b>${num(h.pct,2)}%</b><button class="star ${KOL[h.owner]?'on':''}" data-kol="${h.owner}">👑</button><button class="star ${SMART[h.owner]?'on':''}" data-star="${h.owner}">${SMART[h.owner]?'★':'☆'}</button></span></div>
-  ${c.length?`<div class="r3" style="margin-top:6px">${c.join('')}</div>`:''}
-  ${a?`<div class="hm"><div>Win rate<b class="${wr}">${a.wr==null?'—':Math.round(a.wr)+'%'}</b></div><div>Trades<b>${a.closed}</b></div><div>PnL<b class="${a.pnl>=0?'up':'dn'}">${SOLI}${num(a.pnl,1)}</b></div><div>Tokens<b>${a.tokens}</b></div><div>Hold<b>${dur(a.medHold)}</b></div><div>Entry<b>${h.entry!=null?dur(h.entry):'—'}</b></div></div>`:''}</div>`;
-}
-window.addEventListener('popstate',()=>{if(!$('vDetail').classList.contains('hide')){stopScan=true;DT=null;if(chartObj){try{chartObj.remove();}catch(e){}chartObj=null;}$('vDetail').classList.add('hide');}else if(!$('sheet').classList.contains('hide'))closeSheet();});
+window.addEventListener('popstate',()=>{if(!$('sheet').classList.contains('hide')){closeSheet();if(!$('vDetail').classList.contains('hide'))history.pushState({d:1},'');return;}if(!$('vDetail').classList.contains('hide')){stopScan=true;DT=null;CHSEQ++;if(chRO){try{chRO.disconnect();}catch(e){}chRO=null;}if(chartObj){try{chartObj.remove();}catch(e){}chartObj=null;}CHS=null;$('vDetail').classList.add('hide');}});
 
 document.addEventListener('click',e=>{const b=e.target.closest('[data-fav]');if(b){e.preventDefault();e.stopPropagation();toggleFav(b.dataset.fav);if(TAB==='kol'&&FILT.kol.mode==='favs'&&$('sheet').classList.contains('hide'))renderKol();}},true);
 // ================= theme =================
