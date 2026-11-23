@@ -519,7 +519,7 @@ const kolActive=w=>{const a=KACT[w];return!a||a.last==null?null:(Date.now()/1000
 const kolOK=w=>kolActive(w)!==false;   // unchecked counts as OK until checked
 let actRunning=false;
 async function checkKolActivity(force){
-  if(actRunning||!KEY)return;actRunning=true;
+  if(actRunning||!KEY||IMPORTING)return;actRunning=true;
   const ws=Object.keys(KOL).filter(w=>force||!KACT[w]||Date.now()-KACT[w].t>12*3600e3);
   let n=0;await pool(ws,2,async w=>{try{const r=await rpcBg('getSignaturesForAddress',[w,{limit:1}]);KACT[w]={t:Date.now(),last:r&&r[0]?r[0].blockTime:0};}catch(e){}if(++n%40===0)store.set('hs_kact',KACT);});
   store.set('hs_kact',KACT);actRunning=false;if(TAB==='kol')renderList();
@@ -536,7 +536,7 @@ let TAB=store.get('hs_tab','trend'),busy=false,lastRefresh=0,timer=null,enhBase=
 
 // ================= network =================
 function throttle(getRps){let next=0;return async()=>{const gap=1000/getRps(),now=Date.now(),w=Math.max(0,next-now);next=Math.max(now,next)+gap;if(w)await sleep(w);};}
-const TH={bg:throttle(()=>LIMITS[PLAN].bg),rpc:throttle(()=>LIMITS[PLAN].rpc),enh:throttle(()=>LIMITS[PLAN].enh),ds:throttle(()=>4),gt:throttle(()=>0.45)};
+const TH={r2:throttle(()=>5),bg:throttle(()=>LIMITS[PLAN].bg),rpc:throttle(()=>LIMITS[PLAN].rpc),enh:throttle(()=>LIMITS[PLAN].enh),ds:throttle(()=>4),gt:throttle(()=>0.45)};
 async function getJSON(url,opts,th){
   for(let i=0;i<4;i++){
     await (th||TH.ds)();let r;
@@ -552,8 +552,13 @@ async function rpc(method,params){
   const j=await getJSON('https://mainnet.helius-rpc.com/?api-key='+encodeURIComponent(KEY),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method,params})},TH.rpc);
   if(j.error)throw new Error(j.error.message||'RPC error');return j.result;
 }
+// background calls (activity checks, balances, curves…) go to your optional extra free RPC (Alchemy / QuickNode / any Solana RPC),
+// so they don't use up Helius' rate limit. Falls back to Helius if the extra RPC isn't set or errors.
+let IMPORTING=false;
 async function rpcBg(method,params){
-  const j=await getJSON('https://mainnet.helius-rpc.com/?api-key='+encodeURIComponent(KEY),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method,params})},TH.bg);
+  if(SET.rpc2){try{const j=await getJSON(SET.rpc2,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method,params})},TH.r2);
+      if(!j.error)return j.result;}catch(e){}}
+  const j=await getJSON('https://mainnet.helius-rpc.com/?api-key='+encodeURIComponent(KEY),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method,params})},IMPORTING?TH.rpc:TH.bg);
   if(j.error)throw new Error(j.error.message||'RPC error');return j.result;
 }
 async function enhGet(path){const bs=enhBase?[enhBase]:ENH;let last;for(const b of bs){try{const d=await getJSON(b+path,null,TH.enh);enhBase=b;return d;}catch(e){last=e;}}throw last;}
@@ -628,9 +633,9 @@ function parseCurve(owner,u){
 const DBC_CFG=store.get('hs_dbccfg',{});                   // config address -> migration_quote_threshold
 let curveBusy=false;
 async function loadCurves(){
-  if(curveBusy||!KEY)return;curveBusy=true;
+  if(curveBusy||!KEY||IMPORTING)return;curveBusy=true;
   try{
-    const ts=[...TOK.values()].filter(t=>t.pair&&t.stage==='curve').sort((a,b)=>(b.vol.h1||0)-(a.vol.h1||0)).slice(0,300);
+    const vis=new Set(isTV(TAB)?filtered(TAB).slice(0,80).map(t=>t.mint):[]);const ts=[...TOK.values()].filter(t=>t.pair&&t.stage==='curve').sort((a,b)=>(vis.has(b.mint)-vis.has(a.mint))||((b.vol.h1||0)-(a.vol.h1||0))).slice(0,300);
     ts.forEach(t=>{if(t.lp==='pump'&&!t.curveAddr&&!t.bond?.exact){const p=pumpProgFromMc(t);if(p!=null)t.bond={p,est:true,t:Date.now()};}});
     const withA=ts.filter(t=>t.curveAddr),pend=[];
     for(let i=0;i<withA.length;i+=100){const ch=withA.slice(i,i+100);
@@ -849,6 +854,7 @@ function addSTrade(tx,w){
 }
 function saveSTR(){const cut=Date.now()/1000-86400;STR=STR.filter(x=>x.ts>cut&&SMART[x.w]).sort((a,b)=>b.ts-a.ts).slice(0,1500);store.set('hs_str',STR);}
 async function smartPoll(n){
+  if(IMPORTING)return 0;
   const now=Date.now()/1000,ws=Object.keys(SMART).filter(w=>swOK(w)&&!KOL[w]&&(!SMART[w].last||now-SMART[w].last<ACTIVE_DAYS*86400)).sort((a,b)=>(SMART[b].last||0)-(SMART[a].last||0));if(!ws.length)return 0;
   const hot=ws.slice(0,100),batch=new Set(),hn=Math.ceil(n/2);
   for(let i=0;i<Math.min(hn,hot.length);i++)batch.add(hot[(smHot+i)%hot.length]);smHot=(smHot+hn)%Math.max(1,hot.length);
@@ -859,7 +865,7 @@ async function smartPoll(n){
 }
 // cheap activity check: newest signature only (1 RPC call per wallet)
 async function checkSmartActivity(force){
-  if(sactRunning||!KEY)return;sactRunning=true;
+  if(sactRunning||!KEY||IMPORTING)return;sactRunning=true;
   const ws=Object.keys(SMART).filter(w=>force||!SMART[w].la||Date.now()-SMART[w].la>12*3600e3).sort((a,b)=>(SMART[b].last||0)-(SMART[a].last||0));
   let n=0;await pool(ws,2,async w=>{try{const r=await rpcBg('getSignaturesForAddress',[w,{limit:1}]);if(SMART[w]){SMART[w].la=Date.now();if(r&&r[0]&&r[0].blockTime)SMART[w].last=Math.max(SMART[w].last||0,r[0].blockTime);}}catch(e){}if(++n%40===0){saveSmart();if(TAB==='sw')renderSWSoft();}});
   saveSmart();sactRunning=false;if(TAB==='sw')renderSWSoft();
@@ -873,7 +879,7 @@ async function evalWallet(w){
   if(!KOL[w])h.txs.forEach(tx=>addSTrade(tx,w));
 }
 async function evalSmart(ws){
-  if(evRunning||!ws.length)return;evRunning=true;evStop=false;evDone=0;evTotal=ws.length;
+  if(evRunning||!ws.length||IMPORTING)return;evRunning=true;evStop=false;evDone=0;evTotal=ws.length;
   try{await pool(ws,LIMITS[PLAN].par,async w=>{try{await evalWallet(w);}catch(e){}evDone++;if(evDone%3===0){saveSmart();if(TAB==='sw')renderSWSoft();}},()=>evStop);}
   finally{evRunning=false;saveSmart();saveSTR();if(TAB==='sw')renderSWSoft();}
 }
@@ -1067,6 +1073,7 @@ let BEKEY=store.get('hs_bekey','');
 const LB_GMGN='https://raw.githubusercontent.com/nirholas/kol-quest/main/solwallets.json';
 const LB_KOLSCAN='https://raw.githubusercontent.com/nirholas/kol-quest/main/output/kolscan-leaderboard.json';
 const pick=(o,...ks)=>{for(const k of ks){const v=k.split('.').reduce((a,x)=>a==null?a:a[x],o);if(v!=null&&v!==''&&!isNaN(+v))return +v;}return null;};
+const LBC={};async function lbFetch(u){const c=LBC[u];if(c&&Date.now()-c.t<30*60e3)return c.j;const r=await fetch(u);if(!r.ok)throw new Error('HTTP '+r.status);const j=await r.json();LBC[u]={t:Date.now(),j};return j;}
 const BOT_RX=/snip|bot|fresh|arbitrage|mev|sandwich|bundl|copy/i;
 async function beGet(path){
   let r;try{r=await fetch('https://public-api.birdeye.so'+path,{headers:{accept:'application/json','X-API-KEY':BEKEY,'x-chain':'solana'}});}catch(e){throw new Error('Birdeye could not be reached from the browser');}
@@ -1094,10 +1101,10 @@ function lbRow(o,src,per){
     wr,profit:pick(r,'realized_profit_'+per,'realized_pnl','profit','pnl'),trades,tpd:trades!=null?trades/days:null,
     hold:pick(r,'avg_holding_period_'+per),bal:pick(r,'sol_balance'),last:pick(r,'last_active')};
 }
-// wallet age from its signature history; pages back up to 5,000 signatures (a wallet with 5,000+ txs younger than the limit is a bot)
+// wallet age from its signature history; pages back up to 3,000 signatures (3,000+ txs younger than the limit = bot-like)
 async function walletAgeDeep(w,minDays){
   let before=null,oldest=null;
-  for(let p=0;p<5;p++){const s=await rpcBg('getSignaturesForAddress',[w,before?{limit:1000,before}:{limit:1000}]);if(!Array.isArray(s)||!s.length)break;
+  for(let p=0;p<3;p++){const s=await rpcBg('getSignaturesForAddress',[w,before?{limit:1000,before}:{limit:1000}]);if(!Array.isArray(s)||!s.length)break;
     oldest=s[s.length-1].blockTime||oldest;if(oldest&&(Date.now()/1000-oldest)/86400>=minDays)return{days:(Date.now()/1000-oldest)/86400,full:s.length<1000};
     if(s.length<1000)return{days:oldest?(Date.now()/1000-oldest)/86400:0,full:true};before=s[s.length-1].signature;}
   return{days:oldest?(Date.now()/1000-oldest)/86400:null,full:false,busy:true};
@@ -1136,10 +1143,10 @@ function importLeaderSheet(target){
     if(!Q.src.gmgn&&!Q.src.birdeye&&!Q.src.kolscan){toast('Pick at least one leaderboard');return;}
     if(Q.src.birdeye&&!BEKEY){toast('Paste your Birdeye key');return;}
     const say=x=>{if($('lbTxt'))$('lbTxt').innerHTML=x;},bar=x=>{if($('lbFill'))$('lbFill').style.width=x+'%';};
-    $('lbGo').dataset.run=1;$('lbGo').textContent='⏹ Stop';lbStop=false;const rows={},errs=[],rej={};const no=k=>{rej[k]=(rej[k]||0)+1;};
+    $('lbGo').dataset.run=1;$('lbGo').textContent='⏹ Stop';lbStop=false;IMPORTING=true;const rows={},errs=[],rej={};const no=k=>{rej[k]=(rej[k]||0)+1;};
     try{
-      if(Q.src.gmgn){say('Downloading GMGN leaderboard…');bar(5);try{const r=await fetch(LB_GMGN);if(!r.ok)throw new Error('HTTP '+r.status);collectWallets(await r.json()).forEach(o=>{rows[o.w]=rows[o.w]||lbRow(o,'gmgn',Q.per);});}catch(e){errs.push('GMGN: '+e.message);}}
-      if(Q.src.kolscan){say('Downloading Kolscan leaderboard…');bar(10);try{const r=await fetch(LB_KOLSCAN);if(!r.ok)throw new Error('HTTP '+r.status);collectWallets(await r.json()).forEach(o=>{rows[o.w]=rows[o.w]||lbRow(o,'kolscan',Q.per);});}catch(e){errs.push('Kolscan: '+e.message);}}
+      if(Q.src.gmgn){say('Downloading GMGN leaderboard…');bar(5);try{collectWallets(await lbFetch(LB_GMGN)).forEach(o=>{rows[o.w]=rows[o.w]||lbRow(o,'gmgn',Q.per);});}catch(e){errs.push('GMGN: '+e.message);}}
+      if(Q.src.kolscan){say('Downloading Kolscan leaderboard…');bar(10);try{collectWallets(await lbFetch(LB_KOLSCAN)).forEach(o=>{rows[o.w]=rows[o.w]||lbRow(o,'kolscan',Q.per);});}catch(e){errs.push('Kolscan: '+e.message);}}
       if(Q.src.birdeye){say('Loading Birdeye top traders…');bar(15);
         try{for(let off=0;off<300&&!lbStop;off+=100){const j=await beGet(`/trader/gainers-losers?type=${Q.per==='30d'?'30d':'1W'}&sort_by=realized_pnl&sort_type=desc&offset=${off}&limit=100${Q.minTrades?'&min_trade='+Q.minTrades:''}${Q.minProfit&&Q.minProfit>=1000?'&min_realized_pnl='+Q.minProfit:''}`);
             const it=j?.data?.items||[];it.forEach(t=>{const w=t.address;if(!w||!B58.test(w)||rows[w])return;const tc=pick(t,'trade_count');
@@ -1164,10 +1171,10 @@ function importLeaderSheet(target){
       list=list.filter(r=>{const b=KBAL[r.w]?.sol??r.bal;r.bal=b;if(Q.minBal!=null&&b!=null&&b<Q.minBal){no('SOL balance too low');return false;}return true;});
       // 3) wallet age + (Birdeye / missing win rate) on-chain win rate, until enough wallets are added
       let done=0,added=0;const need=Q.max,cand=list;
-      await pool(cand,LIMITS[PLAN].par,async r=>{
+      await pool(cand,PLAN==='paid'?10:4,async r=>{
         if(lbStop||added>=need)return;
         try{
-          if(Q.minAge){const a=await walletAgeDeep(r.w,Q.minAge);r.age=a;if(a.days!=null&&a.days<Q.minAge){no(a.busy?'5,000+ txs in under '+Q.minAge+'d (bot)':'wallet too new');done++;return;}}
+          if(Q.minAge){const a=await walletAgeDeep(r.w,Q.minAge);r.age=a;if(a.days!=null&&a.days<Q.minAge){no(a.busy?'3,000+ txs in under '+Q.minAge+'d (bot)':'wallet too new');done++;return;}}
           if(r.wr==null&&Q.minWR!=null){const h=await txHistory(r.w,1),sc=scoreWallet(buildProfile(r.w,h),null);r.wr=sc.wr;r.ev={t:Date.now(),wr:sc.wr,closed:sc.closed,wins:sc.wins,pnl:+sc.pnl.toFixed(3),tokens:sc.tokens,medHold:sc.medHold,bigWins:sc.bigWins,bot:!!sc.bot,fresh:!!sc.fresh};
             if(sc.bot&&Q.skipBot){no('bot (on-chain pattern)');done++;return;}if(sc.wr==null||sc.closed<5||sc.wr<Q.minWR){no('win rate too low (on-chain)');done++;return;}}
           if(added>=need)return;added++;
@@ -1183,7 +1190,7 @@ function importLeaderSheet(target){
       say(`Found <b>${found}</b> wallets${already?` (${already} already saved)`:''} → <b>${afterStats}</b> pass leaderboard stats → <b>${list.length}</b> have enough SOL → <b class="up">added ${added}</b> as ${tg==='kol'?'👑 KOL':'🧠 Smart'}.${rj?`<br>Rejected: ${rj}`:''}${errs.length?`<br>⚠ ${esc(errs.join(' · '))}`:''}`);bar(100);
       if(tg==='kol'){checkKolActivity(false);if(TAB==='kol')renderList();}else{renderSWSoft();}
     }catch(e){say('Failed: '+esc(e.message));}
-    if($('lbGo')){delete $('lbGo').dataset.run;$('lbGo').textContent='Import';}
+    IMPORTING=false;if($('lbGo')){delete $('lbGo').dataset.run;$('lbGo').textContent='Import';}
   };
 }
 const importSheet=()=>importLeaderSheet('kol'),smartImportSheet=()=>importLeaderSheet('smart');
@@ -1553,6 +1560,13 @@ function kolFilterSheet(){
 
 // ================= refresh loop =================
 function setLive(state,txt){const l=$('live');l.className='live '+state;$('liveTxt').textContent=txt;}
+// ---- instant start: last token list saved on the phone, shown immediately on open (then refreshed live) ----
+let tokSaved=0;
+function saveTokCache(){if(Date.now()-tokSaved<60e3)return;tokSaved=Date.now();
+  const arr=[...TOK.values()].filter(t=>t.pair).sort((a,b)=>(b.vol.h1||0)-(a.vol.h1||0)).slice(0,250).map(t=>({m:t.mint,p:t.pairs.slice(0,4),a:t.auth||null,b:t.bond||null,h:t.hm&&Date.now()-t.hmAt<HM_TTL?t.hm:null,ha:t.hmAt||0,fa:t.feeAvg??null}));
+  try{localStorage.setItem('hs_tokc',JSON.stringify({t:Date.now(),arr}));}catch(e){try{localStorage.setItem('hs_tokc',JSON.stringify({t:Date.now(),arr:arr.slice(0,100)}));}catch(e2){}}}
+function loadTokCache(){const c=store.get('hs_tokc',null);if(!c||Date.now()-c.t>30*60e3)return 0;let n=0;
+  (c.arr||[]).forEach(x=>{try{const t=tok(x.m);t.seen=Date.now();t.pairs=x.p;if(x.a)t.auth=x.a;if(x.b)t.bond=x.b;if(x.h){t.hm=x.h;t.hmAt=x.ha;t.top10=x.h.top10;}if(x.fa!=null)t.feeAvg=x.fa;derive(t);n++;}catch(e){}});return n;}
 async function refresh(manual){
   if(busy||!KEY)return;busy=true;setLive('busy','updating…');
   if(!TOK.size)renderList(true);
@@ -1565,7 +1579,7 @@ async function refresh(manual){
     if(Object.keys(SMART).length)await smartPoll(TAB==='sw'||TAB==='smt'?LIMITS[PLAN].par*3:LIMITS[PLAN].par+1);
     [...KTR,...STR].forEach(x=>{const t=tok(x.m);if(!t.seen)t.seen=Date.now();});
     await loadMarket(true);await loadAuth();
-    lastRefresh=Date.now();setLive(SET.auto?'on':'',new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',hour12:false}));
+    lastRefresh=Date.now();saveTokCache();setLive(SET.auto?'on':'',new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',hour12:false}));
     renderList();
     queueTop10();
     if(!actRunning&&Object.keys(KOL).some(w=>!KACT[w]||Date.now()-KACT[w].t>12*3600e3))setTimeout(()=>checkKolActivity(),3000);
@@ -1579,7 +1593,7 @@ async function refresh(manual){
 let t10running=false;
 const HM_SCAN=tab=>holderFilterOn(FILT[tab])?40:20;
 async function queueTop10(){
-  if(t10running||!isTV(TAB))return;t10running=true;
+  if(t10running||!isTV(TAB)||IMPORTING)return;t10running=true;
   for(let round=0;round<4;round++){
     const tab=TAB,vis=candidates(tab).slice(0,HM_SCAN(tab)).filter(t=>!hmFresh(t)&&!(t.hmFail&&Date.now()-t.hmFail<HM_TTL));if(!vis.length)break;
     for(const t of vis){await loadHM(t);if(!hmFresh(t))t.hmFail=Date.now();if(holderFilterOn(FILT[TAB]))renderList();else updateCard(t);}
@@ -1812,6 +1826,9 @@ function settingsSheet(){
   <div class="fl">Helius API key</div><input id="sKey" type="password" value="${esc(KEY)}">
   <div class="fl">Plan</div><div class="chipsel" id="sPlan"><button data-v="free" class="${PLAN==='free'?'on':''}">Free</button><button data-v="paid" class="${PLAN==='paid'?'on':''}">Paid</button></div>
   <div class="sw"><span>Live auto-refresh (prices 10s · discovery & KOLs ${PLAN==='paid'?35:60}s · token page 8s)</span><input type="checkbox" id="sAuto" ${SET.auto?'checked':''}></div>
+  <div class="fl">Extra free RPC (optional, makes the app faster)</div>
+  <input id="sR2" value="${esc(SET.rpc2||'')}" placeholder="e.g. https://solana-mainnet.g.alchemy.com/v2/YOUR_KEY">
+  <div class="note">A free Alchemy or QuickNode Solana URL. Background work (activity checks, balances, bonding rings) moves there so Helius stays free for tokens and trades.</div>
   <div class="fl">Birdeye API key (for leaderboard import)</div>
   <input id="sBE" type="password" value="${esc(BEKEY)}" placeholder="free at bds.birdeye.so">
   <button class="btn" id="sSave">Save</button>
@@ -1836,8 +1853,8 @@ function settingsSheet(){
   $('kAddBtn').onclick=()=>{let n=0;$('kAdd').value.split('\n').forEach(line=>{const [w,...rest]=line.trim().split(/[\s,]+/);if(w&&w.length>=32&&w.length<=44){const h=rest.find(x=>x.startsWith('@'));const nm=rest.filter(x=>!x.startsWith('@')).join(' ');KOL[w]=nm||(h?h.slice(1):short(w));if(h)KOLX[w]=h.slice(1);n++;}});store.set('hs_kol',KOL);store.set('hs_kolx',KOLX);TOK.forEach(t=>t.act.w.forEach(w=>{if(KOL[w])t.act.kol.add(w);}));toast(n+' KOLs added');settingsSheet();};
   $('sheet').querySelectorAll('[data-krm]').forEach(b=>b.onclick=()=>{delete KOL[b.dataset.krm];store.set('hs_kol',KOL);settingsSheet();});
   $('sPlan').querySelectorAll('button').forEach(b=>b.onclick=()=>{$('sPlan').querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');});
-  $('sBE').onchange=e=>{BEKEY=e.target.value.trim();store.set('hs_bekey',BEKEY);};
-  $('sSave').onclick=()=>{KEY=$('sKey').value.trim();PLAN=$('sPlan').querySelector('.on').dataset.v;SET.auto=$('sAuto').checked;store.set('hs_key',KEY);store.set('hs_plan',PLAN);store.set('hs_set',SET);schedule();toast('Saved');closeSheet();refresh(true);};
+  $('sR2').onchange=e=>{const v=e.target.value.trim();SET.rpc2=/^https:\/\//.test(v)?v:'';store.set('hs_set',SET);toast(SET.rpc2?'Extra RPC saved':'Extra RPC removed');};$('sBE').onchange=e=>{BEKEY=e.target.value.trim();store.set('hs_bekey',BEKEY);};
+  $('sSave').onclick=()=>{KEY=$('sKey').value.trim();PLAN=$('sPlan').querySelector('.on').dataset.v;SET.auto=$('sAuto').checked;{const v=$('sR2').value.trim();SET.rpc2=/^https:\/\//.test(v)?v:'';}store.set('hs_key',KEY);store.set('hs_plan',PLAN);store.set('hs_set',SET);schedule();toast('Saved');closeSheet();refresh(true);};
   $('sAddBtn').onclick=()=>{let n=0;$('sAdd').value.split(/[\s,]+/).filter(x=>x.length>=32&&x.length<=44).forEach(w=>{SMART[w]={t:Date.now(),src:'manual'};n++;});store.set('hs_smart',SMART);toast(n+' wallets added');settingsSheet();};
   $('sheet').querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{delete SMART[b.dataset.rm];store.set('hs_smart',SMART);settingsSheet();});
   $('sClear').onclick=()=>{WCACHE={};store.set('hs_wc',{});toast('Cache cleared');};
@@ -2371,7 +2388,11 @@ window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPro
 $('instBtn').onclick=async()=>{if(!deferredPrompt)return;deferredPrompt.prompt();await deferredPrompt.userChoice;deferredPrompt=null;$('instBtn').classList.add('hide');};
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
 
-function start(){REFRESH_MS=PLAN==='paid'?35e3:60e3;$('vSetup').classList.add('hide');$('vMain').classList.remove('hide');renderControls();renderList(true);refresh(true);schedule();}
+function start(){REFRESH_MS=PLAN==='paid'?35e3:60e3;$('vSetup').classList.add('hide');$('vMain').classList.remove('hide');renderControls();
+  const cached=loadTokCache();if(cached){renderList();setLive('busy','updating…');}else renderList(true);
+  // quick first paint: market data for cached tokens straight away (DexScreener, no Helius), then the full refresh
+  if(cached)loadMarket().then(()=>{lastFast=Date.now();renderList();});
+  refresh(true);schedule();}
 if(KEY)start();else $('vSetup').classList.remove('hide');
 </script>
 </body>
