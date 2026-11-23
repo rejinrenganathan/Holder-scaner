@@ -33,6 +33,7 @@ input,textarea,select{font:inherit;color:var(--txt);background:var(--bg);border:
 .tabs{display:flex;margin-top:10px}
 .tabs button{flex:1;background:none;border:0;padding:10px 0 11px;color:var(--mut);font-weight:600;font-size:14px;border-bottom:2px solid transparent}
 .tabs button.on{color:var(--txt);border-color:var(--acc)}
+.tabs button{font-size:12.5px;white-space:nowrap;padding-left:2px;padding-right:2px}
 .tabs button b{font-size:11px;color:var(--mut);font-weight:600;margin-left:3px}
 /* controls */
 .ctl{padding:10px 12px 4px}
@@ -97,6 +98,16 @@ input,textarea,select{font:inherit;color:var(--txt);background:var(--bg);border:
 .btn.gh{background:var(--card);color:var(--txt);border:1px solid var(--line)}
 .btn.pu{background:var(--smart);color:#140a24}
 .note{font-size:12px;color:var(--mut)}
+.kt{display:flex;gap:10px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:6px}
+.kav{flex:0 0 36px;height:36px;border-radius:50%;background:#2a2140;color:var(--gold);display:grid;place-items:center;font-weight:800;font-size:13px}
+.side{font-size:11px;font-weight:800;padding:2px 7px;border-radius:6px;margin:0 4px}
+.side.buy{background:rgba(46,204,113,.15);color:var(--good)}.side.sell{background:rgba(255,77,94,.15);color:var(--bad)}
+.ktok{display:flex;align-items:center;gap:7px;text-align:right}
+.ktok img,.ktok .ini{width:30px;height:30px;border-radius:8px;object-fit:cover;background:#222a35;display:grid;place-items:center;font-size:11px;font-weight:800}
+.kbar{display:flex;gap:6px;align-items:center;margin:6px 0 4px}
+.kbar .seg2{display:flex;background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:2px}
+.kbar .seg2 button{background:none;border:0;padding:6px 12px;border-radius:8px;color:var(--mut);font-size:13px;font-weight:600}
+.kbar .seg2 button.on{background:#2a313b;color:var(--txt)}
 .fhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
 .rst{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:7px 14px;font-weight:600}
 .ftabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:0 -14px;padding:0 14px 10px;border-bottom:1px solid var(--line)}
@@ -179,7 +190,8 @@ input,textarea,select{font:inherit;color:var(--txt);background:var(--bg);border:
     <div class="tabs" id="tabs">
       <button data-t="trend" class="on">🔥 Trending<b id="c-trend"></b></button>
       <button data-t="curve">🌱 New<b id="c-curve"></b></button>
-      <button data-t="mig">🎓 Graduated<b id="c-mig"></b></button>
+      <button data-t="mig">🎓 Migrated<b id="c-mig"></b></button>
+      <button data-t="kol">👑 KOL<b id="c-kol"></b></button>
     </div>
   </div>
   <div class="ctl">
@@ -343,13 +355,14 @@ async function discover(){
   TOK.forEach(t=>{t.act.n=Math.floor(t.act.n*0.5);t.act.fee*=0.5;t.act.feeN*=0.5;if(t.act.w.size>200)t.act.w=new Set([...t.act.w].slice(-100));});
   const sampleProg=async addr=>{
     try{const h=await txHistory(addr,pages);
-      h.txs.forEach(tx=>{const seen=new Set();const fee=(tx.fee||0)+(tx.nativeTransfers||[]).filter(n=>JITO.has(n.toUserAccount)).reduce((a,n)=>a+(n.amount||0),0);(tx.tokenTransfers||[]).forEach(x=>{if(!x.mint||SKIP.has(x.mint)||seen.has(x.mint))return;seen.add(x.mint);const t=tok(x.mint);t.seen=now;t.act.n++;t.act.fee+=fee;t.act.feeN++;if(tx.feePayer){t.act.w.add(tx.feePayer);if(SMART[tx.feePayer])t.act.sm.add(tx.feePayer);if(KOL[tx.feePayer])t.act.kol.add(tx.feePayer);}});});
+      h.txs.forEach(tx=>{const seen=new Set();const fee=(tx.fee||0)+(tx.nativeTransfers||[]).filter(n=>JITO.has(n.toUserAccount)).reduce((a,n)=>a+(n.amount||0),0);(tx.tokenTransfers||[]).forEach(x=>{if(!x.mint||SKIP.has(x.mint)||seen.has(x.mint))return;seen.add(x.mint);const t=tok(x.mint);t.seen=now;t.act.n++;t.act.fee+=fee;t.act.feeN++;if(tx.feePayer){t.act.w.add(tx.feePayer);if(SMART[tx.feePayer])t.act.sm.add(tx.feePayer);if(KOL[tx.feePayer])t.act.kol.add(tx.feePayer);}});if(tx.feePayer&&KOL[tx.feePayer])addTrade(tx,tx.feePayer);});
     }catch(e){console.warn('sample',addr,e.message);if(/API key/.test(e.message))throw e;}
   };
   const lists=async url=>{try{let a=await getJSON(url);if(!Array.isArray(a))a=a?[a]:[];a.filter(x=>x.chainId==='solana'&&x.tokenAddress).forEach(x=>{const t=tok(x.tokenAddress);t.seen=now;t.listed=true;});}catch(e){}};
   await Promise.all([...PROGRAMS.curve.map(sampleProg),...PROGRAMS.mig.map(sampleProg),...DS_LISTS.map(lists)]);
   // drop stale
-  TOK.forEach((t,m)=>{if(now-t.seen>TOKEN_TTL)TOK.delete(m);});
+  const keep=new Set(KTR.map(x=>x.m));
+  TOK.forEach((t,m)=>{if(now-t.seen>TOKEN_TTL&&!keep.has(m))TOK.delete(m);});
 }
 async function loadMarket(){
   const mints=[...TOK.keys()],chunks=[];for(let i=0;i<mints.length;i+=30)chunks.push(mints.slice(i,i+30));
@@ -463,13 +476,134 @@ async function loadTop10(t){
   t.top10Loading=false;
 }
 
+// ================= KOL trades =================
+let KTR=store.get('hs_ktr',[]);                // [{s,w,m,side,sol,ts}]
+const KTR_KEYS=new Set(KTR.map(x=>x.s+x.w+x.m));
+let kolCursor=store.get('hs_kcur',0),kolScanning=false;
+if(!FILT.kol)FILT.kol={preset:'all',mode:'trades',side:'all',sol:[null,null],win:60,lp:['pump','bonk','bags','launchlab','dbc','other'],stage:'all',mc:[null,null],age:[null,null],minKols:1};
+function parseTrade(tx,w){
+  if(tx.transactionError)return null;
+  const tt=tx.tokenTransfers||[],ins={},outs={};
+  for(const x of tt){if(SKIP.has(x.mint))continue;const a=+x.tokenAmount||0;if(x.toUserAccount===w)ins[x.mint]=(ins[x.mint]||0)+a;if(x.fromUserAccount===w)outs[x.mint]=(outs[x.mint]||0)+a;}
+  const im=Object.keys(ins),om=Object.keys(outs);
+  const ad=(tx.accountData||[]).find(a=>a.account===w);let sol=(ad?ad.nativeBalanceChange:0)/1e9;
+  for(const x of tt){if(x.mint!==WSOL)continue;if(x.toUserAccount===w)sol+=+x.tokenAmount||0;if(x.fromUserAccount===w)sol-=+x.tokenAmount||0;}
+  if(im.length===1&&!om.length&&-sol>=0.01)return{m:im[0],side:'buy',sol:-sol};
+  if(om.length===1&&!im.length&&sol>=0.01)return{m:om[0],side:'sell',sol};
+  return null;
+}
+function addTrade(tx,w){
+  const tr=parseTrade(tx,w);if(!tr)return false;
+  const k=tx.signature+w+tr.m;if(KTR_KEYS.has(k))return false;KTR_KEYS.add(k);
+  KTR.push({s:tx.signature,w,m:tr.m,side:tr.side,sol:+tr.sol.toFixed(3),ts:tx.timestamp});
+  const t=tok(tr.m);t.seen=Date.now();t.act.kol.add(w);return true;
+}
+function saveKTR(){const cut=Date.now()/1000-86400;KTR=KTR.filter(x=>x.ts>cut&&KOL[x.w]).sort((a,b)=>b.ts-a.ts).slice(0,800);store.set('hs_ktr',KTR);}
+async function txRecent(addr,limit){return enhGet('/v0/addresses/'+addr+'/transactions?api-key='+encodeURIComponent(KEY)+'&limit='+limit);}
+async function kolPoll(n,onStep){
+  const ws=Object.keys(KOL);if(!ws.length)return 0;
+  const batch=[];for(let i=0;i<Math.min(n,ws.length);i++)batch.push(ws[(kolCursor+i)%ws.length]);
+  kolCursor=(kolCursor+batch.length)%ws.length;store.set('hs_kcur',kolCursor);
+  let added=0,done=0;
+  await pool(batch,LIMITS[PLAN].par+1,async w=>{try{const txs=await txRecent(w,25);(Array.isArray(txs)?txs:[]).forEach(tx=>{if(addTrade(tx,w))added++;});}catch(e){}onStep&&onStep(++done,batch.length);});
+  saveKTR();return added;
+}
+async function kolScanAll(){
+  if(kolScanning)return;kolScanning=true;stopScan=false;
+  const total=Object.keys(KOL).length;let done=0;
+  const step=LIMITS[PLAN].par*5;
+  try{while(done<total&&!stopScan){const n=Math.min(step,total-done);await kolPoll(n,(d)=>{$('cnt').textContent=`scanning KOLs ${Math.min(total,done+d)}/${total}`;});done+=n;
+    await loadMarket();renderList();}}
+  finally{kolScanning=false;stopScan=false;renderList();}
+}
+const KOL_PRESETS=[['all','All trades',{side:'all',sol:[null,null],minKols:1,mode:'trades'}],['buys','🟢 Buys',{side:'buy',sol:[null,null],minKols:1,mode:'trades'}],
+  ['big','🐋 Big buys ≥5 SOL',{side:'buy',sol:[5,null],minKols:1,mode:'trades'}],['cons','👑 2+ KOLs buying',{side:'buy',sol:[null,null],minKols:2,mode:'tokens'}],
+  ['fresh','🌱 New tokens <1h',{side:'buy',sol:[null,null],age:[null,60],minKols:1,mode:'trades'}],['sells','🔴 Sells',{side:'sell',sol:[null,null],minKols:1,mode:'trades'}]];
+function kolTradesFiltered(){
+  const f=FILT.kol,now=Date.now()/1000;
+  return KTR.filter(x=>{
+    if(!KOL[x.w])return false;
+    if(now-x.ts>f.win*60)return false;
+    if(f.side!=='all'&&x.side!==f.side)return false;
+    if(!inR(x.sol,f.sol))return false;
+    const t=TOK.get(x.m);
+    const needTok=rOn(f.mc)||rOn(f.age)||f.stage!=='all'||f.lp.length<6;
+    if(needTok){if(!t||!t.pair)return false;
+      if(!lpOK(t.lp,f.lp)&&!(t.lp==='other'&&f.lp.includes('other')))return false;
+      if(f.stage!=='all'&&t.stage!==f.stage)return false;
+      if(!inR(t.mc/1000,f.mc))return false;
+      if(!inR(t.created?(Date.now()-t.created)/60000:null,f.age))return false;}
+    return true;
+  });
+}
+function kolTokens(trades){
+  const by={};
+  trades.forEach(x=>{const g=by[x.m]||(by[x.m]={m:x.m,buyers:new Set(),sellers:new Set(),bin:0,sout:0,last:0});
+    if(x.side==='buy'){g.buyers.add(x.w);g.bin+=x.sol;}else{g.sellers.add(x.w);g.sout+=x.sol;}g.last=Math.max(g.last,x.ts);});
+  return Object.values(by).filter(g=>g.buyers.size>=FILT.kol.minKols||(FILT.kol.side==='sell'&&g.sellers.size>=FILT.kol.minKols))
+    .sort((a,b)=>(b.buyers.size-a.buyers.size)||(b.bin-a.bin));
+}
+const ago=ts=>dur(Date.now()/1000-ts)+' ago';
+function kolIni(w){return esc((KOL[w]||'?').replace(/[^A-Za-z0-9]/g,'').slice(0,2).toUpperCase()||'K');}
+function tokMini(m){const t=TOK.get(m);if(!t||!t.pair)return `<div class="ktok"><div><b>${short(m)}</b><div class="note">loading…</div></div></div>`;
+  const ini=esc((t.sym||'?').slice(0,2).toUpperCase());
+  return `<div class="ktok"><div><b>${esc(t.sym)}</b><div class="note">MC ${usd(t.mc)}</div></div>${t.img?`<img src="${esc(t.img)}" onerror="this.outerHTML='<div class=ini>${ini}</div>'">`:`<div class="ini">${ini}</div>`}</div>`;}
+function renderKol(){
+  const f=FILT.kol,tr=kolTradesFiltered(),nK=Object.keys(KOL).length;
+  $('c-kol').textContent=tr.length||'';
+  let h=`<div class="kbar"><div class="seg2" id="kMode"><button data-v="trades" class="${f.mode==='trades'?'on':''}">Trades</button><button data-v="tokens" class="${f.mode==='tokens'?'on':''}">Tokens</button></div>
+   <button class="fbtn" id="kScan">${kolScanning?'⏹ Stop scan':'⟳ Scan all '+nK+' KOLs'}</button></div>`;
+  if(!nK){$('list').innerHTML=h+'<div class="empty">No KOLs saved. Add them in ⚙︎ Settings → KOL wallets.</div>';wireKol();return;}
+  if(!tr.length){h+=`<div class="empty">No KOL trades match yet.<br><br>Tap <b>Scan all KOLs</b> to load recent trades (takes ~${Math.round(nK/LIMITS[PLAN].enh/60)+1} min on your plan). New trades also arrive with every refresh.</div>`;$('list').innerHTML=h;wireKol();return;}
+  if(f.mode==='trades'){
+    h+=tr.slice(0,120).map(x=>`<div class="kt" data-m="${x.m}"><div class="kav">${kolIni(x.w)}</div>
+     <div class="mid"><div class="nm"><a href="${kolX(x.w)}" target="_blank" rel="noopener" style="color:var(--txt);text-decoration:none"><b>${esc(KOL[x.w])}</b></a><span class="side ${x.side}">${x.side.toUpperCase()}</span><b class="${x.side==='buy'?'up':'dn'}">◎${num(x.sol,x.sol<1?2:1)}</b></div>
+     <div class="sub">${KOLX[x.w]?'@'+esc(KOLX[x.w])+' · ':''}${ago(x.ts)}</div></div>${tokMini(x.m)}</div>`).join('');
+  }else{
+    const gs=kolTokens(tr);
+    h+=gs.length?gs.slice(0,60).map(g=>{const t=TOK.get(g.m);return `<div class="tc" data-m="${g.m}">${t&&t.pair?`<div class="r1">${avatar(t)}<div class="mid"><div class="nm"><b>${esc(t.sym)}</b><span class="full">${esc(t.name)}</span></div><div class="sub"><span class="age">${dur(t.created?(Date.now()-t.created)/1000:null)}</span>·<span>${short(g.m)}</span><button class="cp" data-cp="${g.m}">⧉</button></div></div><div class="rt"><div class="mc">MC <b>${usd(t.mc)}</b></div><div class="chg ${(t.chg.h1||0)>=0?'up':'dn'}">${pct(t.chg.h1)} <span style="color:var(--mut);font-weight:500">1h</span></div></div></div>`:`<b>${short(g.m)}</b>`}
+      <div class="r3"><span class="bd sp">👑 ${g.buyers.size} bought</span>${g.sellers.size?`<span class="bd bad">${g.sellers.size} sold</span>`:''}<span class="bd ok">◎${num(g.bin,1)} in</span>${g.sout?`<span class="bd bad">◎${num(g.sout,1)} out</span>`:''}<span class="bd">last ${ago(g.last)}</span></div>
+      <div class="r3">${[...g.buyers].slice(0,8).map(w=>`<span class="bd">${esc(KOL[w])}</span>`).join('')}</div></div>`;}).join(''):'<div class="empty">No token reaches the minimum KOL count in this window.</div>';
+  }
+  $('list').innerHTML=h;wireKol();
+}
+function wireKol(){
+  const m=$('kMode');if(m)m.querySelectorAll('button').forEach(b=>b.onclick=()=>{FILT.kol.mode=b.dataset.v;saveFilt();renderKol();});
+  const s=$('kScan');if(s)s.onclick=()=>{if(kolScanning){stopScan=true;}else kolScanAll();renderKol();};
+}
+function kolFilterSheet(){
+  DRAFT=JSON.parse(JSON.stringify(FILT.kol));
+  const draw=()=>{const d=DRAFT,v=x=>x==null?'':x;
+    const row=(k,l,u,arr)=>`<div class="rr"><div class="rl">${l}</div><div class="rg"><label class="ri"><input type="number" inputmode="decimal" data-kk="${k}" data-i="0" placeholder="Min" value="${v(arr[0])}"><em>${u}</em></label><span class="dash">–</span><label class="ri"><input type="number" inputmode="decimal" data-kk="${k}" data-i="1" placeholder="Max" value="${v(arr[1])}"><em>${u}</em></label></div></div>`;
+    openSheet(`<div class="fhead"><h3 style="margin:0">KOL trade filter</h3><button class="rst" id="kReset">Reset</button></div><div class="fbody">
+    <div class="rl">Side</div><div class="chipsel" id="kSide">${[['all','All'],['buy','Buys'],['sell','Sells']].map(([a,b])=>`<button data-v="${a}" class="${d.side===a?'on':''}">${b}</button>`).join('')}</div>
+    <div class="rl" style="margin-top:14px">Time window</div><div class="chipsel" id="kWin">${[[15,'15m'],[60,'1h'],[240,'4h'],[720,'12h'],[1440,'24h']].map(([a,b])=>`<button data-v="${a}" class="${d.win===a?'on':''}">${b}</button>`).join('')}</div>
+    ${row('sol','Trade size','SOL',d.sol)}${row('mc','Token market cap','K',d.mc)}${row('age','Token age','m',d.age)}
+    <div class="rr"><div class="rl">Min KOLs on same token (Tokens view)</div><div class="rg"><label class="ri"><input type="number" inputmode="numeric" id="kMin" value="${d.minKols}"><em>KOLs</em></label></div></div>
+    <div class="rl" style="margin-top:14px">Stage</div><div class="chipsel" id="kStage">${[['all','All'],['curve','Bonding curve'],['mig','Graduated']].map(([a,b])=>`<button data-v="${a}" class="${d.stage===a?'on':''}">${b}</button>`).join('')}</div>
+    <div class="rl" style="margin-top:14px">Launchpad</div><div class="lpg" id="kLp">${['pump','bonk','bags','launchlab','dbc','other'].map(x=>`<button class="lpb ${d.lp.includes(x)?'on':''}" data-lp="${x}">${x==='other'?'Other / non-launchpad':LP_LABEL[x]}</button>`).join('')}</div>
+    <div class="note" style="margin-top:12px">Trades are SOL buys/sells of ≥0.01 SOL from wallets in your KOL list. Market cap, age, stage and launchpad use current token data.</div></div>
+    <div class="fbar"><button class="btn gh" id="kCancel">Cancel</button><button class="btn wh" id="kOk">Confirm</button></div>`);
+    const sh=$('sheet');
+    const rd=()=>{sh.querySelectorAll('input[data-kk]').forEach(el=>{d[el.dataset.kk][+el.dataset.i]=el.value===''?null:+el.value;});d.minKols=Math.max(1,+$('kMin').value||1);};
+    [['kSide','side'],['kWin','win'],['kStage','stage']].forEach(([id,k])=>$(id).querySelectorAll('button').forEach(b=>b.onclick=()=>{rd();d[k]=k==='win'?+b.dataset.v:b.dataset.v;draw();}));
+    $('kLp').querySelectorAll('[data-lp]').forEach(b=>b.onclick=()=>{rd();const x=b.dataset.lp;d.lp=d.lp.includes(x)?d.lp.filter(y=>y!==x):[...d.lp,x];draw();});
+    $('kReset').onclick=()=>{DRAFT={...FILT.kol,preset:'all',side:'all',sol:[null,null],win:60,lp:['pump','bonk','bags','launchlab','dbc','other'],stage:'all',mc:[null,null],age:[null,null],minKols:1};draw();};
+    $('kCancel').onclick=closeSheet;
+    $('kOk').onclick=()=>{rd();if(!d.lp.length){toast('Select at least one launchpad');return;}d.preset='custom';FILT.kol=d;saveFilt();closeSheet();renderControls();renderList();};
+  };draw();
+}
+
 // ================= refresh loop =================
 function setLive(state,txt){const l=$('live');l.className='live '+state;$('liveTxt').textContent=txt;}
 async function refresh(manual){
   if(busy||!KEY)return;busy=true;setLive('busy','updating…');
   if(!TOK.size)renderList(true);
   try{
-    await discover();await loadMarket();await loadAuth();
+    await discover();
+    if(Object.keys(KOL).length&&!kolScanning)await kolPoll(TAB==='kol'?LIMITS[PLAN].par*5:LIMITS[PLAN].par*2);
+    KTR.forEach(x=>{const t=tok(x.m);if(!t.seen)t.seen=Date.now();});
+    await loadMarket();await loadAuth();
     lastRefresh=Date.now();setLive(SET.auto?'on':'','live · '+new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}));
     renderList();
     queueTop10();
@@ -478,7 +612,7 @@ async function refresh(manual){
 }
 let t10running=false;
 async function queueTop10(){
-  if(t10running)return;t10running=true;
+  if(t10running||TAB==='kol')return;t10running=true;
   for(let round=0;round<4;round++){
     const tab=TAB,vis=candidates(tab).slice(0,holderFilterOn(FILT[tab])?40:20).filter(t=>!t.hm&&!t.hmFail);if(!vis.length)break;
     for(const t of vis){await loadHM(t);if(!t.hm)t.hmFail=true;if(holderFilterOn(FILT[TAB]))renderList();else updateCard(t);}
@@ -573,6 +707,7 @@ function cardHTML(t){
 }
 function updateCard(t){const el=$('c-'+t.mint);if(el)el.outerHTML=cardHTML(t);}
 function renderList(loading){
+  if(TAB==='kol'){['trend','curve','mig'].forEach(tb=>{$('c-'+tb).textContent=TOK.size?filtered(tb).length:'';});renderKol();return;}
   ['trend','curve','mig'].forEach(tb=>{$('c-'+tb).textContent=TOK.size?filtered(tb).length:'';});
   if(loading){$('list').innerHTML='<div class="skel"></div>'.repeat(6);return;}
   const arr=filtered(TAB),pend=pendingHolder(TAB),f=FILT[TAB];
@@ -583,6 +718,9 @@ function renderList(loading){
   $('list').innerHTML=arr.slice(0,80).map(cardHTML).join('');
 }
 function renderControls(){
+  const isK=TAB==='kol';$('tfRow').classList.toggle('hide',isK);$('sortSel').classList.toggle('hide',isK);
+  if(isK){const f=FILT.kol;$('presets').innerHTML=KOL_PRESETS.map(([id,l])=>`<button class="pr ${f.preset===id?'on':''}" data-kp="${id}">${l}</button>`).join('')+(f.preset==='custom'?'<button class="pr on">Custom</button>':'');
+    $('fN').classList.add('hide');$('cnt').textContent=KTR.length?KTR.length+' trades stored':'';document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.t===TAB));return;}
   const f=FILT[TAB];
   $('presets').innerHTML=PRESETS[TAB].map(([id,label])=>`<button class="pr ${f.preset===id?'on':''}" data-p="${id}">${label}</button>`).join('')+(f.preset==='custom'?'<button class="pr on">Custom</button>':'');
   $('tfRow').innerHTML='<span class="note" style="align-self:center;flex:0 0 auto">Volume:</span>'+TFS.map(([k,l])=>`<button class="pr tf ${f.tf===k?'on':''}" data-tf="${k}">${l}</button>`).join('');
@@ -832,10 +970,11 @@ window.addEventListener('popstate',()=>{if(!$('vDetail').classList.contains('hid
 // ================= wiring =================
 $('tabs').onclick=e=>{const b=e.target.closest('button');if(!b)return;TAB=b.dataset.t;store.set('hs_tab',TAB);renderControls();renderList();queueTop10();window.scrollTo(0,0);};
 $('tfRow').onclick=e=>{const b=e.target.closest('[data-tf]');if(!b)return;FILT[TAB].tf=b.dataset.tf;FILT[TAB].sort='vol';saveFilt();renderControls();renderList();queueTop10();};
+$('presets').addEventListener('click',e=>{const b=e.target.closest('[data-kp]');if(!b)return;const p=KOL_PRESETS.find(x=>x[0]===b.dataset.kp);FILT.kol={...FILT.kol,age:[null,null],...p[2],preset:p[0]};saveFilt();renderControls();renderList();});
 $('presets').onclick=e=>{const b=e.target.closest('[data-p]');if(b)applyPreset(b.dataset.p);};
 $('sortSel').onchange=()=>{FILT[TAB].sort=$('sortSel').value;saveFilt();renderList();};
-$('filtBtn').onclick=filterSheet;$('setBtn').onclick=settingsSheet;$('srchBtn').onclick=searchSheet;$('refBtn').onclick=()=>refresh(true);
-$('list').onclick=e=>{if(e.target.closest('a'))return;const cp=e.target.closest('[data-cp]');if(cp){e.stopPropagation();copy(cp.dataset.cp);return;}const c=e.target.closest('.tc');if(c)openDetail(c.dataset.m);};
+$('filtBtn').onclick=()=>TAB==='kol'?kolFilterSheet():filterSheet();$('setBtn').onclick=settingsSheet;$('srchBtn').onclick=searchSheet;$('refBtn').onclick=()=>refresh(true);
+$('list').onclick=e=>{if(e.target.closest('a'))return;const cp=e.target.closest('[data-cp]');if(cp){e.stopPropagation();copy(cp.dataset.cp);return;}const c=e.target.closest('.tc,.kt');if(c&&TOK.get(c.dataset.m)?.pair)openDetail(c.dataset.m);};
 $('kPlan').querySelectorAll('button').forEach(b=>b.onclick=()=>{$('kPlan').querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');});
 $('kGo').onclick=async()=>{const k=$('kIn').value.trim();if(k.length<20){$('kErr').textContent='That key looks too short.';return;}
   KEY=k;PLAN=$('kPlan').querySelector('.on').dataset.v;$('kGo').textContent='Checking…';
