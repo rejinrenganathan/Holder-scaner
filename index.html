@@ -340,6 +340,7 @@ html{transition:background .2s}
 .selbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:10px}.selbar .pr{padding:6px 10px}
 .msel{width:18px;height:18px;flex:0 0 18px;margin:0 8px 0 0;accent-color:var(--acc)}
 .btn.dng{color:var(--bad)!important}.btn.arm{background:var(--bad)!important;color:#fff!important}
+.provb{font-size:12.5px;line-height:1.45;color:var(--txt2);background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px;margin-top:4px}
 </style>
 </head>
 <body>
@@ -1147,19 +1148,53 @@ async function tokenTraders(ca,pages,onPage){
   Object.values(by).forEach(o=>{const part=o.bAmt>0?Math.min(1,o.sAmt/o.bAmt):0;o.closedPart=part;o.cost=o.bSol*part;o.pnl=o.bAmt>0?o.sSol-o.cost:null;o.roi=o.cost>0?o.pnl/o.cost*100:null;});
   return{by,scanned,oldest};
 }
+// ---- external token-analytics providers (the same "Top traders" / "Holders" data GMGN, Axiom, Birdeye show) ----
+// GMGN and Axiom have no public API; Solana Tracker (free key, 2,500 requests/month) and Birdeye (key) do.
+let STKEY=store.get('hs_stkey',''),BEKEY=store.get('hs_bekey','');
+async function provGet(base,path,headers,name){
+  let r;try{r=await fetch(base+path,{headers:{accept:'application/json',...headers}});}catch(e){throw new Error(name+' could not be reached from the browser');}
+  if(r.status===401||r.status===403)throw new Error(name+' rejected the key (or your plan does not include this data)');
+  if(r.status===429)throw new Error(name+' request limit reached');
+  if(!r.ok)throw new Error(name+' HTTP '+r.status);return r.json();
+}
+const stGet=p=>provGet('https://data.solanatracker.io',p,{'x-api-key':STKEY},'Solana Tracker');
+const beGet=p=>provGet('https://public-api.birdeye.so',p,{'X-API-KEY':BEKEY,'x-chain':'solana'},'Birdeye');
+const pick=(o,...ks)=>{for(const k of ks){const v=k.split('.').reduce((a,x)=>a==null?a:a[x],o);if(v!=null&&v!==''&&!isNaN(+v))return +v;}return null;};
+// top traders of a token by PnL, in USD: [{w, pnl, realized, unreal, bal, trades, tags, src}]
+async function provTraders(ca,errs){
+  if(STKEY){try{const j=await stGet(`/v2/pnl/tokens/${ca}/traders?sort=pnl&direction=desc&limit=100`);const rows=Array.isArray(j?.traders)?j.traders:Array.isArray(j)?j:[];
+      const out=rows.map(t=>({w:t.wallet||t.address,pnl:pick(t,'pnl.token.total','total','pnl.total'),realized:pick(t,'pnl.token.realized','realized'),unreal:pick(t,'pnl.token.unrealized','unrealized'),
+        bal:pick(t,'position.balance','holding'),trades:pick(t,'counts.total'),tags:[...(t.identity?.tags||[])].map(String),kol:t.identity?.kol||null,src:'Solana Tracker'})).filter(x=>x.w&&B58.test(x.w));
+      if(out.length)return out;}catch(e){errs.push(e.message);}}
+  if(BEKEY){try{const out=[];for(let off=0;off<50;off+=10){const j=await beGet(`/defi/v2/tokens/top_traders?address=${ca}&time_frame=30d&sort_by=realized_pnl&sort_type=desc&offset=${off}&limit=10`);
+        const it=j?.data?.items||j?.data||[];if(!Array.isArray(it)||!it.length)break;
+        it.forEach(t=>out.push({w:t.owner||t.address||t.wallet,pnl:pick(t,'total_pnl','totalPnl','pnl','realized_pnl'),realized:pick(t,'realized_pnl','realizedPnl'),unreal:pick(t,'unrealized_pnl','unrealizedPnl'),bal:pick(t,'holding','balance','holder_stats.balance'),trades:pick(t,'trade'),tags:(t.tags||[]).map(String),src:'Birdeye'}));if(it.length<10)break;}
+      const f=out.filter(x=>x.w&&B58.test(x.w));if(f.length)return f;}catch(e){errs.push(e.message);}}
+  return null;
+}
+// top holders: Solana Tracker gives top 100 with wallet owners; otherwise null (caller uses on-chain top 20)
+async function provHolders(ca,errs){
+  if(!STKEY)return null;
+  try{const j=await stGet(`/tokens/${ca}/holders`);const a=Array.isArray(j?.accounts)?j.accounts:Array.isArray(j)?j:[];
+    const out=a.map(h=>({w:h.wallet||h.owner||h.address,pct:pick(h,'percentage'),amount:pick(h,'amount')})).filter(x=>x.w&&B58.test(x.w));return out.length?out:null;}catch(e){errs.push(e.message);return null;}
+}
+const BOT_TAG=/bot|arbitrage|mev|sandwich|sniper|bundl/i;
 // current balance of one token for many wallets (confirms holding / closed)
 async function tokenBal(ws,ca){const out={};await pool(ws,4,async w=>{try{const r=await rpcBg('getTokenAccountsByOwner',[w,{mint:ca},{encoding:'jsonParsed'}]);out[w]=(r?.value||[]).reduce((a,x)=>a+(+x.account?.data?.parsed?.info?.tokenAmount?.uiAmount||0),0);}catch(e){out[w]=null;}});return out;}
 function walletFinderSheet(mint,target){
   const tg=target||(TAB==='kol'?'kol':'smart');
   openSheet(`<h3>🔎 Find ${tg==='kol'?'👑 KOL':'🧠 smart'} wallets from a token</h3><div class="note">Paste a token CA. The app reads the token on-chain, collects the wallets you choose below, drops pools / programs / burn addresses, confirms each wallet's current token balance, then vets it with your rules. Every result links to Solscan so you can double-check it.</div>
    <div class="fl">Token CA</div><input id="wfCA" placeholder="token mint address" value="${esc(mint||'')}" autocomplete="off">
+   <div class="fl">Data source</div>
+   <div class="provb">${STKEY||BEKEY?`<span class="up">✓ ${[STKEY?'Solana Tracker':'',BEKEY?'Birdeye':''].filter(Boolean).join(' + ')} connected</span> — top traders & holders come from the same token PnL data GMGN / Birdeye show.`:`<b>No data key yet.</b> Top 20 holders are read on-chain (exact). For real <b>top traders</b> (lifetime PnL per wallet, like GMGN), add a free Solana Tracker key — otherwise the app can only estimate from recent transactions.`}
+    <div class="g2q"><label>Solana Tracker key (free)<input id="wfST" type="password" value="${esc(STKEY)}" placeholder="from solanatracker.io/data-api"></label><label>Birdeye key (optional)<input id="wfBE" type="password" value="${esc(BEKEY)}" placeholder="from bds.birdeye.so"></label></div></div>
    <div class="fl">Look at</div>
    <div class="sw"><span>🏆 Top traders — closed with profit</span><input type="checkbox" id="wfT" checked></div>
-   <div class="sw"><span>💎 Top 20 holders — still holding</span><input type="checkbox" id="wfH" checked></div>
+   <div class="sw"><span>💎 Top holders — still holding</span><select id="wfHn" style="width:auto"><option value="20">Top 20</option><option value="50">Top 50</option><option value="100">Top 100</option></select><input type="checkbox" id="wfH" checked></div>
    <div class="sw"><span>⚡ Recent traders (latest buys)</span><input type="checkbox" id="wfR"></div>
-   <div class="g2q"><label>Trade history to scan<select id="wfPg">${[[3,'300 txs'],[5,'500 txs'],[10,'1,000 txs'],[20,'2,000 txs']].map(([a,b])=>`<option value="${a}" ${a===(PLAN==='paid'?10:5)?'selected':''}>${b}</option>`).join('')}</select></label>
+   <div class="g2q"><label>No-key fallback: txs to scan<select id="wfPg">${[[3,'300 txs'],[5,'500 txs'],[10,'1,000 txs'],[20,'2,000 txs']].map(([a,b])=>`<option value="${a}" ${a===(PLAN==='paid'?10:5)?'selected':''}>${b}</option>`).join('')}</select></label>
      <label>Max wallets to vet<input type="number" id="wfMax" value="${PLAN==='paid'?60:30}"></label>
-     <label>Top traders: min profit on this token<input type="number" id="wfPnl" value="0.5" placeholder="SOL"></label>
+     <label>Top traders: min profit on this token ($)<input type="number" id="wfPnl" value="${store.get('hs_wfpnl',100)}" placeholder="USD"></label>
      <label>Holders: min % of supply (whales)<input type="number" id="wfPct" placeholder="any"></label></div>
    <div class="sw"><span>Skip bundled / sniper holders</span><input type="checkbox" id="wfBun" checked></div>
    <div class="fl">Keep only wallets with</div>${qualForm(IMPQ)}
@@ -1168,23 +1203,32 @@ function walletFinderSheet(mint,target){
     if($('wfGo').dataset.run){impStop=true;return;}
     const ca=$('wfCA').value.trim();if(!B58.test(ca)){toast('Paste a valid token address');return;}
     const useT=$('wfT').checked,useH=$('wfH').checked,useR=$('wfR').checked;if(!useT&&!useH&&!useR){toast('Pick at least one wallet source');return;}
-    const qq=readQual(),nv=id=>$(id).value===''?null:+$(id).value,minPct=nv('wfPct'),minTP=nv('wfPnl'),pages=+$('wfPg').value,max=Math.max(5,Math.min(150,nv('wfMax')||30)),skipBun=$('wfBun').checked;
+    STKEY=$('wfST').value.trim();BEKEY=$('wfBE').value.trim();store.set('hs_stkey',STKEY);store.set('hs_bekey',BEKEY);
+    const qq=readQual(),nv=id=>$(id).value===''?null:+$(id).value,minPct=nv('wfPct'),minTP=nv('wfPnl'),hN=+$('wfHn').value,errs=[],pages=+$('wfPg').value,max=Math.max(5,Math.min(150,nv('wfMax')||30)),skipBun=$('wfBun').checked;store.set('hs_wfpnl',minTP);let srcT='',srcH='';
     $('wfGo').dataset.run=1;$('wfGo').textContent='⏹ Stop';impStop=false;$('wfRes').innerHTML='';const C={},say=x=>{if($('wfTxt'))$('wfTxt').textContent=x;},bar=v=>{if($('wfFill'))$('wfFill').style.width=v+'%';};
     try{
       say('Reading token…');bar(3);
       const mi=await rpc('getAccountInfo',[ca,{encoding:'jsonParsed'}]);const info=mi?.value?.data?.parsed?.info;if(!info||info.supply==null)throw new Error('Not a token mint');
       const supply=+info.supply/10**info.decimals;let tsym=TOK.get(ca)?.sym;
       if(!tsym){try{const a=await getJSON('https://api.dexscreener.com/tokens/v1/solana/'+ca);tsym=Array.isArray(a)&&a[0]?.baseToken?.symbol;}catch(e){}}tsym=tsym||short(ca);
-      if(useH){say('Loading top 20 holders…');
-        const la=await rpc('getTokenLargestAccounts',[ca]);const acc=(la?.value||[]).slice(0,20);
-        const ta=acc.length?await rpc('getMultipleAccounts',[acc.map(a=>a.address),{encoding:'jsonParsed'}]):{value:[]};
-        acc.forEach((a,i)=>{const o=ta?.value?.[i]?.data?.parsed?.info?.owner;if(o&&!C[o])C[o]={w:o,pct:supply?(a.uiAmount||0)/supply*100:0,roles:new Set(['holder'])};});}
-      let TT=null;
-      if(useT||useR){TT=await tokenTraders(ca,pages,(p,n)=>{say(`Scanning trade history… ${n} transactions`);bar(5+p/pages*35);});
-        const tr=Object.values(TT.by);
-        if(useT)tr.filter(o=>o.pnl!=null&&o.closedPart>=0.8&&o.pnl>0&&(minTP==null||o.pnl>=minTP)).sort((a,b)=>b.pnl-a.pnl).slice(0,max*2).forEach(o=>{(C[o.w]=C[o.w]||{w:o.w,pct:null,roles:new Set()}).roles.add('top trader');});
-        if(useR)tr.filter(o=>o.buys>0).sort((a,b)=>b.last-a.last).slice(0,max).forEach(o=>{(C[o.w]=C[o.w]||{w:o.w,pct:null,roles:new Set()}).roles.add('recent');});
-        Object.values(C).forEach(c=>{c.tt=TT.by[c.w]||null;});}
+      if(useH){say('Loading top holders…');
+        const ph=hN>20?await provHolders(ca,errs):null;
+        if(ph){srcH='Solana Tracker';ph.slice(0,hN).forEach(h=>{if(!C[h.w])C[h.w]={w:h.w,pct:h.pct,roles:new Set(['holder'])};});}
+        else{srcH='on-chain (top 20)';const la=await rpc('getTokenLargestAccounts',[ca]);const acc=(la?.value||[]).slice(0,20);
+          const ta=acc.length?await rpc('getMultipleAccounts',[acc.map(a=>a.address),{encoding:'jsonParsed'}]):{value:[]};
+          acc.forEach((a,i)=>{const o=ta?.value?.[i]?.data?.parsed?.info?.owner;if(o&&!C[o])C[o]={w:o,pct:supply?(a.uiAmount||0)/supply*100:0,roles:new Set(['holder'])};});}}
+      let TT=null,PT=null;
+      if(useT){say('Loading top traders…');bar(10);PT=await provTraders(ca,errs);
+        if(PT){srcT=PT[0].src;
+          // closed with profit: realized profit ≥ your minimum, token balance (almost) gone, not tagged as a bot / sniper / bundler
+          PT.filter(o=>(o.realized??o.pnl)!=null&&(o.realized??o.pnl)>0&&(minTP==null||(o.realized??o.pnl)>=minTP)&&!(o.tags||[]).some(x=>BOT_TAG.test(x)))
+            .sort((a,b)=>(b.realized??b.pnl)-(a.realized??a.pnl)).slice(0,max*2)
+            .forEach(o=>{const c=C[o.w]=C[o.w]||{w:o.w,pct:null,roles:new Set()};c.roles.add('top trader');c.tt={pnlUsd:o.pnl,realUsd:o.realized,unrealUsd:o.unreal,trades:o.trades,provBal:o.bal,tags:o.tags,src:o.src};});}}
+      if((useT&&!PT)||useR){TT=await tokenTraders(ca,pages,(p,n)=>{say(`${useT&&!PT?'No data key — estimating top traders from':'Reading'} recent trades… ${n} transactions`);bar(10+p/pages*30);});
+        const tr=Object.values(TT.by),usdOf=v=>v==null?null:SOLUSD?v*SOLUSD:null;
+        if(useT&&!PT){srcT=`estimate from last ${TT.scanned} txs`;tr.filter(o=>o.pnl!=null&&o.closedPart>=0.8&&o.pnl>0&&(minTP==null||(usdOf(o.pnl)??o.pnl*150)>=minTP)).sort((a,b)=>b.pnl-a.pnl).slice(0,max*2)
+          .forEach(o=>{const c=C[o.w]=C[o.w]||{w:o.w,pct:null,roles:new Set()};c.roles.add('top trader');c.tt={pnlUsd:usdOf(o.pnl),realUsd:usdOf(o.pnl),pnlSol:o.pnl,roi:o.roi,bAmt:o.bAmt,trades:o.buys+o.sells,src:'estimate'};});}
+        if(useR)tr.filter(o=>o.buys>0).sort((a,b)=>b.last-a.last).slice(0,max).forEach(o=>{(C[o.w]=C[o.w]||{w:o.w,pct:null,roles:new Set()}).roles.add('recent');});}
       let ws=Object.keys(C);
       // real wallets only (owned by the System program) — drops pools, AMM vaults, programs and burn addresses
       say(`Verifying ${ws.length} addresses on-chain…`);bar(45);
@@ -1198,20 +1242,20 @@ function walletFinderSheet(mint,target){
         hs.forEach(w=>{const c=C[w];if(!c.slot)return;c.bundled=bySlot[c.slot].length>1||!!(L&&L.exact&&c.slot===L.slot);c.sniper=!!(L&&c.time&&c.time-L.time<=15&&!c.bundled);});
         ws=ws.filter(w=>!C[w].bundled&&!C[w].sniper);}}
       // priority: top traders by token profit, then holders by size, then recent
-      const pr=w=>{const c=C[w];return(c.roles.has('top trader')?1e6+(c.tt?.pnl||0)*100:0)+(c.roles.has('holder')?1e4+(c.pct||0)*100:0)+(c.roles.has('recent')?1:0);};
+      const pr=w=>{const c=C[w];return(c.roles.has('top trader')?1e9+(c.tt?.realUsd??c.tt?.pnlUsd??0):0)+(c.roles.has('holder')?1e4+(c.pct||0)*100:0)+(c.roles.has('recent')?1:0);};
       ws=ws.sort((a,b)=>pr(b)-pr(a)).slice(0,max);
       // confirm current position on-chain
       say('Confirming current token balances…');bar(55);
       const tb=await tokenBal(ws,ca);
-      ws.forEach(w=>{const c=C[w],b=tb[w],bought=c.tt?.bAmt||0;c.tokBal=b;c.status=b==null?'unknown':b<=0?'closed':(bought>0&&b<bought*0.2)?'mostly sold':'holding';});
+      ws.forEach(w=>{const c=C[w],b=tb[w],bought=c.tt?.bAmt||0;c.tokBal=b;const sp=b!=null&&supply?b/supply*100:null,trd=c.pct==null;c.status=b==null?'unknown':(b<=0||(trd&&sp<0.001))?'closed':((bought>0&&b<bought*0.2)||(trd&&!bought&&sp<0.1))?'mostly sold':'holding';});
       // a "top trader" must really be out of the trade now
       ws=ws.filter(w=>{const c=C[w];if(c.roles.has('top trader')&&c.status==='holding'&&c.roles.size===1)return false;return true;});
       await loadKolBal(ws);
       let done=0;const res=[];
       await pool(ws,LIMITS[PLAN].par,async w=>{if(impStop)return;const r=await vetWallet(w,qq);r.c=C[w];res.push(r);done++;bar(55+done/ws.length*45);
         say(`Vetted ${done}/${ws.length} · ${res.filter(x=>!x.why.length).length} pass`);},()=>impStop);
-      WF={ca,tsym,tg,scan:TT?{n:TT.scanned,oldest:TT.oldest}:null,res:res.sort((a,b)=>(a.why.length-b.why.length)||((b.c?.tt?.pnl??-1e9)-(a.c?.tt?.pnl??-1e9))||((b.ev?.wr??-1)-(a.ev?.wr??-1))),sel:new Set(res.filter(r=>!r.why.length&&!(tg==='kol'?KOL[r.w]:SMART[r.w])).map(r=>r.w)),showBad:false};
-      say(`Done · ${res.length} wallets vetted${TT?` · ${TT.scanned} trades scanned${TT.oldest?' (back to '+ago(TT.oldest)+')':''}`:''}`);bar(100);
+      WF={ca,tsym,tg,srcT,srcH,errs,scan:TT?{n:TT.scanned,oldest:TT.oldest}:null,res:res.sort((a,b)=>(a.why.length-b.why.length)||((b.c?.tt?.realUsd??-1e12)-(a.c?.tt?.realUsd??-1e12))||((b.ev?.wr??-1)-(a.ev?.wr??-1))),sel:new Set(res.filter(r=>!r.why.length&&!(tg==='kol'?KOL[r.w]:SMART[r.w])).map(r=>r.w)),showBad:false};
+      say(`Done · ${res.length} wallets vetted${srcT?' · top traders: '+srcT:''}${srcH?' · holders: '+srcH:''}${errs.length?' · ⚠ '+errs.join(' · '):''}`);bar(100);
       drawFinder();
     }catch(e){say('Failed: '+e.message);}
     if($('wfGo')){delete $('wfGo').dataset.run;$('wfGo').textContent='Find wallets';}
@@ -1221,10 +1265,10 @@ function drawFinder(){
   if(!WF||!$('wfRes'))return;const good=WF.res.filter(r=>!r.why.length),bad=WF.res.filter(r=>r.why.length),isK=WF.tg==='kol';
   const row=r=>{const e=r.ev,c=r.c||{},t=c.tt,saved=isK?KOL[r.w]:SMART[r.w];return `<div class="wfr ${r.why.length?'bad':''}"><input type="checkbox" data-wf="${r.w}" ${WF.sel.has(r.w)?'checked':''}>
     <div class="mid"><div class="nm"><a class="mono" href="https://solscan.io/account/${r.w}" target="_blank" rel="noopener" style="color:var(--acc);text-decoration:none">${short(r.w)} ↗</a>${saved?'<span class="tg ok">SAVED</span>':''}${[...(c.roles||[])].map(x=>`<span class="tg ${x==='top trader'?'ok':x==='holder'?'sm':''}">${x.toUpperCase()}</span>`).join('')}<span class="tg ${c.status==='holding'?'ok':c.status==='closed'?'bad':''}">${esc((c.status||'').toUpperCase())}</span></div>
-    <div class="sub">${t&&t.pnl!=null?`on ${esc(WF.tsym)}: <b class="${t.pnl>=0?'up':'dn'}">${SOLI}${t.pnl>=0?'+':''}${num(t.pnl,2)}</b>${t.roi!=null?` (${t.roi>=0?'+':''}${num(t.roi,0)}%)`:''} · `:''}${c.pct?num(c.pct,2)+'% held · ':''}${r.bal!=null?'bal '+SOLI+num(r.bal,2):'bal ?'}${r.age&&r.age.days!=null?` · ${r.age.full?'':'≥'}${num(r.age.days,0)}d old`:''}${e?` · ${e.closed} closed`:''}${r.why.length?`<br><span class="dn">✕ ${esc(r.why.join(', '))}</span>`:''}</div></div>
+    <div class="sub">${t&&(t.realUsd??t.pnlUsd)!=null?`${t.src==='estimate'?'~':''}profit on ${esc(WF.tsym)}: <b class="${(t.realUsd??t.pnlUsd)>=0?'up':'dn'}">${(t.realUsd??t.pnlUsd)>=0?'+':'-'}${usd(Math.abs(t.realUsd??t.pnlUsd))}</b>${t.roi!=null?` (${t.roi>=0?'+':''}${num(t.roi,0)}%)`:''}${t.trades?` · ${t.trades} trades`:''} · `:''}${c.pct?num(c.pct,2)+'% held · ':''}${r.bal!=null?'bal '+SOLI+num(r.bal,2):'bal ?'}${r.age&&r.age.days!=null?` · ${r.age.full?'':'≥'}${num(r.age.days,0)}d old`:''}${e?` · ${e.closed} closed`:''}${r.why.length?`<br><span class="dn">✕ ${esc(r.why.join(', '))}</span>`:''}</div></div>
     <div class="swst">${e?`<b class="${e.wr>=60?'up':e.wr<40?'dn':''}">${e.wr!=null?Math.round(e.wr)+'%':'—'}</b><span>WR</span><em class="${e.pnl>=0?'up':'dn'}">${SOLI}${e.pnl>=0?'+':''}${num(e.pnl,1)}</em>`:''}</div></div>`;};
   const vis=[...good,...(WF.showBad?bad:[])];
-  $('wfRes').innerHTML=`<div class="fl">${good.length} wallets pass · ${bad.length} rejected</div>
+  $('wfRes').innerHTML=`<div class="fl">${good.length} wallets pass · ${bad.length} rejected</div>${WF.srcT==='estimate'||/^estimate/.test(WF.srcT||'')?'<div class="provb">⚠ Top traders are an <b>estimate</b> from recent transactions only. Add a free Solana Tracker key above for the real lifetime top-trader list.</div>':''}
    ${vis.length?`<div class="selbar"><button class="pr" id="wfAll">Select all (${vis.length})</button><button class="pr" id="wfNone">Select none</button><span class="note">${WF.sel.size} selected</span></div>`:''}
    ${good.map(row).join('')||'<div class="note">No wallet passes your rules. Loosen them above, or show the rejected ones and pick manually.</div>'}
    ${bad.length?`<button class="btn gh" id="wfBad">${WF.showBad?'Hide':'Show'} rejected (${bad.length})</button>${WF.showBad?bad.map(row).join(''):''}`:''}
@@ -1845,7 +1889,10 @@ function settingsSheet(){
   openSheet(`<h3>Settings</h3>
   <div class="fl">Helius API key</div><input id="sKey" type="password" value="${esc(KEY)}">
   <div class="fl">Plan</div><div class="chipsel" id="sPlan"><button data-v="free" class="${PLAN==='free'?'on':''}">Free</button><button data-v="paid" class="${PLAN==='paid'?'on':''}">Paid</button></div>
-  <div class="sw"><span>Live auto-refresh (prices 20s · discovery & KOLs 75s · token page 15s)</span><input type="checkbox" id="sAuto" ${SET.auto?'checked':''}></div>
+  <div class="sw"><span>Live auto-refresh (prices 10s · discovery & KOLs ${PLAN==='paid'?35:60}s · token page 8s)</span><input type="checkbox" id="sAuto" ${SET.auto?'checked':''}></div>
+  <div class="fl">Top traders / holders data (for 🔎 Find wallets)</div>
+  <input id="sST" type="password" value="${esc(STKEY)}" placeholder="Solana Tracker API key — free at solanatracker.io/data-api">
+  <input id="sBE" type="password" value="${esc(BEKEY)}" placeholder="Birdeye API key (optional)" style="margin-top:8px">
   <button class="btn" id="sSave">Save</button>
   <div class="fl" style="margin-top:22px">Smart wallet list (${list.length})</div>
   <div class="note">Trending uses this list to spot smart-money buys. It grows automatically when you open tokens, or build it from today's winners.</div>
@@ -1868,6 +1915,7 @@ function settingsSheet(){
   $('kAddBtn').onclick=()=>{let n=0;$('kAdd').value.split('\n').forEach(line=>{const [w,...rest]=line.trim().split(/[\s,]+/);if(w&&w.length>=32&&w.length<=44){const h=rest.find(x=>x.startsWith('@'));const nm=rest.filter(x=>!x.startsWith('@')).join(' ');KOL[w]=nm||(h?h.slice(1):short(w));if(h)KOLX[w]=h.slice(1);n++;}});store.set('hs_kol',KOL);store.set('hs_kolx',KOLX);TOK.forEach(t=>t.act.w.forEach(w=>{if(KOL[w])t.act.kol.add(w);}));toast(n+' KOLs added');settingsSheet();};
   $('sheet').querySelectorAll('[data-krm]').forEach(b=>b.onclick=()=>{delete KOL[b.dataset.krm];store.set('hs_kol',KOL);settingsSheet();});
   $('sPlan').querySelectorAll('button').forEach(b=>b.onclick=()=>{$('sPlan').querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');});
+  $('sST').onchange=e=>{STKEY=e.target.value.trim();store.set('hs_stkey',STKEY);};$('sBE').onchange=e=>{BEKEY=e.target.value.trim();store.set('hs_bekey',BEKEY);};
   $('sSave').onclick=()=>{KEY=$('sKey').value.trim();PLAN=$('sPlan').querySelector('.on').dataset.v;SET.auto=$('sAuto').checked;store.set('hs_key',KEY);store.set('hs_plan',PLAN);store.set('hs_set',SET);schedule();toast('Saved');closeSheet();refresh(true);};
   $('sAddBtn').onclick=()=>{let n=0;$('sAdd').value.split(/[\s,]+/).filter(x=>x.length>=32&&x.length<=44).forEach(w=>{SMART[w]={t:Date.now(),src:'manual'};n++;});store.set('hs_smart',SMART);toast(n+' wallets added');settingsSheet();};
   $('sheet').querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{delete SMART[b.dataset.rm];store.set('hs_smart',SMART);settingsSheet();});
