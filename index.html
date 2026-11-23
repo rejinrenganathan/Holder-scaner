@@ -102,11 +102,11 @@ input,textarea,select{font:inherit;color:var(--txt);background:var(--bg);border:
 .btn.pu{background:var(--smart);color:#140a24}
 .note{font-size:12px;color:var(--mut)}
 .kt{display:flex;gap:10px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:6px}
-.kav{flex:0 0 36px;height:36px;border-radius:50%;background:var(--kav);color:var(--gold);display:grid;place-items:center;font-weight:800;font-size:13px}
+.kav{flex:0 0 36px;width:36px;min-width:36px;max-width:36px;height:36px;border-radius:50%;background:var(--kav);color:var(--gold);display:grid;place-items:center;font-weight:800;font-size:13px}
 .side{font-size:11px;font-weight:800;padding:2px 7px;border-radius:6px;margin:0 4px}
 .side.buy{background:rgba(46,204,113,.15);color:var(--good)}.side.sell{background:rgba(255,77,94,.15);color:var(--bad)}
 .ktok{display:flex;align-items:center;gap:7px;text-align:right}
-.ktok img,.ktok .ini{width:30px;height:30px;border-radius:8px;object-fit:cover;background:var(--chip);display:grid;place-items:center;font-size:11px;font-weight:800}
+.ktok img,.ktok .ini{width:30px;height:30px;min-width:30px;max-width:30px;flex:0 0 30px;border-radius:8px;object-fit:cover;background:var(--chip);display:grid;place-items:center;font-size:11px;font-weight:800}
 .kbar{display:flex;gap:6px;align-items:center;margin:6px 0 4px}
 .kbar .seg2{display:flex;background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:2px}
 .kbar .seg2 button{background:none;border:0;padding:6px 12px;border-radius:8px;color:var(--mut);font-size:13px;font-weight:600}
@@ -182,15 +182,18 @@ html{transition:background .2s}
 .logo{display:flex;align-items:center;gap:7px}.logo img{width:22px;height:22px;border-radius:6px}
 .r3 .bd{border-radius:8px}
 .bs{height:4px}
-.kav{overflow:hidden}.kav img{width:100%;height:100%;object-fit:cover}
+.kav{overflow:hidden}.kav img,.wav img,.kpav img{width:100%!important;height:100%!important;max-width:100%;object-fit:cover;display:block;border-radius:50%}
+.kt>span[data-kw],.wl-l>span[data-kw],.r1>span[data-kw]{flex:0 0 auto;display:inline-flex;line-height:0}
+.kt .mid{min-width:0;flex:1 1 auto;overflow:hidden}.kt .ktok{flex:0 0 auto;max-width:42%}
+.kt .nm{flex-wrap:nowrap;align-items:center;gap:4px}.kt .nm .kn{min-width:0;max-width:34vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.kt .nm>b:last-child{white-space:nowrap;flex:0 0 auto}.kt .side{flex:0 0 auto}.kt .sub{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .kbar{flex-wrap:wrap}
 .kn{cursor:pointer}
 .hrt{background:none;border:0;font-size:16px;line-height:1;color:var(--mut);padding:0 4px;margin-left:2px}.hrt.on{color:#f43f5e}
-.tc.fav .kpav{width:44px;height:44px;flex:0 0 44px}
+.tc.fav .kpav{width:44px;height:44px;min-width:44px;max-width:44px;flex:0 0 44px}
 .kpr[data-hm]{cursor:pointer}
 .wl.plain{font-family:inherit;font-size:13px;cursor:pointer}
 .kph{display:flex;gap:12px;align-items:center}
-.kpav{width:52px;height:52px;flex:0 0 52px;border-radius:50%;overflow:hidden;background:var(--kav);display:grid;place-items:center;font-weight:800;color:var(--gold)}.kpav img{width:100%;height:100%;object-fit:cover}
+.kpav{width:52px;height:52px;min-width:52px;max-width:52px;flex:0 0 52px;border-radius:50%;overflow:hidden;background:var(--kav);display:grid;place-items:center;font-weight:800;color:var(--gold)}.kpav img{width:100%;height:100%;object-fit:cover}
 .pnlcard{background:linear-gradient(160deg,var(--card),var(--bg));border:1px solid var(--line);border-radius:16px;padding:12px;box-shadow:var(--shadow)}
 .pnlcard .seg2{display:flex;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:2px}
 .pnlcard .seg2 button{flex:1;background:none;border:0;padding:7px 0;border-radius:8px;color:var(--mut);font-size:13px;font-weight:700}
@@ -207,7 +210,7 @@ html{transition:background .2s}
 .pch.hold{background:rgba(34,197,94,.14);color:var(--good)}.pch.part{background:rgba(245,158,11,.14);color:var(--warn)}.pch.sold{background:rgba(244,63,94,.13);color:var(--bad)}
 .kpl{margin-top:8px;border-top:1px solid var(--line);padding-top:6px}
 .kpr{display:flex;align-items:center;gap:6px;padding:4px 0;font-size:13px}.kpr .wav{width:22px;height:22px;flex:0 0 22px;margin-right:2px}
-.wav,.wl .wav{width:26px;height:26px;border-radius:50%;overflow:hidden;background:var(--kav);display:grid;place-items:center;font-size:10px;font-weight:800;color:var(--gold);margin-right:8px;flex:0 0 26px}
+.wav,.wl .wav{width:26px;height:26px;min-width:26px;max-width:26px;border-radius:50%;overflow:hidden;background:var(--kav);display:grid;place-items:center;font-size:10px;font-weight:800;color:var(--gold);margin-right:8px;flex:0 0 26px}
 .wav img,.wl .wav img{width:100%;height:100%;object-fit:cover}
 .wl .wl-l{display:flex;align-items:center;min-width:0;flex:1}
 .stt{font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;margin-left:6px}
@@ -281,7 +284,7 @@ html{transition:background .2s}
 <script>
 'use strict';
 // ================= config =================
-const LIMITS={free:{rpc:8,enh:2,par:2,pages:1},paid:{rpc:40,enh:9,par:6,pages:2}};
+const LIMITS={free:{rpc:6,bg:2,enh:2,par:2,pages:1},paid:{rpc:30,bg:10,enh:9,par:6,pages:2}};
 const SCAN={pages:1,nHold:10,minClosed:8,minWR:55,minTok:8,minHoldMin:10,minSol:0.05};
 const CACHE_TTL=3*3600e3, TOKEN_TTL=25*60e3, REFRESH_MS=75e3;
 const WSOL='So11111111111111111111111111111111111111112';
@@ -376,7 +379,7 @@ let actRunning=false;
 async function checkKolActivity(force){
   if(actRunning||!KEY)return;actRunning=true;
   const ws=Object.keys(KOL).filter(w=>force||!KACT[w]||Date.now()-KACT[w].t>12*3600e3);
-  await pool(ws,4,async w=>{try{const r=await rpc('getSignaturesForAddress',[w,{limit:1}]);KACT[w]={t:Date.now(),last:r&&r[0]?r[0].blockTime:0};}catch(e){}});
+  let n=0;await pool(ws,2,async w=>{try{const r=await rpcBg('getSignaturesForAddress',[w,{limit:1}]);KACT[w]={t:Date.now(),last:r&&r[0]?r[0].blockTime:0};}catch(e){}if(++n%40===0)store.set('hs_kact',KACT);});
   store.set('hs_kact',KACT);actRunning=false;if(TAB==='kol')renderList();
 }
 const kolAv=(w,cls)=>{const h=KOLX[w],ini=esc((KOL[w]||'?').replace(/[^A-Za-z0-9]/g,'').slice(0,2).toUpperCase()||'K');return `<div class="${cls}">${h?`<img src="https://unavatar.io/x/${encodeURIComponent(h)}?fallback=false" loading="lazy" alt="" onerror="this.outerHTML='${ini}'">`:ini}</div>`;};
@@ -390,7 +393,7 @@ let TAB=store.get('hs_tab','trend'),busy=false,lastRefresh=0,timer=null,enhBase=
 
 // ================= network =================
 function throttle(getRps){let next=0;return async()=>{const gap=1000/getRps(),now=Date.now(),w=Math.max(0,next-now);next=Math.max(now,next)+gap;if(w)await sleep(w);};}
-const TH={rpc:throttle(()=>LIMITS[PLAN].rpc),enh:throttle(()=>LIMITS[PLAN].enh),ds:throttle(()=>4),gt:throttle(()=>0.45)};
+const TH={bg:throttle(()=>LIMITS[PLAN].bg),rpc:throttle(()=>LIMITS[PLAN].rpc),enh:throttle(()=>LIMITS[PLAN].enh),ds:throttle(()=>4),gt:throttle(()=>0.45)};
 async function getJSON(url,opts,th){
   for(let i=0;i<4;i++){
     await (th||TH.ds)();let r;
@@ -404,6 +407,10 @@ async function getJSON(url,opts,th){
 }
 async function rpc(method,params){
   const j=await getJSON('https://mainnet.helius-rpc.com/?api-key='+encodeURIComponent(KEY),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method,params})},TH.rpc);
+  if(j.error)throw new Error(j.error.message||'RPC error');return j.result;
+}
+async function rpcBg(method,params){
+  const j=await getJSON('https://mainnet.helius-rpc.com/?api-key='+encodeURIComponent(KEY),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method,params})},TH.bg);
   if(j.error)throw new Error(j.error.message||'RPC error');return j.result;
 }
 async function enhGet(path){const bs=enhBase?[enhBase]:ENH;let last;for(const b of bs){try{const d=await getJSON(b+path,null,TH.enh);enhBase=b;return d;}catch(e){last=e;}}throw last;}
@@ -441,8 +448,8 @@ async function discover(){
   const keep=new Set(KTR.map(x=>x.m));
   TOK.forEach((t,m)=>{if(now-t.seen>TOKEN_TTL&&!keep.has(m))TOK.delete(m);});
 }
-async function loadMarket(){
-  const mints=[...TOK.keys()],chunks=[];for(let i=0;i<mints.length;i+=30)chunks.push(mints.slice(i,i+30));
+async function loadMarket(onlyNew){
+  const mints=[...TOK.keys()].filter(m=>!onlyNew||!TOK.get(m).pairs),chunks=[];for(let i=0;i<mints.length;i+=30)chunks.push(mints.slice(i,i+30));
   await Promise.all(chunks.map(async ch=>{
     try{const arr=await getJSON('https://api.dexscreener.com/tokens/v1/solana/'+ch.join(','));
       const by={};(Array.isArray(arr)?arr:[]).forEach(p=>{const m=p.baseToken?.address;if(m&&ch.includes(m))(by[m]=by[m]||[]).push(p);});
@@ -453,8 +460,9 @@ async function loadMarket(){
 async function loadAuth(){
   const need=[...TOK.values()].filter(t=>t.pair&&!t.auth).map(t=>t.mint);
   for(let i=0;i<need.length;i+=100){
-    try{const r=await rpc('getMultipleAccounts',[need.slice(i,i+100),{encoding:'jsonParsed'}]);
-      (r?.value||[]).forEach((a,k)=>{const t=TOK.get(need[i+k]);const inf=a?.data?.parsed?.info;if(t&&inf)t.auth={mint:!!inf.mintAuthority,freeze:!!inf.freezeAuthority,t22:a.owner==='TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb',supply:+inf.supply/10**inf.decimals,...readExt(inf)};});
+    const ch=need.slice(i,i+100);
+    let vals=null;try{vals=(await rpc('getMultipleAccounts',[ch,{encoding:'jsonParsed'}]))?.value;}catch(e){vals=[];for(let j=0;j<ch.length;j+=20){try{vals.push(...((await rpc('getMultipleAccounts',[ch.slice(j,j+20),{encoding:'jsonParsed'}]))?.value||ch.slice(j,j+20).map(()=>null)));}catch(e2){vals.push(...ch.slice(j,j+20).map(()=>null));}}}
+    try{(vals||[]).forEach((a,k)=>{const t=TOK.get(ch[k]);const inf=a?.data?.parsed?.info;if(t&&inf)t.auth={mint:!!inf.mintAuthority,freeze:!!inf.freezeAuthority,t22:a.owner==='TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb',supply:+inf.supply/10**inf.decimals,...readExt(inf)};});
     }catch(e){}
   }
 }
@@ -583,7 +591,7 @@ let SOLUSD=store.get('hs_solusd',null);
 let KBAL={};                                    // wallet -> {sol,t}
 let KTR=store.get('hs_ktr',[]);                // [{s,w,m,side,sol,ts}]
 const KTR_KEYS=new Set(KTR.map(x=>x.s+x.w+x.m));
-let kolCursor=store.get('hs_kcur',0),kolScanning=false,kolStop=false;
+let kolHot=0,kolCursor=store.get('hs_kcur',0),kolScanning=false,kolStop=false;
 if(FILT.kol&&!FILT.kol.pos)FILT.kol.pos='all';
 if(!FILT.kol)FILT.kol={pos:'all',preset:'all',mode:'trades',side:'all',sol:[null,null],win:60,lp:['pump','bonk','bags','launchlab','dbc','other'],stage:'all',mc:[null,null],age:[null,null],minKols:1};
 function parseTrade(tx,w){
@@ -605,18 +613,21 @@ function addTrade(tx,w){
 }
 async function loadKolBal(ws){
   const need=ws.filter(w=>!KBAL[w]||Date.now()-KBAL[w].t>60e3);
-  for(let i=0;i<need.length;i+=100){const ch=need.slice(i,i+100);try{const r=await rpc('getMultipleAccounts',[ch,{encoding:'base64',dataSlice:{offset:0,length:0}}]);(r?.value||[]).forEach((a,k)=>{KBAL[ch[k]]={sol:a?a.lamports/1e9:0,t:Date.now()};});}catch(e){ch.forEach(w=>{if(!KBAL[w])KBAL[w]={sol:null,t:Date.now()};});}}
+  for(let i=0;i<need.length;i+=100){const ch=need.slice(i,i+100);try{const r=await rpcBg('getMultipleAccounts',[ch,{encoding:'base64',dataSlice:{offset:0,length:0}}]);(r?.value||[]).forEach((a,k)=>{KBAL[ch[k]]={sol:a?a.lamports/1e9:0,t:Date.now()};});}catch(e){ch.forEach(w=>{if(!KBAL[w])KBAL[w]={sol:null,t:Date.now()};});}}
   if(SOLUSD)store.set('hs_solusd',SOLUSD);
 }
 const balTxt=w=>KBAL[w]&&KBAL[w].sol!=null?SOLI+num(KBAL[w].sol,KBAL[w].sol<10?2:1):'';
 function saveKTR(){const cut=Date.now()/1000-86400;KTR=KTR.filter(x=>x.ts>cut&&KOL[x.w]).sort((a,b)=>b.ts-a.ts).slice(0,800);store.set('hs_ktr',KTR);}
 async function txRecent(addr,limit){return enhGet('/v0/addresses/'+addr+'/transactions?api-key='+encodeURIComponent(KEY)+'&limit='+limit);}
 async function kolPoll(n,onStep){
-  const ws=Object.keys(KOL).filter(kolOK);if(!ws.length)return 0;
-  const batch=[];for(let i=0;i<Math.min(n,ws.length);i++)batch.push(ws[(kolCursor+i)%ws.length]);
-  kolCursor=(kolCursor+batch.length)%ws.length;store.set('hs_kcur',kolCursor);
+  const ws=Object.keys(KOL).filter(kolOK).sort((a,b)=>(KACT[b]?.last||0)-(KACT[a]?.last||0));if(!ws.length)return 0;
+  // half the batch from the 120 most recently active KOLs, half rotating through everyone
+  const hot=ws.slice(0,120),batch=new Set(),hn=Math.ceil(n/2);
+  for(let i=0;i<Math.min(hn,hot.length);i++)batch.add(hot[(kolHot+i)%hot.length]);kolHot=(kolHot+hn)%Math.max(1,hot.length);
+  for(let i=0;batch.size<Math.min(n,ws.length)&&i<ws.length;i++)batch.add(ws[(kolCursor+i)%ws.length]);
+  kolCursor=(kolCursor+n)%ws.length;store.set('hs_kcur',kolCursor);
   let added=0,done=0;
-  await pool(batch,LIMITS[PLAN].par+1,async w=>{if(kolStop)return;try{const txs=await txRecent(w,25);(Array.isArray(txs)?txs:[]).forEach(tx=>{if(addTrade(tx,w))added++;});}catch(e){}onStep&&onStep(++done,batch.length);});
+  await pool([...batch],LIMITS[PLAN].par+1,async w=>{if(kolStop)return;try{const txs=await txRecent(w,25);(Array.isArray(txs)?txs:[]).forEach(tx=>{if(addTrade(tx,w))added++;});}catch(e){}onStep&&onStep(++done,batch.length);});
   saveKTR();return added;
 }
 async function kolScanAll(){
@@ -660,7 +671,7 @@ const ago=ts=>dur(Date.now()/1000-ts)+' ago';
 // ---- KOL position status: trades we saw + live on-chain balance ----
 let POSBAL={};                                   // w|m -> {bal, t}
 function kolPos(w,m){
-  const tr=KTR.filter(x=>x.w===w&&x.m===m);let bought=0,sold=0,inSol=0,outSol=0,first=null,lastSell=null,lastBuy=null;
+  const seen=new Set(),tr=[];[...KTR.filter(x=>x.w===w&&x.m===m),...((PARSED[w]||[]).filter(x=>x.m===m))].forEach(x=>{const k=(x.s||'')+x.side+x.ts;if(!seen.has(k)){seen.add(k);tr.push(x);}});let bought=0,sold=0,inSol=0,outSol=0,first=null,lastSell=null,lastBuy=null;
   tr.forEach(x=>{if(x.side==='buy'){bought+=x.amt||0;inSol+=x.sol;first=first==null?x.ts:Math.min(first,x.ts);lastBuy=Math.max(lastBuy||0,x.ts);}else{sold+=x.amt||0;outSol+=x.sol;lastSell=Math.max(lastSell||0,x.ts);}});
   const pb=POSBAL[w+'|'+m],bal=pb&&pb.bal!=null?pb.bal:null,now=Date.now()/1000;
   let st='unknown',left=null;
@@ -684,7 +695,7 @@ async function loadPositions(pairs){
   if(!KEY)return;
   if(posRunning||!posQ.size)return;posRunning=true;
   const items=[...posQ].slice(0,40);items.forEach(k=>posQ.delete(k));
-  let changed=0;await pool(items,4,async k=>{const [w,m]=k.split('|');try{const r=await rpc('getTokenAccountsByOwner',[w,{mint:m},{encoding:'jsonParsed'}]);
+  let changed=0;await pool(items,4,async k=>{const [w,m]=k.split('|');try{const r=await rpcBg('getTokenAccountsByOwner',[w,{mint:m},{encoding:'jsonParsed'}]);
     const bal=(r?.value||[]).reduce((a,x)=>a+(+x.account?.data?.parsed?.info?.tokenAmount?.uiAmount||0),0);POSBAL[k]={bal,t:Date.now()};changed++;}catch(e){POSBAL[k]={bal:null,t:Date.now()};}});
   posRunning=false;if(changed&&TAB==='kol'&&$('vDetail').classList.contains('hide')&&$('sheet').classList.contains('hide'))renderKol();
 }
@@ -822,7 +833,7 @@ function favListHTML(){
     const last=P&&P.trades.length?P.trades[P.trades.length-1]:null,cls=v=>v>=0?'up':'dn';
     return `<div class="tc fav">
       <div class="r1"><span data-kw="${w}">${kolAv(w,'kpav')}</span><div class="mid"><div class="nm"><b class="kn" data-kw="${w}">${esc(KOL[w]||short(w))}</b>${heart(w)}</div>
-        <div class="sub">${KOLX[w]?'@'+esc(KOLX[w])+' · ':''}${a===true?'<span class="stt on">active</span>':a===false?'<span class="stt off">inactive</span>':''}${last?' · last trade '+ago(last.ts):''}</div></div>
+        <div class="sub">${[KOLX[w]?'@'+esc(KOLX[w]):'',a===true?'<span class="stt on">active</span>':a===false?'<span class="stt off">inactive</span>':'',last?'last trade '+ago(last.ts):''].filter(Boolean).join(' · ')}</div></div>
         <div class="rt"><div class="mc">Balance</div><b>${b?SOLI+num(b.sol,2):'…'}</b></div></div>
       ${P?`<div class="r2"><span>PnL 1D <b class="${cls(S1.pnl)}">${SOLI}${(S1.pnl>=0?'+':'')+num(S1.pnl,2)}</b></span><span>PnL 7D <b class="${cls(S7.pnl)}">${SOLI}${(S7.pnl>=0?'+':'')+num(S7.pnl,2)}</b></span><span>WR 7D <b>${S7.wr!=null?Math.round(S7.wr)+'%':'—'}</b></span><span>Trades 7D <b>${S7.buys+S7.sells}</b></span></div>`:'<div class="note" style="margin-top:8px">Loading PnL & holdings…</div>'}
       ${d?`<div class="fl" style="margin:10px 0 4px">Holding now (${d.hold.length})</div>${d.hold.length?d.hold.slice(0,5).map(x=>`<div class="kpr" data-hm="${x.m}">${x.img?`<img src="${esc(x.img)}" style="width:22px;height:22px;border-radius:6px;object-fit:cover" onerror="this.remove()">`:''}<b>${esc(x.sym||short(x.m))}</b><span class="note">MC ${usd(x.mc)}${x.since?' · '+dur(Date.now()/1000-x.since):''}</span><span style="margin-left:auto;text-align:right"><b>${usd(x.usd)}</b>${x.upnl!=null?` <span class="${cls(x.upnl)}" style="font-size:11px">${SOLI}${(x.upnl>=0?'+':'')+num(x.upnl,2)}</span>`:''}</span></div>`).join(''):'<div class="note">No token holdings with liquidity.</div>'}
@@ -845,8 +856,9 @@ async function kolHistory(w,pages){
   return h;
 }
 // realized PnL with average cost basis; sells with no buy in loaded history are counted as "unmatched"
+const PARSED={};                                 // wallet -> trades parsed from loaded history
 function pnlCalc(w,txs){
-  const asc=[...txs].sort((a,b)=>a.timestamp-b.timestamp),pos={},ev=[],trades=[];
+  const asc=[...txs].sort((a,b)=>a.timestamp-b.timestamp),pos={},ev=[],trades=[];PARSED[w]=trades;
   for(const tx of asc){const tr=parseTrade(tx,w);if(!tr)continue;trades.push({...tr,ts:tx.timestamp,s:tx.signature});
     const p=pos[tr.m]||(pos[tr.m]={q:0,c:0,first:null});
     if(tr.side==='buy'){p.q+=tr.amt||0;p.c+=tr.sol;if(p.first==null)p.first=tx.timestamp;}
@@ -939,10 +951,11 @@ async function refresh(manual){
   if(!TOK.size)renderList(true);
   try{
     await discover();
+    await loadMarket();await loadAuth();renderList();          // tokens first, never blocked by KOL work
     if(Object.keys(KOL).length&&!kolScanning)await kolPoll(TAB==='kol'?LIMITS[PLAN].par*5:LIMITS[PLAN].par*2);
     if(FAV.size){const fw=[...FAV].filter(w=>KOL[w]).slice(0,10);await pool(fw,3,async w=>{try{const txs=await txRecent(w,15);(Array.isArray(txs)?txs:[]).forEach(tx=>addTrade(tx,w));}catch(e){}});saveKTR();if(TAB==='kol'&&FILT.kol.mode==='favs')fw.forEach(w=>{if(FAVD[w])FAVD[w].t=0;});}
     KTR.forEach(x=>{const t=tok(x.m);if(!t.seen)t.seen=Date.now();});
-    await loadMarket();await loadAuth();
+    await loadMarket(true);await loadAuth();
     lastRefresh=Date.now();setLive(SET.auto?'on':'',new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',hour12:false}));
     renderList();
     queueTop10();
