@@ -341,6 +341,7 @@ html{transition:background .2s}
 .msel{width:18px;height:18px;flex:0 0 18px;margin:0 8px 0 0;accent-color:var(--acc)}
 .btn.dng{color:var(--bad)!important}.btn.arm{background:var(--bad)!important;color:#fff!important}
 .provb{font-size:12.5px;line-height:1.45;color:var(--txt2);background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px;margin-top:4px}
+.trk{font-size:12px;line-height:1.45;color:var(--txt2);background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin:0 0 10px}.trk.bad{border-color:rgba(244,63,94,.45)}.trk b{color:var(--good)}
 </style>
 </head>
 <body>
@@ -539,7 +540,7 @@ const TH={r2:throttle(()=>5),bg:throttle(()=>LIMITS[PLAN].bg),rpc:throttle(()=>L
 async function getJSON(url,opts,th){
   for(let i=0;i<4;i++){
     await (th||TH.ds)();let r;
-    try{r=await fetch(url,opts);}catch(e){if(i===3)throw new Error('Network error');await sleep(700);continue;}
+    try{const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),12000);try{r=await fetch(url,{...(opts||{}),signal:ac.signal});}finally{clearTimeout(tm);}}catch(e){if(i===3)throw new Error('Network error');await sleep(700);continue;}
     if(r.status===429){await sleep(1200*(i+1));continue;}
     if(r.status===401||r.status===403)throw new Error('Helius rejected the API key');
     if(!r.ok)throw new Error('HTTP '+r.status);
@@ -551,34 +552,42 @@ async function getJSON(url,opts,th){
 // Standard Solana calls are spread over the extra RPCs first; Helius is kept for what only Helius has (transaction history, token metadata).
 // An extra RPC that keeps failing is rested for 2 minutes; if all fail, the call goes to Helius.
 if(SET.rpc2&&!SET.rpcs){SET.rpcs=[SET.rpc2];delete SET.rpc2;store.set('hs_set',SET);}
-let XR=[];function buildXR(){XR=(SET.rpcs||[]).filter(u=>/^https:\/\//.test(u)).slice(0,6).map(u=>({u,th:throttle(()=>8),fail:0,until:0,ok:0}));}
+let XR=[];function buildXR(){XR=(SET.rpcs||[]).filter(u=>/^https:\/\//.test(u)).slice(0,6).map(u=>({u,th:throttle(()=>8),fail:0,until:0,ok:0,q:0}));}
 buildXR();
 const xLive=()=>XR.filter(x=>Date.now()>x.until);
-let xCur=0,IMPORTING=false;
-async function xrpc(method,params){
-  const live=xLive();if(!live.length)return{miss:true};
-  for(let k=0;k<live.length;k++){const x=live[(xCur++)%live.length];
-    try{const j=await getJSON(x.u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method,params})},x.th);
-      if(j&&!j.error){x.fail=0;x.ok++;return{r:j.result};}
-      if(j&&j.error&&/not (supported|available)|method not found|-32601/i.test(JSON.stringify(j.error))){x.fail++;continue;}
-      if(j&&j.error)return{err:new Error(j.error.message||'RPC error')};}
-    catch(e){if(/API key/.test(e.message)){x.until=Date.now()+30*60e3;continue;}if(++x.fail>=3){x.until=Date.now()+120e3;x.fail=0;}}}
-  return{miss:true};
+let IMPORTING=false,HQ=0;
+const XRPS=8;
+async function xone(x,method,params){
+  x.q=(x.q||0)+1;
+  try{const j=await getJSON(x.u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method,params})},x.th);
+    if(j&&!j.error){x.fail=0;x.ok++;return{ok:true,r:j.result};}
+    x.lastErr=String(j?.error?.message||'error').slice(0,60);}
+  catch(e){x.lastErr=e.message.replace('Helius rejected the API key','key rejected');if(/API key/.test(e.message)){x.until=Date.now()+30*60e3;return{ok:false};}}
+  finally{x.q--;}
+  if(++x.fail>=3){x.until=Date.now()+120e3;x.fail=0;}return{ok:false};
 }
+async function xrpc(method,params){for(const x of xLive().sort((a,b)=>(a.q||0)-(b.q||0))){const r=await xone(x,method,params);if(r.ok)return{r:r.r};}return{miss:true};}
 async function heliusRpc(method,params,lane){
-  const j=await getJSON('https://mainnet.helius-rpc.com/?api-key='+encodeURIComponent(KEY),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method,params})},lane);
-  if(j.error)throw new Error(j.error.message||'RPC error');return j.result;
+  HQ++;try{const j=await getJSON('https://mainnet.helius-rpc.com/?api-key='+encodeURIComponent(KEY),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method,params})},lane);
+    if(j.error)throw new Error(j.error.message||'RPC error');return j.result;}finally{HQ--;}
 }
 async function rpc(method,params){
-  if(XR.length){const x=await xrpc(method,params);if(x.err)throw x.err;if(!x.miss)return x.r;}
+  const live=xLive();
+  if(live.length){
+    const best=live.reduce((a,x)=>((x.q||0)<(a.q||0)?x:a));
+    // pick whichever lane has the shorter queue for its speed (Helius ≈ ${LIMITS.free.rpc}/s free, each extra ≈ ${XRPS}/s)
+    if((best.q||0)/XRPS<=HQ/LIMITS[PLAN].rpc){const r=await xone(best,method,params);if(r.ok)return r.r;
+      for(const x of live)if(x!==best){const r2=await xone(x,method,params);if(r2.ok)return r2.r;}}
+  }
   return heliusRpc(method,params,TH.rpc);
 }
 async function rpcBg(method,params){
-  if(XR.length){const x=await xrpc(method,params);if(x.err)throw x.err;if(!x.miss)return x.r;}
+  if(XR.length){const x=await xrpc(method,params);if(!x.miss)return x.r;}
   return heliusRpc(method,params,IMPORTING?TH.rpc:TH.bg);
 }
 // how many on-chain checks to run at once (more with extra RPCs)
 const PAR=()=>LIMITS[PLAN].par+Math.min(8,xLive().length*3);
+const TRACK_PAR=()=>Math.min(24,Math.ceil((LIMITS[PLAN].rpc+xLive().length*XRPS)*1.5));   // parallel signature checks = what the lanes can serve
 async function enhGet(path){const bs=enhBase?[enhBase]:ENH;let last;for(const b of bs){try{const d=await getJSON(b+path,null,TH.enh);enhBase=b;return d;}catch(e){last=e;}}throw last;}
 async function txHistory(addr,pages){
   const all=[];let before=null,complete=false;
@@ -807,7 +816,7 @@ let KTR=store.get('hs_ktr',[]);                // [{s,w,m,side,sol,ts}]
 const KTR_KEYS=new Set(KTR.map(x=>x.s+x.w+x.m));
 let kolHot=0,kolCursor=store.get('hs_kcur',0),kolScanning=false,kolStop=false;
 if(FILT.kol&&!FILT.kol.pos)FILT.kol.pos='all';
-if(!FILT.kol)FILT.kol={pos:'all',preset:'all',mode:'trades',side:'all',sol:[null,null],win:60,lp:['pump','bonk','bags','launchlab','dbc','other'],stage:'all',mc:[null,null],age:[null,null],minKols:1};
+if(!FILT.kol)FILT.kol={pos:'all',preset:'all',mode:'trades',side:'all',sol:[null,null],win:240,lp:['pump','bonk','bags','launchlab','dbc','other'],stage:'all',mc:[null,null],age:[null,null],minKols:1};
 function parseTrade(tx,w){
   if(tx.transactionError)return null;
   const tt=tx.tokenTransfers||[],ins={},outs={};
@@ -853,7 +862,8 @@ async function kolScanAll(){
 // ================= fast wallet tracker engine =================
 // 1) cheap check: newest signatures of each wallet (standard RPC → spread over your extra RPCs, then Helius)
 // 2) only NEW signatures are parsed, up to 100 per Helius call (POST /v0/transactions) → far fewer Helius calls than before
-let LASTSIG=store.get('hs_lastsig',{}),trCur=store.get('hs_trcur',0),tracking=false,PENDSIG=[],trackTimer=null,lastTrack=0;
+let LASTSIG=store.get('hs_lastsig',{}),trCur=store.get('hs_trcur',0),tracking=false,PENDSIG=[],trackTimer=null,lastTrack=0,parseFails=0;
+const TRK={t:0,checked:0,total:0,newSig:0,added:0,err:'',first:false,prog:''};
 const TRACK_MODES={saver:{ms:45e3,b:25},normal:{ms:20e3,b:45},fast:{ms:10e3,b:80}};
 const trackMode=()=>TRACK_MODES[SET.track]||TRACK_MODES.normal;
 async function enhPost(path,body){const bs=enhBase?[enhBase]:ENH;let last;for(const b of bs){try{const d=await getJSON(b+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)},TH.enh);enhBase=b;return d;}catch(e){last=e;}}throw last;}
@@ -863,42 +873,74 @@ function trackList(kind){
   const s=kind==='kol'?[]:Object.keys(SMART).filter(w=>!KOL[w]&&swOK(w)&&(!SMART[w].last||now-SMART[w].last<ACTIVE_DAYS*86400));
   return[...k,...s];
 }
+async function parseSigs(ch,owner,onAdd){
+  let added=0;const add=tx=>{const w=owner[tx.signature];if(!w)return;if(KOL[w]?addTrade(tx,w):SMART[w]?addSTrade(tx,w):false)added++;};
+  try{if(parseFails>=2)throw new Error('skip');
+    const d=await enhPost('/v0/transactions/?api-key='+encodeURIComponent(KEY),{transactions:ch.map(x=>x[0])});
+    if(!Array.isArray(d))throw new Error('bad reply');d.forEach(add);parseFails=0;}
+  catch(e){
+    // batch parse unavailable → read the changed wallets' recent history instead (one call per wallet)
+    if(e.message!=='skip')parseFails++;else if(Math.random()<0.1)parseFails=1;
+    const wsN=[...new Set(ch.map(x=>x[1]))];
+    await pool(wsN,LIMITS[PLAN].par+1,async w=>{try{const txs=await txRecent(w,20);(Array.isArray(txs)?txs:[]).forEach(tx=>{if(KOL[w]?addTrade(tx,w):SMART[w]?addSTrade(tx,w):false)added++;});}
+      catch(e2){TRK.err='Helius: '+e2.message;PENDSIG.push(...ch.filter(x=>x[1]===w).slice(0,50));}});}
+  onAdd(added);
+}
 async function trackPoll(opt){
-  opt=opt||{};if(tracking||!KEY||IMPORTING)return 0;tracking=true;let added=0;
+  opt=opt||{};if(tracking||!KEY)return 0;tracking=true;let added=0;
   try{
     const ws=trackList(opt.kind);if(!ws.length)return 0;
+    // first time (or after adding many wallets): check every wallet once so the feed fills right away
+    const unseen=ws.filter(w=>LASTSIG[w]===undefined);
+    if(!opt.all&&unseen.length>ws.length*0.3){opt={...opt,all:true,first:true};}
     let batch;
-    if(opt.all)batch=ws;
+    if(opt.all)batch=(opt.first?[...unseen,...ws.filter(w=>LASTSIG[w]!==undefined).slice(0,40)]:[...ws]).sort((a,b)=>(FAV.has(b)-FAV.has(a))||(lastOf(b)-lastOf(a)));
     else{const budget=Math.round(trackMode().b*(1+xLive().length*0.8));
       const hot=[...new Set([...[...FAV].filter(w=>ws.includes(w)),...[...ws].sort((a,b)=>lastOf(b)-lastOf(a)).slice(0,Math.ceil(budget/2))])].slice(0,budget);
       const hs=new Set(hot),rest=ws.filter(w=>!hs.has(w)),rot=[];
       for(let i=0;i<Math.max(0,budget-hot.length)&&i<rest.length;i++)rot.push(rest[(trCur+i)%rest.length]);
       trCur=rest.length?(trCur+rot.length)%rest.length:0;store.set('hs_trcur',trCur);batch=[...hot,...rot];}
-    const need=[...PENDSIG];PENDSIG=[];const owner={};need.forEach(([s,w])=>owner[s]=w);let done=0;
-    await pool(batch,Math.max(4,PAR()+3),async w=>{
-      try{const r=await rpc('getSignaturesForAddress',[w,{limit:15}]);
+    const need=[...PENDSIG];PENDSIG=[];const owner={};need.forEach(([s,w])=>owner[s]=w);let done=0,ok=0,pi=0,flushing=null,lastFlush=Date.now();
+    // parse new signatures in batches while the scan is still running, so trades show up right away
+    const flush=async(all)=>{
+      while(need.length-pi>=(all?1:40)||(need.length>pi&&(all||Date.now()-lastFlush>4000))){
+        const ch=need.slice(pi,pi+100);pi+=ch.length;lastFlush=Date.now();
+        const before=added;await parseSigs(ch,owner,n=>added+=n);
+        if(added>before){[...KTR,...STR].forEach(x=>{const t=tok(x.m);t.seen=Date.now();});saveKTR();saveSTR();loadMarket(true).then(()=>{renderSoft();loadImages();});renderSoft();}
+        if(!all)break;}};
+    Object.assign(TRK,{total:ws.length,first:!!opt.first,prog:'',err:''});
+    await pool(batch,TRACK_PAR(),async w=>{
+      try{const r=await rpc('getSignaturesForAddress',[w,{limit:15}]);if(Array.isArray(r))ok++;
         if(Array.isArray(r)&&r.length){const prev=LASTSIG[w];LASTSIG[w]=r[0].signature;const bt=r[0].blockTime||0;
           if(KOL[w])KACT[w]={t:Date.now(),last:Math.max(KACT[w]?.last||0,bt)};else if(SMART[w]){SMART[w].last=Math.max(SMART[w].last||0,bt);SMART[w].la=Date.now();}
           let fresh=[];for(const s of r){if(s.signature===prev)break;if(!s.err)fresh.push(s);}
           if(prev===undefined)fresh=fresh.filter(s=>Date.now()/1000-(s.blockTime||0)<86400).slice(0,6);   // first look at a wallet: last 24h only
           fresh.forEach(s=>{if(!owner[s.signature]){owner[s.signature]=w;need.push([s.signature,w]);}});}
-        else if(Array.isArray(r)&&KOL[w])KACT[w]={t:Date.now(),last:KACT[w]?.last||0};}catch(e){}
-      opt.onStep&&opt.onStep(++done,batch.length);},()=>IMPORTING||opt.stop?.());
-    for(let i=0;i<need.length;i+=100){const ch=need.slice(i,i+100);
-      try{const d=await enhPost('/v0/transactions?api-key='+encodeURIComponent(KEY),{transactions:ch.map(x=>x[0])});
-        (Array.isArray(d)?d:[]).forEach(tx=>{const w=owner[tx.signature];if(!w)return;if(KOL[w]?addTrade(tx,w):SMART[w]?addSTrade(tx,w):false)added++;});}
-      catch(e){PENDSIG.push(...ch.slice(0,300-PENDSIG.length));}}          // retried next round
+        else if(Array.isArray(r)){LASTSIG[w]=LASTSIG[w]||'';if(KOL[w])KACT[w]={t:Date.now(),last:KACT[w]?.last||0};}}catch(e){TRK.err=e.message;}
+      done++;opt.onStep&&opt.onStep(done,batch.length);
+      if(!flushing&&(need.length-pi>=40||(need.length>pi&&Date.now()-lastFlush>4000))){flushing=flush(false).finally(()=>flushing=null);}
+      if(batch.length>60&&(done%25===0||done===batch.length)){TRK.prog=`${opt.first?'First pass':'Checking'} ${done}/${batch.length} wallets`;showTrk();}},()=>opt.stop?.());
+    if(flushing)await flushing;await flush(true);
+    TRK.newSig=need.length;
     const ks=Object.keys(LASTSIG);if(ks.length>4000)ks.slice(0,ks.length-3000).forEach(k=>delete LASTSIG[k]);
     store.set('hs_lastsig',LASTSIG);store.set('hs_kact',KACT);saveKTR();saveSTR();saveSmart();
     if(added){[...KTR,...STR].forEach(x=>{const t=tok(x.m);t.seen=Date.now();});await loadMarket(true);loadImages();}
-    lastTrack=Date.now();
-  }finally{tracking=false;}
+    lastTrack=Date.now();Object.assign(TRK,{t:Date.now(),checked:done,added,prog:''});
+    if(!ok&&done)TRK.err=TRK.err||'No RPC answered — check your Helius key / extra RPCs in Settings';
+  }finally{tracking=false;showTrk();}
   if(added)renderSoft();
   return added;
 }
 const renderSoft=()=>{if($('sheet').classList.contains('hide')&&$('vDetail').classList.contains('hide'))renderList();};
-async function trackTick(){if(!visible()||!KEY)return;const n=await trackPoll();if(n)toastNew(n);}
-let newSeen=0;function toastNew(n){newSeen+=n;const el=$('cnt');if(el&&TAB!=='sw'&&TAB!=='kol')return;}
+async function trackTick(){if(!visible()||!KEY)return;await trackPoll();}
+// status line under the KOL / Smart toolbar: what the tracker did last round, and any problem
+function trkHTML(){
+  const xs=XR.map(x=>`${esc(new URL(x.u).hostname.split('.').slice(-2,-1)[0]||'rpc')} ${Date.now()>x.until?'✅':'⏸'}`).join(' · ');
+  const ago_=TRK.t?Math.round((Date.now()-TRK.t)/1000)+'s ago':'starting…';
+  return `<div class="trk ${TRK.err?'bad':''}" id="trk">${TRK.prog?`⏳ ${esc(TRK.prog)}`:`⏱ Tracking ${TRK.total||'…'} wallets · last round ${ago_} · checked ${TRK.checked} · <b>${TRK.added}</b> new trade${TRK.added===1?'':'s'}`}${xs?`<br><span class="note">RPCs: Helius ✅ · ${xs}</span>`:''}${TRK.err?`<br>⚠ ${esc(TRK.err)}`:''}</div>`;
+}
+function showTrk(){const el=$('trk');if(el)el.outerHTML=trkHTML();}
+setInterval(()=>{if(visible()&&!TRK.prog)showTrk();},5000);
 
 // ================= smart wallets =================
 // SMART[w] = {t, src, n?(name), x?(handle), tags?, last?(last trade, s), la?(activity checked ms), ev?:{t,wr,closed,wins,pnl,tokens,medHold,bigWins,bot,fresh}}
@@ -1026,7 +1068,7 @@ function renderSW(){
   const ver=all.filter(swVerified).length,act=all.filter(w=>SMART[w].last&&Date.now()/1000-SMART[w].last<ACTIVE_DAYS*86400).length;
   let h=`<div class="kbar"><div class="seg2" id="swMode">${[['trades','Trades'],['tokens','Tokens'],['favs','❤ '+([...FAV].filter(w=>SMART[w]).length||'')],['wallets','Wallets']].map(([k,l])=>`<button data-v="${k}" class="${f.mode===k?'on':''}">${l}</button>`).join('')}</div>
    <button class="fbtn" id="swScan">${smScanning?'⏹ Stop':'⟳ Scan '+all.filter(w=>swOK(w)&&!KOL[w]).length}</button><button class="fbtn" id="swAdd">＋ Add</button><button class="fbtn" id="swMan">🧠 Manage (${n})</button></div>
-   <div class="swsum"><span><b>${n}</b> saved</span><span><b class="up">${ver}</b> verified</span><span><b>${act}</b> active ${ACTIVE_DAYS}d</span><span><b>${STR.length}</b> trades 24h</span>${evRunning?`<span>checking stats ${evDone}/${evTotal}</span>`:''}</div>`;
+   <div class="swsum"><span><b>${n}</b> saved</span><span><b class="up">${ver}</b> verified</span><span><b>${act}</b> active ${ACTIVE_DAYS}d</span><span><b>${STR.length}</b> trades 24h</span>${evRunning?`<span>checking stats ${evDone}/${evTotal}</span>`:''}</div>`+trkHTML();
   if(!n){$('list').innerHTML=h+'<div class="empty">No smart wallets yet.<br><br>Tap <b>🧠 Manage → 🌐 Import</b> for public smart money (only wallets passing your trade / win-rate / balance rules are kept), or <b>🔎 From token</b> to pull good wallets out of any token\'s holders and traders.</div>';wireSW();return;}
   if(f.mode==='favs'){const fw=[...FAV].filter(w=>SMART[w]);h+=fw.length?favListHTML(w=>SMART[w]):'<div class="empty">No favorite smart wallets yet. Tap ♡ on any smart wallet.</div>';$('list').innerHTML=h;wireSW();if(fw.length)loadFavs();return;}
   if(f.mode==='wallets'){
@@ -1035,7 +1077,7 @@ function renderSW(){
     const vis=ws.slice(0,80).filter(w=>!KBAL[w]);if(vis.length)loadKolBal(vis).then(()=>renderSWSoft());
     $('list').innerHTML=h;wireSW();return;}
   const tr=swTrades();
-  if(!tr.length){h+=`<div class="empty">No smart wallet trades match yet.<br><br>Tap <b>⟳ Scan</b> to load recent trades from every smart wallet. New trades also arrive with every refresh.</div>`;$('list').innerHTML=h;wireSW();return;}
+  if(!tr.length){h+=`<div class="empty">No smart wallet trades in the last <b>${dur(f.win*60)}</b> match your filters${STR.length?` (${STR.length} stored — widen the time window or reset Filters)`:''}.<br><br>The tracker checks your smart wallets automatically; see the status above.</div>`;$('list').innerHTML=h;wireSW();return;}
   if(f.mode==='trades'){
     h+=tr.slice(0,120).map(x=>`<div class="kt" data-m="${x.m}"><span data-kw="${x.w}">${swAv(x.w)}</span>
      <div class="mid"><div class="nm"><b class="kn" data-kw="${x.w}">${esc(swName(x.w))}</b>${heart(x.w)}<span class="side ${x.side}">${x.side.toUpperCase()}</span><b class="${x.side==='buy'?'up':'dn'}">${SOLI}${num(x.sol,x.sol<1?2:1)}</b></div>
@@ -1233,7 +1275,7 @@ function importLeaderSheet(target){
       for(let i=0;i<list.length&&!lbStop;i+=100)await loadKolBal(list.slice(i,i+100).map(r=>r.w));
       list=list.filter(r=>{const b=KBAL[r.w]?.sol??r.bal;r.bal=b;if(Q.minBal!=null&&b!=null&&b<Q.minBal){no('SOL balance too low');return false;}return true;});
       // 3) wallet age + (Birdeye / missing win rate) on-chain win rate, until enough wallets are added
-      let done=0,added=0;const need=Q.max,cand=list;
+      let done=0,added=0;const need=Q.max,cand=list.slice(0,Math.max(need*4,40));
       await pool(cand,PLAN==='paid'?10:PAR()+2,async r=>{
         if(lbStop||added>=need)return;
         try{
@@ -1389,10 +1431,11 @@ function renderKol(){
   const f=FILT.kol,tr=kolTradesFiltered(),nK=Object.keys(KOL).length;
   $('c-kol').textContent=tr.length||'';
   let h=`<div class="kbar"><div class="seg2" id="kMode"><button data-v="trades" class="${f.mode==='trades'?'on':''}">Trades</button><button data-v="tokens" class="${f.mode==='tokens'?'on':''}">Tokens</button><button data-v="favs" class="${f.mode==='favs'?'on':''}">❤ ${FAV.size||''}</button></div>
-   <button class="fbtn" id="kScan">${kolScanning?'⏹ Stop':'⟳ Scan '+Object.keys(KOL).filter(kolOK).length+' active'}</button><button class="fbtn" id="kAddW">＋ Add wallet</button><button class="fbtn" id="kImp">🏆 Import</button><button class="fbtn" id="kMan">👑 Manage (${nK})</button></div>`;
+   <button class="fbtn" id="kScan">${kolScanning?'⏹ Stop':'⟳ Scan '+Object.keys(KOL).filter(kolOK).length+' active'}</button><button class="fbtn" id="kAddW">＋ Add wallet</button><button class="fbtn" id="kImp">🏆 Import</button><button class="fbtn" id="kMan">👑 Manage (${nK})</button></div>`+trkHTML();
   if(!nK){$('list').innerHTML=h+'<div class="empty">No KOLs saved. Add them in ⚙︎ Settings → KOL wallets.</div>';wireKol();return;}
   if(f.mode==='favs'){$('list').innerHTML=h+favHTML();wireKol();loadFavs();return;}
-  if(!tr.length){h+=`<div class="empty">No KOL trades match yet.<br><br>Tap <b>Scan all KOLs</b> to load recent trades (takes ~${Math.round(nK/LIMITS[PLAN].enh/60)+1} min on your plan). New trades also arrive with every refresh.</div>`;$('list').innerHTML=h;wireKol();return;}
+  if(!tr.length){h+=`<div class="empty">No KOL trades in the last <b>${dur(FILT.kol.win*60)}</b> match your filters${KTR.length?` (${KTR.length} trades stored — widen the time window or reset Filters)`:''}.<br><br>The tracker checks your wallets automatically; the status above shows its progress.</div>`;$('list').innerHTML=h;wireKol();return;}
+  if(false){h+=`<div class="empty">No KOL trades match yet.<br><br>Tap <b>Scan all KOLs</b> to load recent trades (takes ~${Math.round(nK/LIMITS[PLAN].enh/60)+1} min on your plan). New trades also arrive with every refresh.</div>`;$('list').innerHTML=h;wireKol();return;}
   if(f.mode==='trades'){
     h+=tr.slice(0,120).map(x=>`<div class="kt" data-m="${x.m}"><span data-kw="${x.w}">${kolAv(x.w,'kav')}</span>
      <div class="mid"><div class="nm"><b class="kn" data-kw="${x.w}">${esc(KOL[x.w])}</b>${heart(x.w)}<span class="side ${x.side}">${x.side.toUpperCase()}</span><b class="${x.side==='buy'?'up':'dn'}">${SOLI}${num(x.sol,x.sol<1?2:1)}</b></div>
@@ -1635,12 +1678,12 @@ async function refresh(manual){
   try{
     [...KTR,...STR].forEach(x=>{const t=tok(x.m);if(!t.seen)t.seen=Date.now();});
     await loadMarket();renderList();                              // saved trades show with fresh prices first
-    await trackPoll(manual?{}:{});                                // new trades from your wallets
+    trackPoll();                                                  // new trades (runs on its own; never blocks the refresh)
     lastRefresh=Date.now();saveTokCache();setLive(SET.auto?'on':'',new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',hour12:false}));
     renderList();loadImages();
-    if(!actRunning&&Object.keys(KOL).some(w=>!KACT[w]||Date.now()-KACT[w].t>12*3600e3))setTimeout(()=>checkKolActivity(),4000);
-    if(!sactRunning&&Object.keys(SMART).some(w=>!SMART[w].la||Date.now()-SMART[w].la>12*3600e3))setTimeout(()=>checkSmartActivity(),8000);
-    if(TAB==='sw'&&Object.keys(SMART).length)loadKolBal(Object.keys(SMART).slice(0,1000));
+    // wallets the tracker skips as inactive are re-checked twice a day (1 cheap call each), so a KOL who starts trading again comes back
+    if(!actRunning&&!tracking&&Object.keys(KOL).some(w=>!KACT[w]||Date.now()-KACT[w].t>12*3600e3))setTimeout(()=>{if(!tracking)checkKolActivity();},30000);
+    if(!sactRunning&&!tracking&&Object.keys(SMART).some(w=>!SMART[w].la||Date.now()-SMART[w].la>12*3600e3))setTimeout(()=>{if(!tracking)checkSmartActivity();},45000);
     if(!evRunning){const q=evQueue(Object.keys(SMART).filter(w=>!KOL[w]),PLAN==='paid'?4:1);if(q.length)evalSmart(q);}
   }catch(e){setLive('',e.message);if(/API key/.test(e.message))toast('Check your Helius key in settings');renderList();}
   busy=false;
