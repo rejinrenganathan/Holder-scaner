@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Holder Scan – add wallets from any site
 // @namespace    holder-scan
-// @version      1.0.0
+// @version      1.1.0
 // @description  Puts a ＋ button next to every Solana wallet on GMGN, Axiom, Pump.fun, Padre Terminal, Solscan, Birdeye, Kolscan, DexScreener… Tap ＋ on the wallets you want, then "Send" to add them to your Holder Scan tracker (with name and X handle when the page shows them).
 // @match        https://gmgn.ai/*
 // @match        https://*.gmgn.ai/*
@@ -43,6 +43,7 @@
   let Q = get('q', []);            // picked wallets waiting to be sent: {w,n,x}
   let SENT = new Set(get('sent', []));
   let MODE = get('mode', 'auto');  // auto = X handle → KOL, rest → Smart · smart = everything as Smart
+  let TO = get('to', 'chrome');    // which browser has your Holder Scan app: chrome (hand-off) or firefox (this browser)
   const inQ = w => Q.some(o => o.w === w);
 
   // ---------- styles ----------
@@ -73,13 +74,14 @@
     if (!Q.length && !showPage) { P.style.display = 'none'; return; }
     P.style.display = 'flex';
     P.innerHTML = `${showPage ? '<button class="pg" data-a="page">＋ Add this wallet</button>' : ''}` +
-      (Q.length ? `<span>📥 ${Q.length}</span><button class="md" data-a="mode">${MODE === 'smart' ? '🧠 All Smart' : '👑/🧠 Auto'}</button><button class="go" data-a="send">Send to Holder Scan</button><button class="x" data-a="clear">✕</button>` : '');
+      (Q.length ? `<span>📥 ${Q.length}</span><button class="md" data-a="mode">${MODE === 'smart' ? '🧠 All Smart' : '👑/🧠 Auto'}</button><button class="md" data-a="to">${TO === 'chrome' ? '→ Chrome' : '→ Firefox'}</button><button class="go" data-a="send">Send</button><button class="x" data-a="clear">✕</button>` : '');
   }
   P.addEventListener('click', e => {
     const a = e.target.closest('[data-a]'); if (!a) return; e.preventDefault(); e.stopPropagation();
     const act = a.dataset.a;
     if (act === 'page') { const w = pageWallet(); if (w) toggle({ w, n: pageName(), x: pageHandle() }); }
     if (act === 'mode') { MODE = MODE === 'smart' ? 'auto' : 'smart'; set('mode', MODE); }
+    if (act === 'to') { TO = TO === 'chrome' ? 'firefox' : 'chrome'; set('to', TO); }
     if (act === 'clear') { Q = []; set('q', Q); refreshButtons(); }
     if (act === 'send') send();
     drawPanel();
@@ -89,9 +91,17 @@
     if (!Q.length) return;
     const json = JSON.stringify(Q.map(o => [o.w, o.n || '', o.x || '']));
     const b64 = btoa(unescape(encodeURIComponent(json))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-    const url = APP + '#add=' + b64 + '&as=' + MODE + '&from=' + encodeURIComponent(location.hostname.replace(/^www\./, ''));
+    const qs = 'add=' + b64 + '&as=' + MODE + '&from=' + encodeURIComponent(location.hostname.replace(/^www\./, ''));
+    const url = APP + '#' + qs;
     Q.forEach(o => SENT.add(o.w)); set('sent', [...SENT].slice(-5000));
     Q = []; set('q', Q); refreshButtons(); drawPanel();
+    if (TO === 'chrome') {
+      // Android hand-off: open the app in Chrome (your installed Chrome app gets the wallets, not this Firefox copy)
+      const u = new URL(APP);
+      const intent = 'intent://' + u.host + u.pathname + '?' + qs + '#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=' + encodeURIComponent(APP + '?' + qs) + ';end';
+      const a = document.createElement('a'); a.href = intent; a.rel = 'noopener'; document.body.appendChild(a); a.click(); setTimeout(() => a.remove(), 1000);
+      return;
+    }
     try { GM_openInTab(url, { active: true }); } catch (e) { window.open(url, '_blank'); }
   }
   function toggle(o) {

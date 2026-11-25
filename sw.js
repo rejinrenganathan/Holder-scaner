@@ -1,5 +1,5 @@
 // Holder Scanner service worker: caches the app shell + SOL logo only, never live API data.
-const CACHE = 'hs-shell-v35';
+const CACHE = 'hs-shell-v37';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 const SOL_LOGOS = [
   'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png',
@@ -27,6 +27,11 @@ self.addEventListener('fetch', e => {
     return;
   }
   if (url.origin !== self.location.origin) return; // all market / chain data always goes live to the network
+  // wallets handed over from the browser add-on (…/?add=…): serve the app page itself, never send the long list to the server
+  if (e.request.mode === 'navigate' && /[?&]add=/.test(url.search)) {
+    e.respondWith(caches.match('./index.html').then(r => r || fetch('./index.html')));
+    return;
+  }
   // app shell: network first so updates show up, cache as offline fallback
   e.respondWith(
     fetch(e.request)

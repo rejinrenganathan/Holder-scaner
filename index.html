@@ -585,7 +585,12 @@ let TAB=(t=>['kol','sw','add'].includes(t)?t:'kol')(store.get('hs_tab','kol')),b
 
 // ================= network =================
 function throttle(getRps){let next=0;return async()=>{const gap=1000/getRps(),now=Date.now(),w=Math.max(0,next-now);next=Math.max(now,next)+gap;if(w)await sleep(w);};}
-const TH={r2:throttle(()=>5),bg:throttle(()=>LIMITS[PLAN].bg),rpc:throttle(()=>LIMITS[PLAN].rpc),enh:throttle(()=>LIMITS[PLAN].enh),ds:throttle(()=>4),gt:throttle(()=>0.45)};
+// request pacer with a fast lane: live trades (.hi) jump ahead of background checks
+function pthrottle(getRps){const qh=[],ql=[];let next=0,tm=null;
+  const go=()=>{tm=null;const r=qh.shift()||ql.shift();if(!r)return;next=Math.max(Date.now(),next)+1000/getRps();r();if(qh.length||ql.length)tm=setTimeout(go,Math.max(0,next-Date.now()));};
+  const pump=()=>{if(!tm)tm=setTimeout(go,Math.max(0,next-Date.now()));};
+  const f=()=>new Promise(r=>{ql.push(r);pump();});f.hi=()=>new Promise(r=>{qh.push(r);pump();});return f;}
+const TH={r2:throttle(()=>5),bg:throttle(()=>LIMITS[PLAN].bg),rpc:pthrottle(()=>{let sub=false;try{sub=LIVE.subbing>0;}catch(e){}return LIMITS[PLAN].rpc*(sub?0.5:1);}),enh:throttle(()=>LIMITS[PLAN].enh),ds:throttle(()=>4),gt:throttle(()=>0.45)};
 async function getJSON(url,opts,th){
   for(let i=0;i<4;i++){
     await (th||TH.ds)();let r;
@@ -1016,7 +1021,7 @@ async function trackPoll(opt){
 // ================= ⚡ Live stream: one WebSocket subscription per wallet (logsSubscribe) =================
 // Every tracked wallet is watched in real time instead of being polled, so 2,000+ wallets cost almost no credits.
 // A new signature is read with getTransaction (1 credit) and parsed here — no 100-credit batch parse needed.
-const LIVE={on:false,conns:[],subs:0,want:0,ev:0,trades:0,err:'',t:0};
+const LIVE={subbing:0,on:false,conns:[],subs:0,want:0,ev:0,trades:0,err:'',t:0};
 const WS_PER_CONN=500,WS_MAX_CONN=6;
 const liveList=()=>[...Object.keys(KOL),...Object.keys(SMART).filter(w=>!KOL[w])];   // live watching is cheap: every saved wallet, active or not
 function wsUrls(){const u=['wss://mainnet.helius-rpc.com/?api-key='+encodeURIComponent(KEY)];
@@ -1025,26 +1030,35 @@ function liveStop(){LIVE.conns.forEach(c=>{c.dead=true;try{c.ws.close();}catch(e
 function liveStart(){
   liveStop();if(!KEY||SET.live===false)return;
   const ws=liveList();LIVE.want=ws.length;LIVE.on=true;LIVE.err='';if(!ws.length)return;
-  const urls=wsUrls(),n=Math.min(WS_MAX_CONN,Math.max(1,Math.ceil(ws.length/WS_PER_CONN)));
-  for(let i=0;i<n;i++){const part=ws.slice(i*WS_PER_CONN,(i+1)*WS_PER_CONN);if(part.length)liveConn(urls[i%urls.length],part,i);}
-  if(ws.length>n*WS_PER_CONN)LIVE.err=`${ws.length-n*WS_PER_CONN} wallets over the live limit are polled instead`;
+  const P=perConn(),urls=wsUrls(),n=Math.min(WS_MAX_CONN,Math.max(1,Math.ceil(ws.length/P)));
+  // favorites and the most active wallets get the live slots first
+  ws.sort((a,b)=>(FAV.has(b)-FAV.has(a))||(lastOf(b)-lastOf(a)));
+  for(let i=0;i<n;i++){const part=ws.slice(i*P,(i+1)*P);if(part.length)liveConn(urls[i%urls.length],part,i);}
+  if(ws.length>n*P)LIVE.err=`${ws.length-n*P} less active wallets are checked by polling (live limit ${n*P})`;
 }
-const SUBP={};const subPace=url=>{const h=new URL(url.replace(/^wss:/,'https:')).hostname;return SUBP[h]||(SUBP[h]=throttle(()=>/helius/.test(h)?7:15));};
+// one pace per provider for all its connections; while Helius subscriptions run, the tracker's own Helius pace is halved so both stay under the free 10 req/s
+const SUBP={};const subPace=url=>{const h=new URL(url.replace(/^wss:/,'https:')).hostname;return SUBP[h]||(SUBP[h]=throttle(()=>/helius/.test(h)?(PLAN==='paid'?20:4):15));};
+let WS_CAP=store.get('hs_wscap',0);const perConn=()=>Math.min(WS_PER_CONN,WS_CAP||WS_PER_CONN);
 function liveConn(url,wallets,idx){
   const c={url,wallets,ws:null,byId:{},bySub:{},subs:0,dead:false,tries:(LIVE.conns[idx]?.tries)||0};LIVE.conns[idx]=c;
   let ws;try{ws=new WebSocket(url);}catch(e){LIVE.err='WebSocket blocked';return;}c.ws=ws;
-  ws.onopen=async()=>{c.tries=0;let id=1;
+  ws.onopen=async()=>{c.openAt=Date.now();let id=1;
     // subscribe gently: one shared pace per provider (free Helius ≈ 10 requests/s), however many connections are open
     const th=subPace(url);
-    for(const w of [...wallets]){if(c.dead||ws.readyState!==1)return;await th();if(c.dead||ws.readyState!==1)return;const i=id++;c.byId[i]=w;
-      ws.send(JSON.stringify({jsonrpc:'2.0',id:i,method:'logsSubscribe',params:[{mentions:[w]},{commitment:'confirmed'}]}));}
+    LIVE.subbing++;try{for(const w of [...wallets]){if(c.dead||ws.readyState!==1)return;await th();if(c.dead||ws.readyState!==1)return;const i=id++;c.byId[i]=w;
+      ws.send(JSON.stringify({jsonrpc:'2.0',id:i,method:'logsSubscribe',params:[{mentions:[w]},{commitment:'confirmed'}]}));}}finally{LIVE.subbing--;}
     c.ping=setInterval(()=>{try{ws.readyState===1&&ws.send(JSON.stringify({jsonrpc:'2.0',id:0,method:'getHealth'}));}catch(e){}},30e3);};
   ws.onmessage=e=>{let j;try{j=JSON.parse(e.data);}catch(x){return;}
     if(j.id&&c.byId[j.id]){if(j.result!=null){c.bySub[j.result]=c.byId[j.id];c.subs++;LIVE.subs++;}else if(j.error){LIVE.err='Live: '+(j.error.message||'subscribe refused');}delete c.byId[j.id];return;}
     if(j.method==='logsNotification'){const v=j.params?.result?.value,w=c.bySub[j.params?.subscription];if(!v||!w||v.err)return;LIVE.ev++;LIVE.t=Date.now();liveSig(v.signature,w);}};
-  ws.onclose=()=>{clearInterval(c.ping);LIVE.subs-=c.subs;c.subs=0;if(c.dead)return;
-    c.tries++;if(c.tries>5){LIVE.err='Live stream keeps closing on '+new URL(url.replace('wss:','https:')).hostname+' — polling instead';return;}
-    setTimeout(()=>{if(!c.dead&&visible())liveConn(url,wallets,idx);},Math.min(60e3,3000*c.tries));};
+  ws.onclose=ev=>{clearInterval(c.ping);const had=c.subs;LIVE.subs-=c.subs;c.subs=0;if(c.dead)return;
+    const quick=c.openAt&&Date.now()-c.openAt<120e3;
+    // the provider dropped us part-way through subscribing → it has a per-connection limit: remember it and re-plan smaller connections
+    if(quick&&had>=20&&had<wallets.length*0.95&&(!WS_CAP||had<WS_CAP)){WS_CAP=Math.max(50,Math.floor(had*0.9));store.set('hs_wscap',WS_CAP);
+      LIVE.err=`Provider closed the stream after ${had} wallets — using ${WS_CAP} per connection`;setTimeout(()=>{if(LIVE.on)liveStart();},8000);return;}
+    if(quick)c.tries++;else c.tries=0;c.down=true;
+    if(c.tries>4){LIVE.err=`Live stream keeps closing (code ${ev?.code||'?'}) — those wallets are polled instead`;return;}
+    setTimeout(()=>{if(!c.dead&&visible())liveConn(url,c.wallets,idx);},Math.min(60e3,4000*(c.tries+1)));};
   ws.onerror=()=>{};
 }
 // queue of new signatures → getTransaction → trade
@@ -1053,7 +1067,7 @@ function liveSig(sig,w){if(LSEEN.has(sig+w))return;LSEEN.add(sig+w);if(LSEEN.siz
   if(KOL[w])KACT[w]={t:Date.now(),last:Date.now()/1000};else if(SMART[w])SMART[w].last=Date.now()/1000;
   if(LQ.length<500)LQ.push([sig,w]);lqPump();}
 function lqPump(){while(lqRun<4&&LQ.length){const [s,w]=LQ.shift();lqRun++;
-  (async()=>{let tx=null;for(let k=0;k<3&&!tx;k++){try{tx=await rpc('getTransaction',[s,{encoding:'jsonParsed',maxSupportedTransactionVersion:0,commitment:'confirmed'}]);}catch(e){}if(!tx)await sleep(1500);}
+  (async()=>{let tx=null;for(let k=0;k<3&&!tx;k++){try{tx=await heliusRpc('getTransaction',[s,{encoding:'jsonParsed',maxSupportedTransactionVersion:0,commitment:'confirmed'}],TH.rpc.hi);}catch(e){}if(!tx)await sleep(1500);}
     if(tx){const e=rawToEnh(tx,s);if(e&&(KOL[w]?addTrade(e,w):SMART[w]?addSTrade(e,w):false)){LIVE.trades++;liveDirty();}}})().finally(()=>{lqRun--;lqPump();});}}
 // a plain RPC transaction → the same shape the Helius parser gives (token + SOL balance changes of the wallet)
 function rawToEnh(tx,sig){
@@ -1088,7 +1102,10 @@ function liveSync(){
 let lsT=null;const liveResync=()=>{clearTimeout(lsT);lsT=setTimeout(liveSync,3000);};
 setInterval(()=>{if(LIVE.on&&visible())liveSync();},60e3);
 const liveOK=()=>LIVE.on&&LIVE.subs>0&&LIVE.subs>=LIVE.want*0.8;
-document.addEventListener('visibilitychange',()=>{if(!visible()||!KEY||SET.live===false)return;if(!LIVE.conns.some(c=>c.ws&&c.ws.readyState===1))liveStart();});
+document.addEventListener('visibilitychange',()=>{if(!visible()||!KEY||SET.live===false)return;
+  if(!LIVE.conns.some(c=>c&&c.ws&&c.ws.readyState<=1)){liveStart();return;}
+  // reopen only the connections the phone closed while the screen was off
+  LIVE.conns.forEach((c,i)=>{if(c&&!c.dead&&c.ws&&c.ws.readyState>=2&&c.tries<=4)liveConn(c.url,c.wallets,i);});});
 const renderSoft=()=>{if($('sheet').classList.contains('hide')&&$('vDetail').classList.contains('hide'))renderList();};
 async function trackTick(){if(!visible()||!KEY||!$('vDetail').classList.contains('hide'))return;if(liveOK()&&Date.now()-lastTrack<60e3)return;await trackPoll();}
 // status line under the KOL / Smart toolbar: what the tracker did last round, and any problem
@@ -1220,8 +1237,8 @@ async function smartScanAll(){
   try{await trackPoll({all:true,user:true,kind:'smart',stop:()=>smStop,onStep:(d,n)=>{if(TAB==='sw'&&(d%10===0||d===n))$('cnt').textContent=`scanning smart wallets ${d}/${n}`;}});}
   finally{smScanning=false;smStop=false;$('cnt').textContent='';renderSWSoft();}
 }
-function renderSWSoft(){if(TAB==='sw'&&$('sheet').classList.contains('hide')&&$('vDetail').classList.contains('hide'))renderSW();}
-function renderSW(){
+function renderSWSoft(){if(TAB==='sw'&&$('sheet').classList.contains('hide')&&$('vDetail').classList.contains('hide'))renderFeed('sw');}
+function renderSW(){if(TAB==='kol'||TAB==='sw'){renderFeed(TAB);return;}
   const f=FILT.sw,all=Object.keys(SMART),n=all.length;$('c-sw').textContent=n||'';
   const ver=all.filter(swVerified).length,act=all.filter(w=>SMART[w].last&&Date.now()/1000-SMART[w].last<ACTIVE_DAYS*86400).length;
   let h=`<div class="kbar"><div class="seg2" id="swMode">${[['trades','Trades'],['tokens','Tokens'],['favs','❤ '+([...FAV].filter(w=>SMART[w]).length||'')],['wallets','Wallets']].map(([k,l])=>`<button data-v="${k}" class="${f.mode===k?'on':''}">${l}</button>`).join('')}</div>
@@ -1689,7 +1706,7 @@ async function loadPositions(pairs){
   const items=[...posQ].slice(0,40);items.forEach(k=>posQ.delete(k));
   let changed=0;await pool(items,Math.max(4,PAR()),async k=>{const [w,m]=k.split('|');try{const r=await rpcBg('getTokenAccountsByOwner',[w,{mint:m},{encoding:'jsonParsed'}]);
     const bal=(r?.value||[]).reduce((a,x)=>a+(+x.account?.data?.parsed?.info?.tokenAmount?.uiAmount||0),0);POSBAL[k]={bal,t:Date.now()};changed++;}catch(e){POSBAL[k]={bal:null,t:Date.now()};}});
-  posRunning=false;if(changed&&TAB==='sw')renderSWSoft();if(changed&&TAB==='kol'&&$('vDetail').classList.contains('hide')&&$('sheet').classList.contains('hide'))renderKol();
+  posRunning=false;if(changed&&TAB==='sw')renderSWSoft();if(changed&&TAB==='kol'&&$('vDetail').classList.contains('hide')&&$('sheet').classList.contains('hide'))renderFeed('kol');
 }
 function kolIni(w){return esc((KOL[w]||'?').replace(/[^A-Za-z0-9]/g,'').slice(0,2).toUpperCase()||'K');}
 // bonding status: 🟢 green ring + % while on the launchpad curve, 🟡 golden ring once migrated to a DEX
@@ -1699,7 +1716,7 @@ function tokMini(m){const t=TOK.get(m);const sym=t?.sym&&t.pair?t.sym:(t?.dsym||
   const b=bondInfo(t),img=t?.img||IMG[m];
   const pic=`<div class="tav ${b?b.mig?'gold':'grn':''}" style="--bp:${b?(b.mig?100:b.p??0):0}">${img?`<img src="${esc(img)}" loading="lazy" alt="" onerror="${t?.dimg&&t.dimg!==img?`if(!this.dataset.f){this.dataset.f=1;this.src='${esc(t.dimg)}'}else{this.outerHTML='<div class=ini>${ini}</div>'}`:`this.outerHTML='<div class=ini>${ini}</div>'`}">`:`<div class="ini">${ini}</div>`}</div>`;
   return `<div class="ktok"><div><b>${esc(sym)}</b><div class="note">${t&&t.pair?'MC '+usd(t.mc):'loading…'}</div>${bondPill(t)}</div>${pic}</div>`;}
-function renderKol(){
+function renderKol(){if(TAB==='kol'||TAB==='sw'){renderFeed(TAB);return;}
   const f=FILT.kol,tr=kolTradesFiltered(),nK=Object.keys(KOL).length;
   $('c-kol').textContent=tr.length||'';
   let h=`<div class="kbar"><div class="seg2" id="kMode"><button data-v="trades" class="${f.mode==='trades'?'on':''}">Trades</button><button data-v="tokens" class="${f.mode==='tokens'?'on':''}">Tokens</button><button data-v="favs" class="${f.mode==='favs'?'on':''}">❤ ${FAV.size||''}</button></div>
@@ -2149,15 +2166,42 @@ const wName=w=>KOL[w]||SMART[w]?.n||short(w);
 const wAv=(w,cls)=>KOL[w]?kolAv(w,cls):swAv(w).replace('kav sav',(cls||'kav')+' sav');
 function feedRow(x,kind){
   const sub=KOL[x.w]?(KOLX[x.w]?'@'+esc(KOLX[x.w])+' · ':''):'';
-  return `<div class="kt" data-m="${x.m}"><span data-kw="${x.w}">${wAv(x.w,'kav')}</span>
+  return `<div class="kt" data-m="${x.m}" data-k="${x.s||''}${x.w}"><span data-kw="${x.w}">${wAv(x.w,'kav')}</span>
    <div class="mid"><div class="nm"><b class="kn" data-kw="${x.w}">${esc(wName(x.w))}</b>${heart(x.w)}<span class="side ${x.side}">${x.side.toUpperCase()}</span><b class="${x.side==='buy'?'up':'dn'}">${SOLI}${num(x.sol,x.sol<1?2:1)}</b></div>
    <div class="sub">${sub}${balTxt(x.w)?'bal '+balTxt(x.w)+' · ':''}${ago(x.ts)}</div>${x.side==='buy'?`<div class="sub" style="margin-top:4px">${posChip(kolPos(x.w,x.m))}</div>`:''}</div>${tokMini(x.m)}</div>`;
 }
 function tokGroupCard(g){
   const t=TOK.get(g.m),hold=[...g.buyers].filter(w=>/^holding|partial/.test(kolPos(w,g.m).st)).length;
-  return `<div class="tc" data-m="${g.m}">${t&&t.pair?`<div class="r1">${avatar(t)}<div class="mid"><div class="nm"><b>${esc(t.sym)}</b><span class="full">${esc(t.name)}</span></div><div class="sub"><span class="age">${dur(t.created?(Date.now()-t.created)/1000:null)}</span>·<span>${short(g.m)}</span>${bondPill(t)}</div></div><div class="rt"><div class="mc">MC <b>${usd(t.mc)}</b></div><div class="chg ${(t.chg.h1||0)>=0?'up':'dn'}">${pct(t.chg.h1)} <span style="color:var(--mut);font-weight:500">1h</span></div></div></div>`:`<b>${short(g.m)}</b>`}
+  return `<div class="tc" data-m="${g.m}" data-k="g${g.m}">${t&&t.pair?`<div class="r1">${avatar(t)}<div class="mid"><div class="nm"><b>${esc(t.sym)}</b><span class="full">${esc(t.name)}</span></div><div class="sub"><span class="age">${dur(t.created?(Date.now()-t.created)/1000:null)}</span>·<span>${short(g.m)}</span>${bondPill(t)}</div></div><div class="rt"><div class="mc">MC <b>${usd(t.mc)}</b></div><div class="chg ${(t.chg.h1||0)>=0?'up':'dn'}">${pct(t.chg.h1)} <span style="color:var(--mut);font-weight:500">1h</span></div></div></div>`:`<b>${short(g.m)}</b>`}
    <div class="r3"><span class="bd ok">${g.buyers.size} bought</span><span class="bd ok">💎 ${hold} holding</span>${g.sellers.size?`<span class="bd bad">${g.sellers.size} sold</span>`:''}<span class="bd">${SOLI}${num(g.bin,1)} in</span>${g.sout?`<span class="bd">${SOLI}${num(g.sout,1)} out</span>`:''}<span class="bd">last ${ago(g.last)}</span></div>
    <div class="kpl">${[...g.buyers].slice(0,8).map(w=>{const p=kolPos(w,g.m);return `<div class="kpr" data-kw="${w}">${wAv(w,'wav')}<b>${esc(wName(w))}</b>${posChip(p,true)}<span class="note" style="margin-left:auto">${SOLI}${num(p.inSol,1)}</span></div>`;}).join('')}</div></div>`;
+}
+// keyed DOM update: cards are matched by key and only what changed inside them is touched
+// (pictures stay loaded, nothing jumps, scroll stays put) — like GMGN / Axiom live lists
+function morph(o,n){
+  if(o.nodeType!==n.nodeType||o.nodeName!==n.nodeName){o.replaceWith(n);return;}
+  if(o.nodeType===3){if(o.nodeValue!==n.nodeValue)o.nodeValue=n.nodeValue;return;}
+  if(o.nodeType!==1)return;
+  // an <img> showing the same picture is left alone (its onerror fallback may have changed it — don't undo that)
+  if(o.nodeName==='IMG'){const ns=n.getAttribute('src');if(o.__src===undefined)o.__src=o.getAttribute('src');if(o.__src!==ns){n.__src=ns;o.replaceWith(n);}return;}
+  for(const at of [...o.attributes])if(!n.hasAttribute(at.name))o.removeAttribute(at.name);
+  for(const at of [...n.attributes])if(o.getAttribute(at.name)!==at.value)o.setAttribute(at.name,at.value);
+  const oc=[...o.childNodes],nc=[...n.childNodes],m=Math.min(oc.length,nc.length);
+  for(let i=0;i<m;i++)morph(oc[i],nc[i]);
+  for(let i=m;i<oc.length;i++)oc[i].remove();
+  for(let i=m;i<nc.length;i++)o.appendChild(nc[i]);
+}
+function patchList(box,html){
+  const tpl=document.createElement('template');tpl.innerHTML=html;const nu=[...tpl.content.children];
+  const key=n=>n.dataset.k||n.id||n.className;
+  tpl.content.querySelectorAll('img').forEach(i=>i.__src=i.getAttribute('src'));
+  if(box.dataset.feed!=='1'){box.replaceChildren(...nu);nu.forEach(n=>n.__h=n.outerHTML);box.dataset.feed='1';return;}
+  const old=new Map();[...box.children].forEach(o=>{const k=key(o);if(!old.has(k))old.set(k,o);});
+  const out=nu.map(n=>{const h=n.outerHTML,o=old.get(key(n));
+    if(o&&o.nodeName===n.nodeName){old.delete(key(n));if(o.__h!==h){morph(o,n);o.__h=h;}return o;}
+    n.__h=h;return n;});
+  const cur=[...box.children];if(cur.length===out.length&&cur.every((c,i)=>c===out[i]))return;
+  box.replaceChildren(...out);
 }
 function renderFeed(kind){
   const f=FL[kind],n=Object.keys(kind==='kol'?KOL:SMART).filter(w=>isKind(kind,w)).length;
@@ -2168,7 +2212,7 @@ function renderFeed(kind){
   else if(f.mode==='tokens')h+=feedTokens(tr,kind).slice(0,60).map(tokGroupCard).join('');
   else{if(f.sort==='wal'){const n={};tr.forEach(x=>{(n[x.m]=n[x.m]||new Set()).add(x.w);});tr.sort((p,q)=>n[q.m].size-n[p.m].size||q.ts-p.ts);}
     h+=tr.slice(0,150).map(x=>feedRow(x,kind)).join('')+(tr.length>150?`<div class="note" style="text-align:center;padding:10px">Showing 150 of ${tr.length} trades</div>`:'');}
-  $('list').innerHTML=h;wireFeed(kind);
+  patchList($('list'),h);wireFeed(kind);
   const pos=[...new Set(tr.slice(0,80).filter(x=>x.side==='buy').map(x=>x.w+'|'+x.m))];if(pos.length)loadPositions(pos);
   const ws=[...new Set(tr.slice(0,80).map(x=>x.w))];if(ws.some(w=>!KBAL[w]))loadKolBal(ws).then(()=>{if(TAB===kind)renderSoft();});
 }
@@ -2305,10 +2349,10 @@ function renderAdd(){
 // ================= 🌐 Wallets sent from GMGN / Axiom / Pump.fun / Terminal (Holder Scan userscript) =================
 // The userscript opens  …/#add=<base64 JSON [[wallet,name,handle],…]>&as=auto|smart&from=site
 function readAddHash(){
-  const h=location.hash||'';const m=h.match(/[#&]add=([^&]+)/);if(!m)return null;
+  const h=(location.hash||'')+'&'+(location.search||'').replace(/^\?/,'&');const m=h.match(/[#&?]add=([^&#]+)/);if(!m)return null;
   let arr=null;try{const b=m[1].replace(/-/g,'+').replace(/_/g,'/');arr=JSON.parse(decodeURIComponent(escape(atob(b+'==='.slice((b.length+3)%4)))));}catch(e){arr=null;}
-  const as=(h.match(/[#&]as=(\w+)/)||[])[1]==='smart'?'smart':'auto',from=decodeURIComponent((h.match(/[#&]from=([^&]+)/)||[])[1]||'');
-  try{history.replaceState(null,'',location.pathname+location.search);}catch(e){}
+  const as=(h.match(/[#&?]as=(\w+)/)||[])[1]==='smart'?'smart':'auto',from=decodeURIComponent((h.match(/[#&?]from=([^&#]+)/)||[])[1]||'');
+  try{history.replaceState(null,'',location.pathname);}catch(e){}
   return Array.isArray(arr)?{arr,as,from}:{err:true};
 }
 function applyAdd(p){
@@ -2335,7 +2379,13 @@ function exportBackup(){const o={};for(let i=0;i<localStorage.length;i++){const 
   a.href=URL.createObjectURL(blob);a.download='holder-scan-backup-'+new Date().toISOString().slice(0,10)+'.json';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},2000);
   toast('Backup saved to Downloads — it contains your Helius key, keep it private');}
 function importBackup(file){const rd=new FileReader();rd.onload=()=>{try{const j=JSON.parse(rd.result);if(j.app!=='holder-scan'||!j.data)throw 0;
-    Object.entries(j.data).forEach(([k,v])=>{if(/^hs_/.test(k))localStorage.setItem(k,v);});toast('Backup restored — reloading…');setTimeout(()=>location.reload(),900);}catch(e){toast('That is not a Holder Scan backup file');}};rd.readAsText(file);}
+    // wallets are MERGED (nothing you have here is lost); key / settings only filled in when this browser has none
+    let added=0;Object.entries(j.data).forEach(([k,v])=>{if(!/^hs_/.test(k))return;
+      if(['hs_kol','hs_kolx','hs_smart','hs_xav'].includes(k)){let cur={},inc={};try{cur=JSON.parse(localStorage.getItem(k)||'{}')||{};inc=JSON.parse(v)||{};}catch(e){}
+        if(k==='hs_smart')Object.keys(inc).forEach(w=>{if(!cur[w]&&!KOL[w])added++;});if(k==='hs_kol')Object.keys(inc).forEach(w=>{if(!cur[w])added++;});
+        localStorage.setItem(k,JSON.stringify({...inc,...cur}));}
+      else if(localStorage.getItem(k)==null)localStorage.setItem(k,v);});
+    toast(`Backup merged: ${added} new wallets — reloading…`);setTimeout(()=>location.reload(),900);}catch(e){toast('That is not a Holder Scan backup file');}};rd.readAsText(file);}
 const SITES=[['GMGN','https://gmgn.ai/?chain=sol'],['Axiom','https://axiom.trade/'],['Pump.fun','https://pump.fun/'],['Terminal','https://trade.padre.gg/']];
 const isFirefox=/Firefox\//.test(navigator.userAgent);
 function webAddCard(){
@@ -2347,8 +2397,8 @@ function webAddCard(){
      <li>Install <b>Firefox</b> from the Play Store. Chrome on Android can't run add-ons, Firefox can.</li>
      <li>In Firefox: menu ⋮ → <b>Add-ons</b> → install <b>Tampermonkey</b>.</li>
      <li>In Firefox, open <a href="holder-scan-add.user.js" target="_blank" rel="noopener"><b>holder-scan-add.user.js</b></a> and tap <b>Install</b>.</li>
-     <li>Open this app in Firefox (same address), menu ⋮ → <b>Add to Home screen</b>.${isFirefox?'':' Then move your data: tap <b>Export backup</b> below here, and <b>Import backup</b> in the Firefox copy.'}</li>
-     <li>Use the site buttons above from the Firefox app. Logins (Telegram, Google, Phantom, email) work like normal Firefox.</li>
+     <li>Browse GMGN / Axiom / Pump.fun / Terminal <b>in Firefox</b> (log in there as usual). Tap ＋ on wallets, then <b>Send</b>.</li>
+     <li>The bar's <b>→ Chrome</b> button sends the wallets to this Chrome app (Firefox may ask "Open in Chrome?" — tap Open). Switch it to <b>→ Firefox</b> only if you use the app inside Firefox.</li>
     </ol>
     <div class="note">If no ＋ appears: Tampermonkey icon → make sure the script is <b>enabled</b>, and allow Tampermonkey to run on all sites.</div>
    </details>
