@@ -947,7 +947,8 @@ async function loadKolBal(ws){
   if(SOLUSD)store.set('hs_solusd',SOLUSD);
 }
 const balTxt=w=>KBAL[w]&&KBAL[w].sol!=null?SOLI+num(KBAL[w].sol,KBAL[w].sol<10?2:1):'';
-function saveKTR(){const cut=Date.now()/1000-86400;KTR=KTR.filter(x=>x.ts>cut&&KOL[x.w]).sort((a,b)=>b.ts-a.ts).slice(0,800);store.set('hs_ktr',KTR);}
+const KEEP_S=48*3600;   // trades are kept for 48 hours
+function saveKTR(){const cut=Date.now()/1000-KEEP_S;KTR=KTR.filter(x=>x.ts>cut&&KOL[x.w]).sort((a,b)=>b.ts-a.ts).slice(0,5000);store.set('hs_ktr',KTR);}
 async function txRecent(addr,limit){return enhGet('/v0/addresses/'+addr+'/transactions?api-key='+encodeURIComponent(KEY)+'&limit='+limit);}
 async function kolPoll(n,onStep){
   const ws=Object.keys(KOL).filter(kolOK).sort((a,b)=>(KACT[b]?.last||0)-(KACT[a]?.last||0));if(!ws.length)return 0;
@@ -1028,7 +1029,7 @@ async function trackPoll(opt){
         if(Array.isArray(r)&&r.length){const prev=LASTSIG[w];/*tracker*/LASTSIG[w]=r[0].signature;const bt=r[0].blockTime||0;
           if(KOL[w])KACT[w]={t:Date.now(),last:Math.max(KACT[w]?.last||0,bt)};else if(SMART[w]){SMART[w].last=Math.max(SMART[w].last||0,bt);SMART[w].la=Date.now();}
           let fresh=[];for(const s of r){if(s.signature===prev)break;if(!s.err)fresh.push(s);}
-          if(prev===undefined)fresh=fresh.filter(s=>Date.now()/1000-(s.blockTime||0)<86400).slice(0,6);   // first look at a wallet: last 24h only
+          if(prev===undefined)fresh=fresh.filter(s=>Date.now()/1000-(s.blockTime||0)<KEEP_S).slice(0,8);   // first look at a wallet: last 48h only
           fresh.forEach(s=>{if(!owner[s.signature]){owner[s.signature]=w;need.push([s.signature,w]);}});}
         else if(Array.isArray(r)){LASTSIG[w]=LASTSIG[w]||'';if(KOL[w])KACT[w]={t:Date.now(),last:KACT[w]?.last||0};}}catch(e){TRK.err=e.message;}
       done++;opt.onStep&&opt.onStep(done,batch.length);
@@ -1161,7 +1162,7 @@ function addSTrade(tx,w){
   if(SMART[w]&&tx.timestamp>(SMART[w].last||0))SMART[w].last=tx.timestamp;
   const t=tok(tr.m);t.seen=Date.now();if(swOK(w))t.act.sm.add(w);return true;
 }
-function saveSTR(){const cut=Date.now()/1000-86400;STR=STR.filter(x=>x.ts>cut&&SMART[x.w]).sort((a,b)=>b.ts-a.ts).slice(0,6000);store.set('hs_str',STR);}
+function saveSTR(){const cut=Date.now()/1000-KEEP_S;STR=STR.filter(x=>x.ts>cut&&SMART[x.w]).sort((a,b)=>b.ts-a.ts).slice(0,5000);store.set('hs_str',STR);}
 async function smartPoll(n){
   if(IMPORTING)return 0;
   const now=Date.now()/1000,ws=Object.keys(SMART).filter(w=>swOK(w)&&!KOL[w]&&(!SMART[w].last||now-SMART[w].last<ACTIVE_DAYS*86400)).sort((a,b)=>(SMART[b].last||0)-(SMART[a].last||0));if(!ws.length)return 0;
@@ -2344,10 +2345,10 @@ function feedFilterSheet(kind){
      <div class="rl" style="margin-top:14px">Token status</div><div class="stg2" id="ffStg"><button data-v="mig" class="${d.stage==='mig'?'on':''}">🎓 Migrated</button><button data-v="curve" class="${d.stage==='curve'?'on':''}">💊 Not Migrated</button></div>
      <div class="sw"><span>💎 Still holding only <span class="note">(buys the wallet hasn't sold)</span></span><input type="checkbox" id="ffHold" ${d.hold?'checked':''}></div>
      <div class="sw"><span>❤ Favorites only</span><input type="checkbox" id="ffFav" ${d.fav?'checked':''}></div>
-     <div class="rl" style="margin-top:14px">Time window</div>${chips('ffWin',d.win,[[15,'15m'],[60,'1h'],[240,'4h'],[720,'12h'],[1440,'24h']])}
+     <div class="rl" style="margin-top:14px">Time window</div>${chips('ffWin',d.win,[[15,'15m'],[60,'1h'],[240,'4h'],[720,'12h'],[1440,'24h'],[2880,'48h']])}
      ${row('sol','Trade size','SOL')}${row('mc','Token market cap ($K)','K')}
      ${kind==='alpha'?`<div class="rr"><div class="rl">Same token bought by at least</div><div class="rg"><label class="ri"><input type="number" inputmode="numeric" id="ffMk" placeholder="0" value="${v(d.minK)}"><em>KOL</em></label><span class="dash">+</span><label class="ri"><input type="number" inputmode="numeric" id="ffMs" placeholder="0" value="${v(d.minS)}"><em>smart</em></label></div></div>`:''}
-     <div class="note" style="margin-top:10px">Trades are kept for 24 hours. "Still holding" uses the wallet's real token balance once loaded (🟢 / 🟡 chips), otherwise its tracked buys and sells.</div></div>
+     <div class="note" style="margin-top:10px">Trades are kept for 48 hours. "Still holding" uses the wallet's real token balance once loaded (🟢 / 🟡 chips), otherwise its tracked buys and sells.</div></div>
      <div class="fbar"><button class="btn gh" id="ffCancel">Cancel</button><button class="btn wh" id="ffOk">Apply</button></div>`);
     const rd=()=>{$('sheet').querySelectorAll('input[data-fk]').forEach(el=>{d[el.dataset.fk][+el.dataset.i]=el.value===''?null:+el.value;});d.hold=$('ffHold').checked;d.fav=$('ffFav').checked;if($('ffMk')){d.minK=+$('ffMk').value||null;d.minS=+$('ffMs').value||null;}};
     [['ffSort','sort'],['ffSide','side'],['ffWin','win',1]].forEach(([id,k,isN])=>$(id).querySelectorAll('button').forEach(b=>b.onclick=()=>{rd();d[k]=isN?+b.dataset.v:b.dataset.v;if(k==='side'&&d.side==='sell')d.hold=false;draw();}));
