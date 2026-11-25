@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Holder Scan – add wallets from any site
 // @namespace    holder-scan
-// @version      1.1.0
+// @version      1.1.1
 // @description  Puts a ＋ button next to every Solana wallet on GMGN, Axiom, Pump.fun, Padre Terminal, Solscan, Birdeye, Kolscan, DexScreener… Tap ＋ on the wallets you want, then "Send" to add them to your Holder Scan tracker (with name and X handle when the page shows them).
 // @match        https://gmgn.ai/*
 // @match        https://*.gmgn.ai/*
@@ -143,7 +143,7 @@
     for (const t of cands) {
       if (!t || t.length < 2 || t.length > 32) continue;
       if (looksAddr(t) || (w && t.startsWith(w.slice(0, 4)) && t.endsWith(w.slice(-4)))) continue;
-      if (/^[-+$◎~<>]?[\d.,]+\s*[%KMBkmb]?$/.test(t) || /^\$|%$|^\d+[smhdw]$|ago$/i.test(t)) continue;
+      if (/^[-+]?\s*[$◎~<>]?\s*[\d.,]+\s*[%KMBkmb]?$/.test(t) || /^[-+]?\$|%$|^\d+[smhdw]$|ago$/i.test(t)) continue;
       if (/^(buy|sell|copy|follow|track|share|holder|holders|trader|traders|top|pnl|profit|bought|sold|balance|hold|holding|＋|✓)$/i.test(t)) continue;
       return t;
     }

@@ -1047,8 +1047,7 @@ async function trackPoll(opt){
 const LIVE={subbing:0,on:false,conns:[],subs:0,want:0,ev:0,trades:0,err:'',t:0};
 const WS_PER_CONN=500,WS_MAX_CONN=6;
 const liveList=()=>[...Object.keys(KOL),...Object.keys(SMART).filter(w=>!KOL[w])];   // live watching is cheap: every saved wallet, active or not
-function wsUrls(){const u=['wss://mainnet.helius-rpc.com/?api-key='+encodeURIComponent(KEY)];
-  (SET.rpcs||[]).forEach(r=>{if(/^https:\/\//.test(r)&&!/helius/.test(r))u.push(r.replace(/^https:/,'wss:'));});return u;}
+function wsUrls(){return ['wss://mainnet.helius-rpc.com/?api-key='+encodeURIComponent(KEY)];}   // Alchemy & co. don't support logsSubscribe on Solana
 function liveStop(){LIVE.conns.forEach(c=>{c.dead=true;try{c.ws.close();}catch(e){}});LIVE.conns=[];LIVE.subs=0;LIVE.on=false;}
 function liveStart(){
   liveStop();if(!KEY||SET.live===false)return;
@@ -1072,7 +1071,7 @@ function liveConn(url,wallets,idx){
       ws.send(JSON.stringify({jsonrpc:'2.0',id:i,method:'logsSubscribe',params:[{mentions:[w]},{commitment:'confirmed'}]}));}}finally{LIVE.subbing--;}
     c.ping=setInterval(()=>{try{ws.readyState===1&&ws.send(JSON.stringify({jsonrpc:'2.0',id:0,method:'getHealth'}));}catch(e){}},30e3);};
   ws.onmessage=e=>{let j;try{j=JSON.parse(e.data);}catch(x){return;}
-    if(j.id&&c.byId[j.id]){if(j.result!=null){c.bySub[j.result]=c.byId[j.id];c.subs++;LIVE.subs++;}else if(j.error){LIVE.err='Live: '+(j.error.message||'subscribe refused');}delete c.byId[j.id];return;}
+    if(j.id&&c.byId[j.id]){if(j.result!=null){c.bySub[j.result]=c.byId[j.id];c.subs++;LIVE.subs++;}else if(j.error){if(/not found|not supported|unknown method/i.test(j.error.message||'')&&!/helius/.test(c.url)){c.dead=true;try{ws.close();}catch(e){}LIVE.conns[idx]=null;setTimeout(()=>liveSync(),2000);}else LIVE.err='Live: '+(j.error.message||'subscribe refused');}delete c.byId[j.id];return;}
     if(j.method==='logsNotification'){const v=j.params?.result?.value,w=c.bySub[j.params?.subscription];if(!v||!w||v.err)return;LIVE.ev++;LIVE.t=Date.now();liveSig(v.signature,w);}};
   ws.onclose=ev=>{clearInterval(c.ping);const had=c.subs;LIVE.subs-=c.subs;c.subs=0;if(c.dead)return;
     const quick=c.openAt&&Date.now()-c.openAt<120e3;
@@ -2191,7 +2190,8 @@ function feedTokens(trades,kind){
     if(x.side==='buy'){g.buyers.add(x.w);g.bin+=x.sol;}else{g.sellers.add(x.w);g.sout+=x.sol;}g.first=Math.min(g.first,x.ts);g.last=Math.max(g.last,x.ts);});
   return Object.values(by).sort(groupCmp(FL[kind].sort));
 }
-const wName=w=>KOL[w]||SMART[w]?.n||short(w);
+const badName=n=>!n||/^[-+]?\s*[$◎~<>]?\s*[\d.,]+\s*[%KMBkmb]?$/.test(String(n).trim())||/^\d+[smhdw]$/.test(String(n).trim());
+const wName=w=>{const n=KOL[w]||SMART[w]?.n;return badName(n)?(KOLX[w]?'@'+KOLX[w]:short(w)):n;};
 const wAv=(w,cls)=>KOL[w]?kolAv(w,cls):swAv(w).replace('kav sav',(cls||'kav')+' sav');
 function feedRow(x,kind){
   const sub=KOL[x.w]?(KOLX[x.w]?'@'+esc(KOLX[x.w])+' · ':''):'';
@@ -2211,8 +2211,9 @@ const IC={
 function statPill(icon,val,cls,tip){return `<span class="sp ${cls||''}" title="${tip}">${IC[icon]}<b>${val}</b></span>`;}
 // holder stats for the card: from the token's holder scan (loaded in the background for the cards you can see)
 function cardStats(t){
-  const hm=t.hm||null,ld=!hm,sk='<i class="skl s"></i>',pc=v=>v==null?'—':num(v,v<10?1:0)+'%';
+  const hm=t.hm||null,ld=!hm&&!(t.hmFail&&Date.now()-t.hmFail<HM_TTL),sk='<i class="skl s"></i>',pc=v=>v==null?'—':num(v,v<10?1:0)+'%';
   const d=t.dev,dp=d&&d.pct!=null?d.pct:null;
+  if(!hm&&!ld)return `<div class="sps"><span class="note" style="font-size:11px">Holder stats unavailable right now — open the token for a full scan</span></div>`;
   return `<div class="sps">
    ${statPill('hold',ld?sk:hm.holders?num(hm.holders.n,0)+(hm.holders.more?'+':''):'—','','Holders')}
    ${statPill('top',ld?sk:pc(hm.top10),ld?'':lvlCls(hm.top10,30,50),'Top 10 holders')}
@@ -2468,7 +2469,7 @@ function applyAdd(p){
   if(!p)return;if(p.err){toast('Could not read the wallets from that link');return;}
   const rows=[],seen=new Set();let kept=0,already=0;
   p.arr.forEach(x=>{const [w,n,hx]=Array.isArray(x)?x:[x.w,x.n,x.x];if(!w||!B58.test(w)||seen.has(w))return;seen.add(w);
-    const handle=String(hx||'').replace(/^@/,'').match(/^[A-Za-z0-9_]{1,15}$/)?String(hx).replace(/^@/,''):null,name=String(n||'').trim().slice(0,40);
+    const handle=String(hx||'').replace(/^@/,'').match(/^[A-Za-z0-9_]{1,15}$/)?String(hx).replace(/^@/,''):null,name0=String(n||'').trim().slice(0,40),name=badName(name0)?'':name0;
     if(KOL[w]||SMART[w]){already++;if(p.as==='smart'&&KOL[w])kept++;return;}
     rows.push({w,name,handle,type:p.as==='smart'?'smart':handle?'kol':'smart',was:null});});
   const r=rows.length?saveWalletLines(rows):{nk:0,ns:0,added:[]};
