@@ -1077,7 +1077,7 @@ function liveStart(){
 }
 // one pace per provider for all its connections; while Helius subscriptions run, the tracker's own Helius pace is halved so both stay under the free 10 req/s
 const SUBP={};const subPace=url=>{const h=new URL(url.replace(/^wss:/,'https:')).hostname;return SUBP[h]||(SUBP[h]=throttle(()=>/helius/.test(h)?(PLAN==='paid'?20:4):15));};
-let WS_CAP=store.get('hs_wscap',0);const perConn=()=>Math.min(WS_PER_CONN,WS_CAP||WS_PER_CONN);
+let WS_CAP=0,CAP_SEEN=[];try{localStorage.removeItem('hs_wscap');}catch(e){}const perConn=()=>Math.min(WS_PER_CONN,WS_CAP||WS_PER_CONN);
 function liveConn(url,wallets,idx){
   const c={url,wallets,ws:null,byId:{},bySub:{},subs:0,dead:false,tries:(LIVE.conns[idx]?.tries)||0};LIVE.conns[idx]=c;
   let ws;try{ws=new WebSocket(url);}catch(e){LIVE.err='WebSocket blocked';return;}c.ws=ws;
@@ -1093,7 +1093,10 @@ function liveConn(url,wallets,idx){
   ws.onclose=ev=>{clearInterval(c.ping);const had=c.subs;LIVE.subs-=c.subs;c.subs=0;if(c.dead)return;
     const quick=c.openAt&&Date.now()-c.openAt<120e3;
     // the provider dropped us part-way through subscribing → it has a per-connection limit: remember it and re-plan smaller connections
-    if(quick&&had>=20&&had<wallets.length*0.95&&(!WS_CAP||had<WS_CAP)){WS_CAP=Math.max(50,Math.floor(had*0.9));store.set('hs_wscap',WS_CAP);
+    // a provider limit shows up as the SAME count twice in a row while the app is open; a screen-off or network drop doesn't
+    if(quick&&visible()&&navigator.onLine!==false&&had>=100&&had<wallets.length*0.95)CAP_SEEN.push(had);
+    const capHit=CAP_SEEN.length>=2&&Math.abs(CAP_SEEN[CAP_SEEN.length-1]-CAP_SEEN[CAP_SEEN.length-2])<=Math.max(5,had*0.05);
+    if(capHit&&(!WS_CAP||had<WS_CAP)){WS_CAP=Math.max(100,Math.floor(had*0.9));CAP_SEEN=[];
       LIVE.err=`Provider closed the stream after ${had} wallets — using ${WS_CAP} per connection`;setTimeout(()=>{if(LIVE.on)liveStart();},8000);return;}
     if(quick)c.tries++;else c.tries=0;c.down=true;
     if(c.tries>4){LIVE.err=`Live stream keeps closing (code ${ev?.code||'?'}) — those wallets are polled instead`;return;}
@@ -2162,6 +2165,7 @@ const FEEDS=['alpha','kol','sw'];
 let FEEDK=(k=>FEEDS.includes(k)?k:'alpha')(store.get('hs_feedk',FEEDS.includes(store.get('hs_tab','alpha'))?store.get('hs_tab','alpha'):'alpha'));   // last choice in the Alpha drop-down
 const FDEF={stage:null,minK:null,minS:null,mode:'trades',side:'all',hold:false,fav:false,win:240,sol:[null,null],mc:[null,null],sort:'new'};
 let FL=store.get('hs_fl',null);if(!FL||!FL.kol||!FL.sw)FL={kol:{...FDEF},sw:{...FDEF}};if(!FL.alpha)FL.alpha={...FDEF,mode:'tokens',hold:true,win:1440};
+if(!store.get('hs_fl_v47',0)){FL.alpha.minK=null;FL.alpha.minS=null;store.set('hs_fl_v47',1);store.set('hs_fl',FL);}   // the old quick chips' setting
 const saveFL=()=>store.set('hs_fl',FL);
 const isKind=(kind,w)=>kind==='alpha'?!!(KOL[w]||SMART[w]):kind==='kol'?!!KOL[w]:(!!SMART[w]&&!KOL[w]);
 const fCount=f=>(f.side!=='all')+f.hold+f.fav+(f.win!==240)+rOn(f.sol)+rOn(f.mc)+(f.sort!=='new')+!!f.minK+!!f.minS+!!f.stage;
@@ -2255,13 +2259,13 @@ function tokGroupCard(g,kind){
      <div class="gr"><div><span class="lb">MC</span> <b class="mcv">${usd(t.mc)}</b></div><div><span class="lb">V</span> <b>${usd(t.vol.h24)}</b></div><div class="${(t.chg.h1||0)>=0?'up':'dn'}">${pct(t.chg.h1)}<span class="lb"> 1h</span></div></div></div>`
     :`<div class="g1"><b>${short(g.m)}</b><span class="note">loading…</span></div>`;
   // who: KOL / smart holding (Alpha shows both), money in / out, last trade
-  const who=al?`<span class="wk">👑 <b>${kh}</b>/${kb} KOL</span><span class="ws">🧠 <b>${sh}</b>/${sb} smart</span>`
+  const who=al?`${kb?`<span class="wk">👑 <b>${kh}</b>/${kb} KOL</span>`:''}${sb?`<span class="ws">🧠 <b>${sh}</b>/${sb} smart</span>`:''}`
     :`<span class="wk ${kind==='sw'?'ws':''}">💎 <b>${hold}</b>/${g.buyers.size} holding</span>${g.sellers.size?`<span class="wx">${g.sellers.size} sold</span>`:''}`;
   const list=al?[...[...g.buyers].filter(w=>KOL[w]),...[...g.buyers].filter(w=>!KOL[w])]:[...g.buyers];
   const show=list.slice(0,4),more=list.length-show.length;
   return `<div class="tc gc" data-m="${g.m}" data-k="g${g.m}">${head}
    ${ok?cardStats(t):''}
-   <div class="g3">${who}<span class="gi">${SOLI}${num(g.bin,1)}${g.sout?` <em>/ ${num(g.sout,1)} out</em>`:''}</span><span class="gt">${ago(g.last)}</span></div>
+   <div class="g3">${who}${(()=>{let i=0,o=0;[...g.buyers].forEach(w=>{const p=kolPos(w,g.m);i+=p.inSol||0;o+=p.outSol||0;});return `<span class="gi" title="SOL your wallets put in / took out">${SOLI}${num(i,1)}${o?` <em>/ ${num(o,1)} out</em>`:''}</span>`;})()}<span class="gt">${ago(g.last)}</span></div>
    <div class="kpl">${show.map(w=>{const p=kolPos(w,g.m);return `<div class="kpr" data-kw="${w}">${wAv(w,'wav')}<b>${esc(wName(w))}</b>${al?(KOL[w]?'<span class="wt k">KOL</span>':'<span class="wt s">SM</span>'):''}${posChip(p,true)}<span class="note" style="margin-left:auto">${SOLI}${num(p.inSol,1)}</span></div>`;}).join('')}${more>0?`<div class="note gmore">+${more} more wallet${more>1?'s':''}</div>`:''}</div></div>`;
 }
 // light holder scan for a card (~15 cheap calls): holders, top 10, bundlers (same-block buys), insiders (bought within 15s of launch)
@@ -2330,14 +2334,10 @@ function patchList(box,html){
   const cur=[...box.children];if(cur.length===out.length&&cur.every((c,i)=>c===out[i]))return;
   box.replaceChildren(...out);
 }
-// quick chips on the Alpha tab: any token · at least 1 KOL + 1 smart · 2+ KOL · 3+ smart
-const ALPHA_Q=[['any','All',null,null],['both','👑+🧠 Both',1,1],['k2','👑 2+ KOL',2,null],['s3','🧠 3+ smart',null,3]];
-function alphaBar(f){const cur=(ALPHA_Q.find(q=>(q[2]||null)==(f.minK||null)&&(q[3]||null)==(f.minS||null))||[''])[0];
-  return `<div class="chipsel alq" id="alQ">${ALPHA_Q.map(q=>`<button data-v="${q[0]}" class="${cur===q[0]?'on':''}">${q[1]}</button>`).join('')}</div>`;}
 function renderFeed(kind){
   const f=FL[kind],n=kind==='alpha'?new Set([...Object.keys(KOL),...Object.keys(SMART)]).size:Object.keys(kind==='kol'?KOL:SMART).filter(w=>isKind(kind,w)).length;
   const lbl=kind==='alpha'?`${Object.keys(KOL).length} KOL + ${Object.keys(SMART).filter(w=>!KOL[w]).length} smart`:`${n} ${kind==='kol'?'KOL':'smart'} wallet${n===1?'':'s'}`;
-  let h=`<div class="kbar"><div class="seg2" id="fdMode"><button data-v="trades" class="${f.mode==='trades'?'on':''}">Trades</button><button data-v="tokens" class="${f.mode==='tokens'?'on':''}">Tokens</button></div><select id="fdSort" class="fdsort">${SORTS.map(([k,l])=>`<option value="${k}" ${f.sort===k?'selected':''}>${l}</option>`).join('')}</select><span class="note">${lbl}</span></div>`+(kind==='alpha'?alphaBar(f):'')+trkHTML();
+  let h=`<div class="kbar"><div class="seg2" id="fdMode"><button data-v="trades" class="${f.mode==='trades'?'on':''}">Trades</button><button data-v="tokens" class="${f.mode==='tokens'?'on':''}">Tokens</button></div><select id="fdSort" class="fdsort">${SORTS.map(([k,l])=>`<option value="${k}" ${f.sort===k?'selected':''}>${l}</option>`).join('')}</select><span class="note">${lbl}</span></div>`+trkHTML();
   if(!n){$('list').innerHTML=h+`<div class="empty">No ${kind==='kol'?'KOL':kind==='alpha'?'KOL or smart':'smart'} wallets yet.<br><br>Open <b>＋ Add</b> and paste your wallets. Wallets with an X handle become 👑 KOL, the rest 🧠 Smart.</div>`;wireFeed(kind);return;}
   const tr=feedTrades(kind);
   if(!tr.length){h+=`<div class="empty">No ${f.side==='all'?'':f.side+' '}trades in the last <b>${dur(f.win*60)}</b>${fCount(f)?' with these filters':''}.<br><br>${feedSrc(kind).length?'Widen the time window or reset Filters.':'The tracker is checking your wallets — new trades appear here automatically.'}</div>`;}
@@ -2348,7 +2348,7 @@ function renderFeed(kind){
   const pos=[...new Set(tr.slice(0,80).filter(x=>x.side==='buy').map(x=>x.w+'|'+x.m))];if(pos.length)loadPositions(pos);
   const ws=[...new Set(tr.slice(0,80).map(x=>x.w))];if(ws.some(w=>!KBAL[w]))loadKolBal(ws).then(()=>{if(TAB===kind)renderSoft();});
 }
-function wireFeed(kind){const aq=$('alQ');if(aq)aq.querySelectorAll('button').forEach(b=>b.onclick=()=>{const q=ALPHA_Q.find(x=>x[0]===b.dataset.v);FL.alpha.minK=q[2];FL.alpha.minS=q[3];saveFL();renderControls();renderFeed('alpha');});const so=$('fdSort');if(so)so.onchange=()=>{FL[kind].sort=so.value;saveFL();renderControls();renderFeed(kind);window.scrollTo(0,0);};const m=$('fdMode');if(m)m.querySelectorAll('button').forEach(b=>b.onclick=()=>{FL[kind].mode=b.dataset.v;saveFL();renderFeed(kind);});}
+function wireFeed(kind){const so=$('fdSort');if(so)so.onchange=()=>{FL[kind].sort=so.value;saveFL();renderControls();renderFeed(kind);window.scrollTo(0,0);};const m=$('fdMode');if(m)m.querySelectorAll('button').forEach(b=>b.onclick=()=>{FL[kind].mode=b.dataset.v;saveFL();renderFeed(kind);});}
 function feedFilterSheet(kind){
   const d=JSON.parse(JSON.stringify(FL[kind])),v=x=>x==null?'':x;
   const draw=()=>{
