@@ -342,6 +342,14 @@ html{transition:background .2s}
 .btn.dng{color:var(--bad)!important}.btn.arm{background:var(--bad)!important;color:#fff!important}
 .provb{font-size:12.5px;line-height:1.45;color:var(--txt2);background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px;margin-top:4px}
 .trk{font-size:12px;line-height:1.45;color:var(--txt2);background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin:0 0 10px}.trk.bad{border-color:rgba(244,63,94,.45)}.trk b{color:var(--good)}
+.qlinks{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px}
+.ql{text-align:center;background:var(--inv);color:var(--invtxt);border-radius:11px;padding:10px 2px;font-size:13px;font-weight:800;text-decoration:none}
+.ig{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}.ir{display:flex;justify-content:space-between;align-items:center;gap:6px;padding:8px 0;border-bottom:1px solid var(--line);font-size:12.5px;min-width:0}
+.ir span{color:var(--mut)}.ir b{font-weight:700;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ir b.good{color:var(--good)}.ir b.bad{color:var(--bad)}.ir b.warn{color:var(--warn)}.ir a{color:var(--acc);text-decoration:none}
+.addc{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px}
+.addc textarea{margin-top:10px;font-family:ui-monospace,Menlo,monospace;font-size:12.5px}
+.adsum{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 6px}.adr{font-size:12.5px;padding:5px 0;border-bottom:1px solid var(--line)}.adr.bad{color:var(--bad)}
+.addc .wl{display:flex;align-items:center;gap:6px;padding:8px 0;border-bottom:1px solid var(--line)}.addc .wl-l{display:flex;align-items:center;gap:8px;flex:1;min-width:0;cursor:pointer}.addc .wl-l b{font-size:13.5px}
 </style>
 </head>
 <body>
@@ -375,6 +383,7 @@ html{transition:background .2s}
     <div class="tabs" id="tabs">
       <button data-t="kol" class="on">👑 KOL<b id="c-kol"></b></button>
       <button data-t="sw">🧠 Smart<b id="c-sw"></b></button>
+      <button data-t="add">＋ Add</button>
     </div>
   </div>
   <div class="ctl">
@@ -521,7 +530,7 @@ let actRunning=false;
 async function checkKolActivity(force){
   if(actRunning||!KEY||IMPORTING)return;actRunning=true;
   const ws=Object.keys(KOL).filter(w=>force||!KACT[w]||Date.now()-KACT[w].t>12*3600e3);
-  let n=0;await pool(ws,Math.max(2,PAR()),async w=>{try{const r=await rpcBg('getSignaturesForAddress',[w,{limit:1}]);KACT[w]={t:Date.now(),last:r&&r[0]?r[0].blockTime:0};}catch(e){}if(++n%40===0)store.set('hs_kact',KACT);});
+  let n=0;await pool(ws,Math.max(2,PAR()),async w=>{try{const r=await rpcBg('getSignaturesForAddress',[w,{limit:1}]);KACT[w]={t:Date.now(),last:r&&r[0]?r[0].blockTime:0};}catch(e){}if(++n%40===0)store.set('hs_kact',KACT);},()=>!$('vDetail').classList.contains('hide'));
   store.set('hs_kact',KACT);actRunning=false;if(TAB==='kol')renderList();
 }
 const kolAv=(w,cls)=>{const h=KOLX[w],ini=esc((KOL[w]||'?').replace(/[^A-Za-z0-9]/g,'').slice(0,2).toUpperCase()||'K');return `<div class="${cls}">${h?`<img src="https://unavatar.io/x/${encodeURIComponent(h)}?fallback=false" loading="lazy" alt="" onerror="this.outerHTML='${ini}'">`:ini}</div>`;};
@@ -532,7 +541,7 @@ let FILT=store.get('hs_filt3',null);
 if(!FILT)FILT={};
 VIEWS.forEach(([k])=>{if(!FILT[k]||!FILT[k].r)FILT[k]={preset:PRESETS[k][0][0],...presetF(k,PRESETS[k][0][0])};});
 const TOK=new Map();                           // mint -> token
-let TAB=(t=>t==='kol'||t==='sw'?t:'kol')(store.get('hs_tab','kol')),busy=false,lastRefresh=0,timer=null,enhBase=null,stopScan=false,deferredPrompt=null;
+let TAB=(t=>['kol','sw','add'].includes(t)?t:'kol')(store.get('hs_tab','kol')),busy=false,lastRefresh=0,timer=null,enhBase=null,stopScan=false,deferredPrompt=null;
 
 // ================= network =================
 function throttle(getRps){let next=0;return async()=>{const gap=1000/getRps(),now=Date.now(),w=Math.max(0,next-now);next=Math.max(now,next)+gap;if(w)await sleep(w);};}
@@ -752,7 +761,7 @@ async function launchInfo(t){
   if(t.launch!==undefined)return t.launch;
   let before=null;
   try{for(let i=0;i<4;i++){const r=await rpc('getSignaturesForAddress',[t.mint,before?{limit:1000,before}:{limit:1000}]);if(!r||!r.length)break;
-    const o=r[r.length-1];if(r.length<1000){t.launch={slot:o.slot,time:o.blockTime,exact:true};return t.launch;}before=o.signature;}}catch(e){}
+    const o=r[r.length-1];if(r.length<1000){t.launch={slot:o.slot,time:o.blockTime,exact:true,sig:o.signature};return t.launch;}before=o.signature;}}catch(e){}
   const lt=launchTime(t);t.launch=lt?{slot:null,time:lt,exact:false}:null;return t.launch;
 }
 async function loadHM(t){
@@ -855,7 +864,7 @@ async function kolPoll(n,onStep){
 }
 async function kolScanAll(){
   if(kolScanning)return;kolScanning=true;kolStop=false;
-  try{await trackPoll({all:true,kind:'kol',stop:()=>kolStop,onStep:(d,n)=>{if(d%10===0||d===n)$('cnt').textContent=`scanning KOLs ${d}/${n}`;}});}
+  try{await trackPoll({all:true,user:true,kind:'kol',stop:()=>kolStop,onStep:(d,n)=>{if(d%10===0||d===n)$('cnt').textContent=`scanning KOLs ${d}/${n}`;}});}
   finally{kolScanning=false;kolStop=false;$('cnt').textContent='';renderList();}
 }
 
@@ -870,7 +879,7 @@ async function enhPost(path,body){const bs=enhBase?[enhBase]:ENH;let last;for(co
 const lastOf=w=>KOL[w]?(KACT[w]?.last||0):(SMART[w]?.last||0);
 function trackList(kind){
   const now=Date.now()/1000,k=kind==='smart'?[]:Object.keys(KOL).filter(kolOK);
-  const s=kind==='kol'?[]:Object.keys(SMART).filter(w=>!KOL[w]&&swOK(w)&&(!SMART[w].last||now-SMART[w].last<ACTIVE_DAYS*86400));
+  const s=kind==='kol'?[]:Object.keys(SMART).filter(w=>!KOL[w]&&(!SMART[w].last||now-SMART[w].last<ACTIVE_DAYS*86400));
   return[...k,...s];
 }
 async function parseSigs(ch,owner,onAdd){
@@ -886,20 +895,27 @@ async function parseSigs(ch,owner,onAdd){
       catch(e2){TRK.err='Helius: '+e2.message;PENDSIG.push(...ch.filter(x=>x[1]===w).slice(0,50));}});}
   onAdd(added);
 }
+const PRIO=new Set();     // wallets to check first in the next round (just added)
 async function trackPoll(opt){
-  opt=opt||{};if(tracking||!KEY)return 0;tracking=true;let added=0;
+  opt=opt||{};
+  if(!KEY)return 0;
+  // just-added wallets get their own small round right away, even while a big round is running
+  const quick=!!opt.list;if(quick)opt.list.forEach(w=>PRIO.add(w));
+  if(!quick){if(tracking)return 0;tracking=true;}let added=0;
   try{
     const ws=trackList(opt.kind);if(!ws.length)return 0;
     // first time (or after adding many wallets): check every wallet once so the feed fills right away
     const unseen=ws.filter(w=>LASTSIG[w]===undefined);
-    if(!opt.all&&unseen.length>ws.length*0.3){opt={...opt,all:true,first:true};}
+    if(!opt.all&&!opt.list&&unseen.length>ws.length*0.3){opt={...opt,all:true,first:true};}
     let batch;
-    if(opt.all)batch=(opt.first?[...unseen,...ws.filter(w=>LASTSIG[w]!==undefined).slice(0,40)]:[...ws]).sort((a,b)=>(FAV.has(b)-FAV.has(a))||(lastOf(b)-lastOf(a)));
+    if(opt.list){batch=[...PRIO].filter(w=>KOL[w]||SMART[w]);PRIO.clear();}
+    else if(opt.all)batch=(opt.first?[...unseen,...ws.filter(w=>LASTSIG[w]!==undefined).slice(0,40)]:[...ws]).sort((a,b)=>(FAV.has(b)-FAV.has(a))||(lastOf(b)-lastOf(a)));
     else{const budget=Math.round(trackMode().b*(1+xLive().length*0.8));
       const hot=[...new Set([...[...FAV].filter(w=>ws.includes(w)),...[...ws].sort((a,b)=>lastOf(b)-lastOf(a)).slice(0,Math.ceil(budget/2))])].slice(0,budget);
       const hs=new Set(hot),rest=ws.filter(w=>!hs.has(w)),rot=[];
       for(let i=0;i<Math.max(0,budget-hot.length)&&i<rest.length;i++)rot.push(rest[(trCur+i)%rest.length]);
       trCur=rest.length?(trCur+rot.length)%rest.length:0;store.set('hs_trcur',trCur);batch=[...hot,...rot];}
+    if(!opt.list&&PRIO.size){const pr=[...PRIO].filter(w=>KOL[w]||SMART[w]);PRIO.clear();batch=[...new Set([...pr,...batch])];}
     const need=[...PENDSIG];PENDSIG=[];const owner={};need.forEach(([s,w])=>owner[s]=w);let done=0,ok=0,pi=0,flushing=null,lastFlush=Date.now();
     // parse new signatures in batches while the scan is still running, so trades show up right away
     const flush=async(all)=>{
@@ -908,10 +924,10 @@ async function trackPoll(opt){
         const before=added;await parseSigs(ch,owner,n=>added+=n);
         if(added>before){[...KTR,...STR].forEach(x=>{const t=tok(x.m);t.seen=Date.now();});saveKTR();saveSTR();loadMarket(true).then(()=>{renderSoft();loadImages();});renderSoft();}
         if(!all)break;}};
-    Object.assign(TRK,{total:ws.length,first:!!opt.first,prog:'',err:''});
+    if(!quick)Object.assign(TRK,{total:ws.length,first:!!opt.first,prog:'',err:''});
     await pool(batch,TRACK_PAR(),async w=>{
       try{const r=await rpc('getSignaturesForAddress',[w,{limit:15}]);if(Array.isArray(r))ok++;
-        if(Array.isArray(r)&&r.length){const prev=LASTSIG[w];LASTSIG[w]=r[0].signature;const bt=r[0].blockTime||0;
+        if(Array.isArray(r)&&r.length){const prev=LASTSIG[w];/*tracker*/LASTSIG[w]=r[0].signature;const bt=r[0].blockTime||0;
           if(KOL[w])KACT[w]={t:Date.now(),last:Math.max(KACT[w]?.last||0,bt)};else if(SMART[w]){SMART[w].last=Math.max(SMART[w].last||0,bt);SMART[w].la=Date.now();}
           let fresh=[];for(const s of r){if(s.signature===prev)break;if(!s.err)fresh.push(s);}
           if(prev===undefined)fresh=fresh.filter(s=>Date.now()/1000-(s.blockTime||0)<86400).slice(0,6);   // first look at a wallet: last 24h only
@@ -919,20 +935,20 @@ async function trackPoll(opt){
         else if(Array.isArray(r)){LASTSIG[w]=LASTSIG[w]||'';if(KOL[w])KACT[w]={t:Date.now(),last:KACT[w]?.last||0};}}catch(e){TRK.err=e.message;}
       done++;opt.onStep&&opt.onStep(done,batch.length);
       if(!flushing&&(need.length-pi>=40||(need.length>pi&&Date.now()-lastFlush>4000))){flushing=flush(false).finally(()=>flushing=null);}
-      if(batch.length>60&&(done%25===0||done===batch.length)){TRK.prog=`${opt.first?'First pass':'Checking'} ${done}/${batch.length} wallets`;showTrk();}},()=>opt.stop?.());
+      if(batch.length>60&&(done%25===0||done===batch.length)){TRK.prog=`${opt.first?'First pass':'Checking'} ${done}/${batch.length} wallets`;showTrk();}},()=>opt.stop?.()||(!opt.user&&!$('vDetail').classList.contains('hide')));   // background rounds pause while a token page is open
     if(flushing)await flushing;await flush(true);
     TRK.newSig=need.length;
     const ks=Object.keys(LASTSIG);if(ks.length>4000)ks.slice(0,ks.length-3000).forEach(k=>delete LASTSIG[k]);
     store.set('hs_lastsig',LASTSIG);store.set('hs_kact',KACT);saveKTR();saveSTR();saveSmart();
     if(added){[...KTR,...STR].forEach(x=>{const t=tok(x.m);t.seen=Date.now();});await loadMarket(true);loadImages();}
-    lastTrack=Date.now();Object.assign(TRK,{t:Date.now(),checked:done,added,prog:''});
+    if(!quick){lastTrack=Date.now();Object.assign(TRK,{t:Date.now(),checked:done,added,prog:''});}else TRK.added+=added;
     if(!ok&&done)TRK.err=TRK.err||'No RPC answered — check your Helius key / extra RPCs in Settings';
-  }finally{tracking=false;showTrk();}
+  }finally{if(!quick)tracking=false;showTrk();}
   if(added)renderSoft();
   return added;
 }
 const renderSoft=()=>{if($('sheet').classList.contains('hide')&&$('vDetail').classList.contains('hide'))renderList();};
-async function trackTick(){if(!visible()||!KEY)return;await trackPoll();}
+async function trackTick(){if(!visible()||!KEY||!$('vDetail').classList.contains('hide'))return;await trackPoll();}
 // status line under the KOL / Smart toolbar: what the tracker did last round, and any problem
 function trkHTML(){
   const xs=XR.map(x=>`${esc(new URL(x.u).hostname.split('.').slice(-2,-1)[0]||'rpc')} ${Date.now()>x.until?'✅':'⏸'}`).join(' · ');
@@ -974,7 +990,7 @@ async function smartPoll(n){
 async function checkSmartActivity(force){
   if(sactRunning||!KEY||IMPORTING)return;sactRunning=true;
   const ws=Object.keys(SMART).filter(w=>force||!SMART[w].la||Date.now()-SMART[w].la>12*3600e3).sort((a,b)=>(SMART[b].last||0)-(SMART[a].last||0));
-  let n=0;await pool(ws,Math.max(2,PAR()),async w=>{try{const r=await rpcBg('getSignaturesForAddress',[w,{limit:1}]);if(SMART[w]){SMART[w].la=Date.now();if(r&&r[0]&&r[0].blockTime)SMART[w].last=Math.max(SMART[w].last||0,r[0].blockTime);}}catch(e){}if(++n%40===0){saveSmart();if(TAB==='sw')renderSWSoft();}});
+  let n=0;await pool(ws,Math.max(2,PAR()),async w=>{try{const r=await rpcBg('getSignaturesForAddress',[w,{limit:1}]);if(SMART[w]){SMART[w].la=Date.now();if(r&&r[0]&&r[0].blockTime)SMART[w].last=Math.max(SMART[w].last||0,r[0].blockTime);}}catch(e){}if(++n%40===0){saveSmart();if(TAB==='sw')renderSWSoft();}},()=>!$('vDetail').classList.contains('hide'));
   saveSmart();sactRunning=false;if(TAB==='sw')renderSWSoft();
 }
 // full evaluation from the wallet's last 100 transactions: win rate, closed trades, realized PnL, hold time, bot check
@@ -1059,7 +1075,7 @@ function swRow(w,manage){
 let smScanning=false,smStop=false;
 async function smartScanAll(){
   if(smScanning)return;smScanning=true;smStop=false;
-  try{await trackPoll({all:true,kind:'smart',stop:()=>smStop,onStep:(d,n)=>{if(TAB==='sw'&&(d%10===0||d===n))$('cnt').textContent=`scanning smart wallets ${d}/${n}`;}});}
+  try{await trackPoll({all:true,user:true,kind:'smart',stop:()=>smStop,onStep:(d,n)=>{if(TAB==='sw'&&(d%10===0||d===n))$('cnt').textContent=`scanning smart wallets ${d}/${n}`;}});}
   finally{smScanning=false;smStop=false;$('cnt').textContent='';renderSWSoft();}
 }
 function renderSWSoft(){if(TAB==='sw'&&$('sheet').classList.contains('hide')&&$('vDetail').classList.contains('hide'))renderSW();}
@@ -1684,7 +1700,6 @@ async function refresh(manual){
     // wallets the tracker skips as inactive are re-checked twice a day (1 cheap call each), so a KOL who starts trading again comes back
     if(!actRunning&&!tracking&&Object.keys(KOL).some(w=>!KACT[w]||Date.now()-KACT[w].t>12*3600e3))setTimeout(()=>{if(!tracking)checkKolActivity();},30000);
     if(!sactRunning&&!tracking&&Object.keys(SMART).some(w=>!SMART[w].la||Date.now()-SMART[w].la>12*3600e3))setTimeout(()=>{if(!tracking)checkSmartActivity();},45000);
-    if(!evRunning){const q=evQueue(Object.keys(SMART).filter(w=>!KOL[w]),PLAN==='paid'?4:1);if(q.length)evalSmart(q);}
   }catch(e){setLive('',e.message);if(/API key/.test(e.message))toast('Check your Helius key in settings');renderList();}
   busy=false;
 }
@@ -1826,10 +1841,146 @@ function cardHTML(t){
   <div class="bs"><i style="width:${bp}%"></i></div></div>`;
 }
 function updateCard(t){const el=$('c-'+t.mint);if(el)el.outerHTML=cardHTML(t);}
+// ================= simple tracker UI: 👑 KOL · 🧠 Smart · ＋ Add =================
+const FDEF={mode:'trades',side:'all',hold:false,fav:false,win:240,sol:[null,null],mc:[null,null],sort:'new'};
+let FL=store.get('hs_fl',null);if(!FL||!FL.kol||!FL.sw)FL={kol:{...FDEF},sw:{...FDEF}};
+const saveFL=()=>store.set('hs_fl',FL);
+const isKind=(kind,w)=>kind==='kol'?!!KOL[w]:(!!SMART[w]&&!KOL[w]);
+const fCount=f=>(f.side!=='all')+f.hold+f.fav+(f.win!==240)+rOn(f.sol)+rOn(f.mc)+(f.sort!=='new');
+// trades after the filter, newest or oldest first
+function feedTrades(kind){
+  const f=FL[kind],now=Date.now()/1000,src=kind==='kol'?KTR:STR;
+  const a=src.filter(x=>{
+    if(!isKind(kind,x.w))return false;
+    if(now-x.ts>f.win*60)return false;
+    if(f.side!=='all'&&x.side!==f.side)return false;
+    if(f.fav&&!FAV.has(x.w))return false;
+    if(!inR(x.sol,f.sol))return false;
+    if(rOn(f.mc)){const t=TOK.get(x.m);if(!t||!t.pair||!inR(t.mc/1000,f.mc))return false;}
+    // still holding = a buy whose wallet hasn't sold the token (on-chain balance when known, else from its trades)
+    if(f.hold){if(x.side!=='buy')return false;if(!/^holding|partial/.test(kolPos(x.w,x.m).st))return false;}
+    return true;});
+  return a.sort((p,q)=>f.sort==='old'?p.ts-q.ts:q.ts-p.ts);
+}
+function feedTokens(trades,kind){
+  const by={};
+  trades.forEach(x=>{const g=by[x.m]||(by[x.m]={m:x.m,buyers:new Set(),sellers:new Set(),bin:0,sout:0,first:x.ts,last:x.ts});
+    if(x.side==='buy'){g.buyers.add(x.w);g.bin+=x.sol;}else{g.sellers.add(x.w);g.sout+=x.sol;}g.first=Math.min(g.first,x.ts);g.last=Math.max(g.last,x.ts);});
+  return Object.values(by).sort((a,b)=>FL[kind].sort==='old'?a.first-b.first:b.last-a.last);
+}
+const wName=w=>KOL[w]||SMART[w]?.n||short(w);
+const wAv=(w,cls)=>KOL[w]?kolAv(w,cls):swAv(w).replace('kav sav',(cls||'kav')+' sav');
+function feedRow(x,kind){
+  const sub=KOL[x.w]?(KOLX[x.w]?'@'+esc(KOLX[x.w])+' · ':''):'';
+  return `<div class="kt" data-m="${x.m}"><span data-kw="${x.w}">${wAv(x.w,'kav')}</span>
+   <div class="mid"><div class="nm"><b class="kn" data-kw="${x.w}">${esc(wName(x.w))}</b>${heart(x.w)}<span class="side ${x.side}">${x.side.toUpperCase()}</span><b class="${x.side==='buy'?'up':'dn'}">${SOLI}${num(x.sol,x.sol<1?2:1)}</b></div>
+   <div class="sub">${sub}${balTxt(x.w)?'bal '+balTxt(x.w)+' · ':''}${ago(x.ts)}</div>${x.side==='buy'?`<div class="sub" style="margin-top:4px">${posChip(kolPos(x.w,x.m))}</div>`:''}</div>${tokMini(x.m)}</div>`;
+}
+function tokGroupCard(g){
+  const t=TOK.get(g.m),hold=[...g.buyers].filter(w=>/^holding|partial/.test(kolPos(w,g.m).st)).length;
+  return `<div class="tc" data-m="${g.m}">${t&&t.pair?`<div class="r1">${avatar(t)}<div class="mid"><div class="nm"><b>${esc(t.sym)}</b><span class="full">${esc(t.name)}</span></div><div class="sub"><span class="age">${dur(t.created?(Date.now()-t.created)/1000:null)}</span>·<span>${short(g.m)}</span></div></div><div class="rt"><div class="mc">MC <b>${usd(t.mc)}</b></div><div class="chg ${(t.chg.h1||0)>=0?'up':'dn'}">${pct(t.chg.h1)} <span style="color:var(--mut);font-weight:500">1h</span></div></div></div>`:`<b>${short(g.m)}</b>`}
+   <div class="r3"><span class="bd ok">${g.buyers.size} bought</span><span class="bd ok">💎 ${hold} holding</span>${g.sellers.size?`<span class="bd bad">${g.sellers.size} sold</span>`:''}<span class="bd">${SOLI}${num(g.bin,1)} in</span>${g.sout?`<span class="bd">${SOLI}${num(g.sout,1)} out</span>`:''}<span class="bd">last ${ago(g.last)}</span></div>
+   <div class="kpl">${[...g.buyers].slice(0,8).map(w=>{const p=kolPos(w,g.m);return `<div class="kpr" data-kw="${w}">${wAv(w,'wav')}<b>${esc(wName(w))}</b>${posChip(p,true)}<span class="note" style="margin-left:auto">${SOLI}${num(p.inSol,1)}</span></div>`;}).join('')}</div></div>`;
+}
+function renderFeed(kind){
+  const f=FL[kind],n=Object.keys(kind==='kol'?KOL:SMART).filter(w=>isKind(kind,w)).length;
+  let h=`<div class="kbar"><div class="seg2" id="fdMode"><button data-v="trades" class="${f.mode==='trades'?'on':''}">Trades</button><button data-v="tokens" class="${f.mode==='tokens'?'on':''}">Tokens</button></div><span class="note">${n} ${kind==='kol'?'KOL':'smart'} wallet${n===1?'':'s'}</span></div>`+trkHTML();
+  if(!n){$('list').innerHTML=h+`<div class="empty">No ${kind==='kol'?'KOL':'smart'} wallets yet.<br><br>Open <b>＋ Add</b> and paste your wallets. Wallets with an X handle become 👑 KOL, the rest 🧠 Smart.</div>`;wireFeed(kind);return;}
+  const tr=feedTrades(kind);
+  if(!tr.length){h+=`<div class="empty">No ${f.side==='all'?'':f.side+' '}trades in the last <b>${dur(f.win*60)}</b>${fCount(f)?' with these filters':''}.<br><br>${(kind==='kol'?KTR:STR).length?'Widen the time window or reset Filters.':'The tracker is checking your wallets — new trades appear here automatically.'}</div>`;}
+  else if(f.mode==='tokens')h+=feedTokens(tr,kind).slice(0,60).map(tokGroupCard).join('');
+  else h+=tr.slice(0,150).map(x=>feedRow(x,kind)).join('')+(tr.length>150?`<div class="note" style="text-align:center;padding:10px">Showing 150 of ${tr.length} trades</div>`:'');
+  $('list').innerHTML=h;wireFeed(kind);
+  const pos=[...new Set(tr.slice(0,80).filter(x=>x.side==='buy').map(x=>x.w+'|'+x.m))];if(pos.length)loadPositions(pos);
+  const ws=[...new Set(tr.slice(0,80).map(x=>x.w))];if(ws.some(w=>!KBAL[w]))loadKolBal(ws).then(()=>{if(TAB===kind)renderSoft();});
+}
+function wireFeed(kind){const m=$('fdMode');if(m)m.querySelectorAll('button').forEach(b=>b.onclick=()=>{FL[kind].mode=b.dataset.v;saveFL();renderFeed(kind);});}
+function feedFilterSheet(kind){
+  const d=JSON.parse(JSON.stringify(FL[kind])),v=x=>x==null?'':x;
+  const draw=()=>{
+    const chips=(id,cur,opts)=>`<div class="chipsel" id="${id}">${opts.map(([a,b])=>`<button data-v="${a}" class="${String(cur)===String(a)?'on':''}">${b}</button>`).join('')}</div>`;
+    const row=(k,l,u)=>`<div class="rr"><div class="rl">${l}</div><div class="rg"><label class="ri"><input type="number" inputmode="decimal" data-fk="${k}" data-i="0" placeholder="Min" value="${v(d[k][0])}"><em>${u}</em></label><span class="dash">–</span><label class="ri"><input type="number" inputmode="decimal" data-fk="${k}" data-i="1" placeholder="Max" value="${v(d[k][1])}"><em>${u}</em></label></div></div>`;
+    openSheet(`<div class="fhead"><h3 style="margin:0">${kind==='kol'?'👑 KOL':'🧠 Smart'} filter</h3><button class="rst" id="ffReset">Reset</button></div><div class="fbody">
+     <div class="rl">Sort</div>${chips('ffSort',d.sort,[['new','New → Old'],['old','Old → New']])}
+     <div class="rl" style="margin-top:14px">Trade</div>${chips('ffSide',d.side,[['all','Both'],['buy','Buy'],['sell','Sell']])}
+     <div class="sw"><span>💎 Still holding only <span class="note">(buys the wallet hasn't sold)</span></span><input type="checkbox" id="ffHold" ${d.hold?'checked':''}></div>
+     <div class="sw"><span>❤ Favorites only</span><input type="checkbox" id="ffFav" ${d.fav?'checked':''}></div>
+     <div class="rl" style="margin-top:14px">Time window</div>${chips('ffWin',d.win,[[15,'15m'],[60,'1h'],[240,'4h'],[720,'12h'],[1440,'24h']])}
+     ${row('sol','Trade size','SOL')}${row('mc','Token market cap ($K)','K')}
+     <div class="note" style="margin-top:10px">Trades are kept for 24 hours. "Still holding" uses the wallet's real token balance once loaded (🟢 / 🟡 chips), otherwise its tracked buys and sells.</div></div>
+     <div class="fbar"><button class="btn gh" id="ffCancel">Cancel</button><button class="btn wh" id="ffOk">Apply</button></div>`);
+    const rd=()=>{$('sheet').querySelectorAll('input[data-fk]').forEach(el=>{d[el.dataset.fk][+el.dataset.i]=el.value===''?null:+el.value;});d.hold=$('ffHold').checked;d.fav=$('ffFav').checked;};
+    [['ffSort','sort'],['ffSide','side'],['ffWin','win',1]].forEach(([id,k,isN])=>$(id).querySelectorAll('button').forEach(b=>b.onclick=()=>{rd();d[k]=isN?+b.dataset.v:b.dataset.v;if(k==='side'&&d.side==='sell')d.hold=false;draw();}));
+    $('ffReset').onclick=()=>{Object.assign(d,JSON.parse(JSON.stringify(FDEF)),{mode:d.mode});draw();};
+    $('ffCancel').onclick=closeSheet;
+    $('ffOk').onclick=()=>{rd();if(d.hold&&d.side==='sell')d.side='all';FL[kind]=d;saveFL();closeSheet();renderControls();renderList();};
+  };draw();
+}
+// ---- ＋ Add: bulk paste. With an X handle → 👑 KOL, without → 🧠 Smart ----
+function parseWalletLines(txt){
+  const out=[],seen=new Set();
+  String(txt||'').split(/\r?\n/).forEach((line,i)=>{
+    const L=line.trim();if(!L)return;
+    const toks=L.split(/[\s,;|\t]+/).filter(Boolean);
+    const addr=toks.find(x=>B58.test(x));
+    if(!addr){if(!/^(wallet|address|addr|name|#)/i.test(L))out.push({line:i+1,raw:L.slice(0,40),err:'no valid wallet address'});return;}
+    if(seen.has(addr)){out.push({line:i+1,w:addr,err:'same wallet twice'});return;}seen.add(addr);
+    let handle=null;const rest=[];
+    toks.forEach(x=>{if(x===addr)return;const m=x.match(/^(?:https?:\/\/)?(?:www\.)?(?:x|twitter)\.com\/@?([A-Za-z0-9_]{1,15})\/?$/i)||x.match(/^@([A-Za-z0-9_]{1,15})$/);
+      if(m&&!handle)handle=m[1];else rest.push(x);});
+    const name=rest.join(' ').replace(/^["'“”]+|["'“”]+$/g,'').trim().slice(0,40);
+    const was=KOL[addr]?'kol':SMART[addr]?'smart':null,type=handle?'kol':'smart';
+    out.push({line:i+1,w:addr,name,handle,type,was});
+  });
+  return out;
+}
+function saveWalletLines(rows){
+  const added=[];let nk=0,ns=0,moved=0;
+  rows.filter(r=>!r.err).forEach(r=>{
+    if(r.was&&r.was!==r.type)moved++;
+    if(r.type==='kol'){KOL[r.w]=r.name||r.handle;KOLX[r.w]=r.handle;if(SMART[r.w])delete SMART[r.w];nk++;}
+    else{if(KOL[r.w]){delete KOL[r.w];delete KOLX[r.w];}SMART[r.w]={...(SMART[r.w]||{t:Date.now()}),src:SMART[r.w]?.src||'manual',...(r.name?{n:r.name}:{})};ns++;}
+    if(!r.was)added.push(r.w);});
+  store.set('hs_kol',KOL);store.set('hs_kolx',KOLX);saveSmart();saveKTR();saveSTR();
+  return{nk,ns,moved,added};
+}
+let ADDQ='',ADDF='all';const ASEL=new Set();
+function renderAdd(){
+  const all=[...new Set([...Object.keys(KOL),...Object.keys(SMART)])];
+  const list=all.filter(w=>(ADDF==='all'||(ADDF==='kol'?!!KOL[w]:!KOL[w]))&&(!ADDQ||(wName(w)+' '+(KOLX[w]||'')+' '+w).toLowerCase().includes(ADDQ.toLowerCase())))
+    .sort((a,b)=>(lastOf(b)-lastOf(a)));
+  $('list').innerHTML=`<div class="addc"><h3 style="margin:0 0 4px">＋ Add wallets</h3>
+   <div class="note">Paste one wallet per line: <b>address</b>, then an optional <b>name</b> and <b>@handle</b> (or x.com link), in any order.<br>👑 With an X handle → <b>KOL</b> · 🧠 Without → <b>Smart wallet</b>.</div>
+   <textarea id="adT" rows="7" placeholder="7xKX…Q9 Ansem @blknoiz06&#10;5Q54…e4j1, Cupsey, x.com/Cupseyy&#10;9pQz…Lm3a whale from IPO"></textarea>
+   <div id="adPrev"></div><button class="btn" id="adSave" disabled>Save wallets</button></div>
+   <div class="addc"><div class="dch"><b>Your wallets</b><span class="note">${Object.keys(KOL).length} KOL · ${Object.keys(SMART).filter(w=>!KOL[w]).length} smart</span></div>
+   <div class="chipsel" id="adF">${[['all','All'],['kol','👑 KOL'],['sw','🧠 Smart']].map(([a,b])=>`<button data-v="${a}" class="${ADDF===a?'on':''}">${b}</button>`).join('')}</div>
+   <input id="adQ" placeholder="Search name, @handle or address" value="${esc(ADDQ)}" style="margin-top:8px">
+   <div class="selbar"><button class="pr" id="adSA">Select all (${list.length})</button><button class="pr" id="adSN">None</button><span class="note" id="adSC">${[...ASEL].filter(w=>KOL[w]||SMART[w]).length} selected</span></div>
+   <div class="mbtns" style="margin-top:0"><button class="btn gh dng" id="adDS">🗑 Delete selected (${[...ASEL].filter(w=>KOL[w]||SMART[w]).length})</button><button class="btn gh dng" id="adDA">🗑 Delete all (${all.length})</button></div>
+   <div id="adL">${list.slice(0,300).map(w=>`<div class="wl"><input type="checkbox" class="msel" data-as="${w}" ${ASEL.has(w)?'checked':''}><div class="wl-l" data-kw="${w}">${wAv(w,'wav')}<div style="min-width:0"><b>${esc(wName(w))}</b> <span class="tg ${KOL[w]?'sm':'ok'}">${KOL[w]?'KOL':'SMART'}</span><div class="note">${KOLX[w]?'@'+esc(KOLX[w])+' · ':''}${short(w)}${lastOf(w)?' · last trade '+ago(lastOf(w)):''}</div></div></div><button class="swx" data-ar="${w}">✕</button></div>`).join('')||'<div class="note" style="padding:10px 0">No wallets.</div>'}${list.length>300?`<div class="note">Showing 300 of ${list.length} — search to find others.</div>`:''}</div></div>`;
+  let rows=[];
+  const prev=()=>{rows=parseWalletLines($('adT').value);const ok=rows.filter(r=>!r.err),bad=rows.filter(r=>r.err),k=ok.filter(r=>r.type==='kol').length,sm=ok.length-k,upd=ok.filter(r=>r.was).length,mv=ok.filter(r=>r.was&&r.was!==r.type).length;
+    $('adPrev').innerHTML=rows.length?`<div class="adsum"><span class="tg sm">👑 ${k} KOL</span><span class="tg ok">🧠 ${sm} smart</span>${upd?`<span class="tg">${upd} already saved → updated${mv?` (${mv} switch type)`:''}</span>`:''}${bad.length?`<span class="tg bad">${bad.length} skipped</span>`:''}</div>
+      ${rows.slice(0,40).map(r=>r.err?`<div class="adr bad">Line ${r.line}: ${esc(r.raw||short(r.w))} — ${r.err}</div>`:`<div class="adr"><span class="tg ${r.type==='kol'?'sm':'ok'}">${r.type==='kol'?'KOL':'SMART'}</span> <b>${esc(r.name||r.handle||'(no name)')}</b> ${r.handle?'<span class="note">@'+esc(r.handle)+'</span>':''} <span class="note mono">${short(r.w)}</span>${r.was&&r.was!==r.type?' <span class="note">(was '+r.was.toUpperCase()+')</span>':''}</div>`).join('')}${rows.length>40?`<div class="note">…and ${rows.length-40} more</div>`:''}`:'';
+    $('adSave').disabled=!ok.length;$('adSave').textContent=ok.length?`Save ${ok.length} wallet${ok.length>1?'s':''}`:'Save wallets';};
+  let tm;$('adT').oninput=()=>{clearTimeout(tm);tm=setTimeout(prev,250);};
+  $('adSave').onclick=()=>{const r=saveWalletLines(rows);toast(`Saved: ${r.nk} KOL · ${r.ns} smart${r.moved?` · ${r.moved} switched`:''}`);
+    renderAdd();if(r.added.length)trackPoll({list:r.added,user:true});};
+  $('adF').querySelectorAll('button').forEach(b=>b.onclick=()=>{ADDF=b.dataset.v;renderAdd();});
+  let qt;$('adQ').oninput=e=>{clearTimeout(qt);qt=setTimeout(()=>{ADDQ=e.target.value;renderAdd();const el=$('adQ');el.focus();el.setSelectionRange(el.value.length,el.value.length);},300);};
+  $('list').querySelectorAll('[data-as]').forEach(c=>c.onchange=()=>{c.checked?ASEL.add(c.dataset.as):ASEL.delete(c.dataset.as);const n=[...ASEL].filter(w=>KOL[w]||SMART[w]).length;$('adSC').textContent=n+' selected';if(!$('adDS').dataset.arm)$('adDS').textContent=`🗑 Delete selected (${n})`;});
+  $('adSA').onclick=()=>{list.forEach(w=>ASEL.add(w));renderAdd();};$('adSN').onclick=()=>{ASEL.clear();renderAdd();};
+  const del=ws=>{const k=ws.filter(w=>KOL[w]),sm=ws.filter(w=>SMART[w]);if(k.length)delKols(k);if(sm.length)delSmart(sm);ws.forEach(w=>{ASEL.delete(w);delete LASTSIG[w];});store.set('hs_lastsig',LASTSIG);};
+  armBtn($('adDS'),()=>{const ws=[...ASEL].filter(w=>KOL[w]||SMART[w]);if(!ws.length){toast('Nothing selected');return;}del(ws);toast(ws.length+' wallets deleted');renderAdd();});
+  armBtn($('adDA'),()=>{const n=all.length;del(all);toast(n+' wallets deleted');renderAdd();});
+  $('list').querySelectorAll('[data-ar]').forEach(b=>b.onclick=e=>{e.stopPropagation();del([b.dataset.ar]);renderAdd();});
+}
+
 function renderList(loading){
-  $('c-sw').textContent=Object.keys(SMART).length||'';
-  if(TAB==='kol'){renderKol();return;}
-  if(TAB==='sw'){renderSW();return;}
+  $('c-kol').textContent=Object.keys(KOL).length||'';$('c-sw').textContent=Object.keys(SMART).filter(w=>!KOL[w]).length||'';
+  if(TAB==='kol'||TAB==='sw'){renderFeed(TAB);return;}
+  if(TAB==='add'){renderAdd();return;}
   if(loading){$('list').innerHTML='<div class="skel"></div>'.repeat(6);return;}
   const arr=filtered(TAB),pend=pendingHolder(TAB),f=FILT[TAB];
   $('cnt').textContent=arr.length+' tokens'+(pend?` · checking ${pend}`:'');
@@ -1841,19 +1992,11 @@ function renderList(loading){
   $('list').innerHTML=arr.slice(0,80).map(cardHTML).join('');
 }
 function renderControls(){
-  const isK=TAB==='kol'||TAB==='sw';$('tfRow').classList.toggle('hide',isK);$('sortSel').classList.toggle('hide',isK);$('viewRow').classList.toggle('hide',!isTV(TAB));
-  document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.t===TAB||(b.dataset.t==='trend'&&isTV(TAB))));
-  if(TAB==='sw'){const f=FILT.sw;$('presets').innerHTML=SW_TPRESETS.map(([id,l])=>`<button class="pr ${f.preset===id?'on':''}" data-sp="${id}">${l}</button>`).join('')+(f.preset==='custom'?'<button class="pr on">Custom</button>':'');
-    const n=['minWR','minClosed','minPnl','minBal'].filter(k=>f[k]!=null).length+(f.days!==7?1:0)+(f.src!=='all'?1:0)+(f.verified?1:0)+[f.sol,f.mc,f.age].filter(rOn).length+(f.stage!=='all'?1:0)+(f.pos!=='all'?1:0)+(f.lp.length<6?1:0);$('fN').textContent=n;$('fN').classList.toggle('hide',!n);$('cnt').textContent='';return;}
-  if(isTV(TAB))$('viewRow').innerHTML=VIEWS.map(([v,l])=>`<button class="${TAB===v?'on':''}" data-v="${v}">${l}<b id="vc-${v}"></b></button>`).join('');
-  if(isK){const f=FILT.kol;$('presets').innerHTML=KOL_PRESETS.map(([id,l])=>`<button class="pr ${f.preset===id?'on':''}" data-kp="${id}">${l}</button>`).join('')+(f.preset==='custom'?'<button class="pr on">Custom</button>':'');
-    $('fN').classList.add('hide');$('cnt').textContent=KTR.length?KTR.length+' trades stored':'';document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.t===TAB));return;}
-  const f=FILT[TAB];
-  $('presets').innerHTML=PRESETS[TAB].map(([id,label])=>`<button class="pr ${f.preset===id?'on':''}" data-p="${id}">${label}</button>`).join('')+(f.preset==='custom'?'<button class="pr on">Custom</button>':'');
-  $('tfRow').innerHTML=`<span class="note" style="align-self:center;flex:0 0 auto">${TAB==='smt'?'Window:':'Volume:'}</span>`+TFS.map(([k,l])=>`<button class="pr tf ${f.tf===k?'on':''}" data-tf="${k}">${l}</button>`).join('');
-  $('sortSel').value=f.sort;
-  const n=activeCount(TAB);$('fN').textContent=n;$('fN').classList.toggle('hide',!n);
-  document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.t===TAB||(b.dataset.t==='trend'&&isTV(TAB))));
+  document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.t===TAB));
+  const ctl=document.querySelector('.ctl');ctl.classList.toggle('hide',TAB==='add');
+  ['viewRow','presets','tfRow','sortSel'].forEach(id=>$(id).classList.add('hide'));
+  if(TAB==='kol'||TAB==='sw'){const f=FL[TAB],n=fCount(f);$('fN').textContent=n;$('fN').classList.toggle('hide',!n);
+    $('cnt').textContent=[f.sort==='old'?'Old → New':'New → Old',f.side!=='all'?f.side+'s':'',f.hold?'holding':'',f.fav?'❤':'',dur(f.win*60)].filter(Boolean).join(' · ');}
 }
 function saveFilt(){store.set('hs_filt3',FILT);}
 
@@ -2089,7 +2232,7 @@ function rugVals(t,R){
 }
 const lvlCls=(v,w,b)=>v==null?'':v>b?'bad':v>w?'warn':'good';
 function rugTiles(t){
-  const hm=t.hm,au=t.auth,ld=!hm&&t.hmLoading,V=rugVals(t,DT?.mint===t.mint?DT.R:null);
+  const hm=t.hm,au=t.auth,ld=!hm&&(!!t.hmLoading||(DT?.mint===t.mint&&!t.hmFail)),V=rugVals(t,DT?.mint===t.mint?DT.R:null);
   const pc=(v,n)=>v==null?(ld?'<i class="skl"></i>':'?'):num(v,1)+'%'+(n?`<small>${n}w</small>`:'');
   const tile=(l,v,c)=>`<div class="rt ${c||''}"><b>${v}</b><span>${l}</span></div>`;
   return `<div class="rtg">
@@ -2107,11 +2250,31 @@ function rugTiles(t){
     ${tile('Fee/trade',t.feeAvg!=null?SOLI+num(t.feeAvg,4):'—')}
   </div>`;
 }
+function quickLinks(t){
+  const pair=t.pair?.pairAddress;
+  const L=[['GMGN',`https://gmgn.ai/sol/token/${t.mint}`],['Axiom',pair?`https://axiom.trade/meme/${pair}?chain=sol`:`https://axiom.trade/discover`],['Terminal',`https://trade.padre.gg/trade/solana/${t.mint}`],t.lp==='bonk'?['Bonk.fun',`https://letsbonk.fun/token/${t.mint}`]:t.lp==='bags'?['Bags',`https://bags.fm/${t.mint}`]:['Pump.fun',`https://pump.fun/coin/${t.mint}`]];
+  return L.map(([n,u])=>`<a class="ql" href="${u}" target="_blank" rel="noopener">${n}</a>`).join('');
+}
 function detailHero(t){
   const cls=x=>x==null?'':x>=0?'up':'dn';
   return `<div class="dhero"><div class="dmc"><div><div class="lbl">Market cap</div><div class="big">${usd(t.mc)}</div></div>
      <div class="dpr"><div class="lbl">Price</div><div class="mid2">${fmtPrice(t.price)}</div><span class="chgp ${cls(t.chg.h24)}">${pct(t.chg.h24)} · 24h</span></div></div>
-   <div class="dkv"><div><span>Liquidity</span><b>${t.liq?usd(t.liq):'—'}</b></div><div><span>Vol 24h</span><b>${usd(t.vol.h24)}</b></div><div><span>Holders</span><b>${t.hm?.holders?num(t.hm.holders.n,0)+(t.hm.holders.more?'+':''):'—'}</b></div><div><span>Age</span><b>${dur(t.created?(Date.now()-t.created)/1000:null)}</b></div></div></div>`;
+   <div class="dkv"><div><span>Liquidity</span><b>${t.liq?usd(t.liq):'—'}</b></div><div><span>Vol 24h</span><b>${usd(t.vol.h24)}</b></div><div><span>Holders</span><b>${t.hm?.holders?num(t.hm.holders.n,0)+(t.hm.holders.more?'+':''):t.hmLoading?'…':'—'}</b></div><div><span>Age</span><b>${dur(t.created?(Date.now()-t.created)/1000:null)}</b></div></div>
+   <div class="qlinks">${quickLinks(t)}</div></div>`;
+}
+function infoCard(t){
+  const d=t.dev,p=t.pair||{},row=(l,v,c)=>`<div class="ir"><span>${l}</span><b class="${c||''}">${v}</b></div>`;
+  const devTxt=d===undefined?'…':d===null?'unknown':`<a class="mono" href="https://solscan.io/account/${d.w}" target="_blank" rel="noopener">${short(d.w)} ↗</a>`;
+  const devHold=d?(d.held<=0?'sold all':d.pct!=null?num(d.pct,2)+'%':num(d.held,0)):d===undefined?'…':'?';
+  const paid=(t.pairs||[]).some(x=>x.info&&(x.info.imageUrl||x.info.header||(x.info.socials||[]).length));
+  const boost=(t.pairs||[]).reduce((a,x)=>a+(x.boosts?.active||0),0);
+  const so=socLinks(t);
+  return `<div class="dcard"><div class="dch"><b>Token info</b></div><div class="ig">
+    ${row('Dev wallet',devTxt)}${row('Dev holds',devHold,d&&d.held<=0?'warn':d&&d.pct>5?'bad':d?'good':'')}${row('Dev SOL balance',d&&d.sol!=null?SOLI+num(d.sol,2):'—')}
+    ${row('DEX',esc(p.dexId||'—'))}${row('Pair created',p.pairCreatedAt?dur((Date.now()-p.pairCreatedAt)/1000)+' ago':'—')}${row('FDV',usd(p.fdv||t.mc))}
+    ${row('DexScreener profile',paid?'Paid ✓':'Not paid',paid?'good':'')}${row('Boosts',boost?'⚡ '+boost:'none')}${row('Socials',so.length?so.map(x=>x.k.toUpperCase()).join(' · '):'none',so.length?'good':'warn')}
+    ${row('Supply',t.auth?.supply?num(t.auth.supply,0):'—')}${row('Token program',t.auth?(t.auth.t22?'Token-2022':'SPL Token'):'—')}${row('Transfer hook',t.auth?(t.auth.hook?'Yes':'No'):'—',t.auth?.hook?'bad':'')}
+  </div></div>`;
 }
 function detailStats(t){
   const cls=x=>x==null?'':x>=0?'up':'dn',k=DT?.stf||'h1';
@@ -2120,7 +2283,8 @@ function detailStats(t){
     <div class="dst3"><div><span>Volume</span><b>${usd(t.vol[k])}</b></div><div><span>Txns</span><b>${num(tx,0)}</b></div><div><span>Buy / sell</span><b class="${b>=s?'up':'dn'}">${num(b/(s||1),2)}</b></div></div>
     <div class="bsl"><span class="up">${num(b,0)} buys</span><span class="note">5m spike ${num(t.spike,1)}x</span><span class="dn">${num(s,0)} sells</span></div>
     <div class="bsbar"><i style="width:${bp}%"></i></div></div>
-   <div class="dcard"><div class="dch"><b>Token audit</b><span class="note">${t.hmAt?'checked '+dur((Date.now()-t.hmAt)/1000)+' ago':t.hmLoading?'checking on-chain…':''}</span></div>${rugTiles(t)}</div>`;
+   <div class="dcard"><div class="dch"><b>Token audit</b><span class="note">${t.hmAt?'checked '+dur((Date.now()-t.hmAt)/1000)+' ago':t.hmLoading?'checking on-chain…':t.hmFail?'<span class="dn">check failed — tap ↻</span>':''}</span></div>${rugTiles(t)}</div>
+   ${infoCard(t)}`;
 }
 // all rug checks from the best data available right now (holder metrics + holder scan + mint account)
 function buildChecks(t,R){
@@ -2180,12 +2344,17 @@ function holdersHTML(){
   return `<div class="dcard"><div class="hhead"><span>#</span><span>Wallet</span><span>Held</span><span>PnL</span></div>${list.map(holderRow).join('')}<div class="note" style="margin-top:8px">Tap a row for wallet stats. Pools and burn addresses are excluded.</div></div>`;
 }
 function kolsHTML(t){
-  const ws=[...new Set([...t.act.kol,...(t.hm?.kols||[])])],sm=[...t.act.sm];
-  const kt=KTR.filter(x=>x.m===t.mint&&KOL[x.w]).sort((a,b)=>b.ts-a.ts);
-  if(!ws.length&&!sm.length)return '<div class="dcard"><div class="note" style="text-align:center;padding:18px 0">No tracked KOLs or smart wallets have traded this token yet.</div></div>';
-  return `${ws.length?`<div class="dcard"><div class="dch"><b>👑 KOLs</b><span class="note">${ws.length}</span></div>${ws.map(w=>{const tr=kt.filter(x=>x.w===w),bs=tr.filter(x=>x.side==='buy').reduce((s,x)=>s+x.sol,0),ss=tr.filter(x=>x.side==='sell').reduce((s,x)=>s+x.sol,0);
-      return `<div class="krow" data-kw="${w}">${kolAv(w,'wav')}<div class="kmid"><b>${esc(KOL[w]||short(w))}</b><span class="note">${KOLX[w]?'@'+esc(KOLX[w]):short(w)}${(t.hm?.kols||[]).includes(w)?' · top holder':''}</span></div><div class="kr">${posChip(kolPos(w,t.mint))}<span class="note">${bs||ss?SOLI:''}${bs?'<span class="up">+'+num(bs,2)+'</span>':''}${ss?' <span class="dn">-'+num(ss,2)+'</span>':''}</span></div></div>`;}).join('')}</div>`:''}
-   ${sm.length?`<div class="dcard"><div class="dch"><b>🧠 Smart wallets</b><span class="note">${sm.length}</span></div>${sm.map(w=>`<a class="krow" href="https://solscan.io/account/${w}" target="_blank" rel="noopener"><span class="mono">${short(w)}</span><span class="note">${SMART[w]?.wr!=null?Math.round(SMART[w].wr)+'% WR':SMART[w]?.src==='manual'?'your list':''}</span></a>`).join('')}</div>`:''}`;
+  const L=tokenWallets(t);
+  if(!L.length)return '<div class="dcard"><div class="note" style="text-align:center;padding:18px 0">None of your KOL or smart wallets traded this token in the last 24h.</div></div>';
+  if(DT&&!DT.posReq&&L.some(o=>!POSBAL[o.w+'|'+t.mint])){DT.posReq=1;(DT.infoP||Promise.resolve()).then(()=>loadPositions(L.slice(0,40).map(o=>o.w+'|'+t.mint)).then(()=>{if(DT?.mint===t.mint&&DT.tab==='kols'){DT.lastBody='';renderDBody();}}));}
+  const hold=L.filter(o=>/^holding|partial/.test(kolPos(o.w,t.mint).st)).length,bin=L.reduce((a,o)=>a+o.b,0),sout=L.reduce((a,o)=>a+o.s,0);
+  const row=o=>{const p=kolPos(o.w,t.mint),nm=KOL[o.w]||SMART[o.w]?.n||short(o.w),pl=o.ba>0&&o.sa>0?o.s-o.b*Math.min(1,o.sa/o.ba):null;   // realized PnL on the part that was sold
+    return `<div class="krow" data-kw="${o.w}">${KOL[o.w]?kolAv(o.w,'wav'):swAv(o.w).replace('kav sav','wav sav')}<div class="kmid"><b>${esc(nm)} <span class="tg ${o.kol?'sm':'ok'}">${o.kol?'KOL':'SMART'}</span></b>
+      <span class="note">${o.bn?`<span class="up">bought ${SOLI}${num(o.b,2)}</span>`:''}${o.sn?` · <span class="dn">sold ${SOLI}${num(o.s,2)}</span>`:''}${o.last?' · '+ago(o.last):''}</span></div>
+      <div class="kr">${posChip(p,true)}${pl!=null?`<span class="${pl>=0?'up':'dn'}" style="font-size:12px;font-weight:700">${pl>=0?'+':''}${num(pl,2)}</span>`:''}</div></div>`;};
+  return `<div class="dcard"><div class="dch"><b>Your wallets on this token</b><span class="note">${L.length}</span></div>
+    <div class="swsum" style="padding:0 0 8px"><span><b>${L.filter(o=>o.kol).length}</b> KOL</span><span><b>${L.filter(o=>!o.kol).length}</b> smart</span><span><b class="up">${hold}</b> holding</span><span>in <b>${SOLI}${num(bin,1)}</b></span><span>out <b>${SOLI}${num(sout,1)}</b></span></div>
+    ${L.map(row).join('')}</div>`;
 }
 function renderDBody(){
   if(!DT||!$('dBody'))return;const t=DT.t;
@@ -2193,7 +2362,7 @@ function renderDBody(){
   if(h!==DT.lastBody){$('dBody').innerHTML=h;DT.lastBody=h;}
   $('dTabs').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.dtab===DT.tab));
 }
-function renderDTabs(t){const n=kolCount(t)+t.act.sm.size;return `<button data-dtab="kols">Wallets${n?` <small>${n}</small>`:''}</button><button data-dtab="audit">Rug check</button><button data-dtab="holders">Top holders${DT?.R?` <small>${DT.R.toScan.length}</small>`:''}</button>`;}
+function renderDTabs(t){const n=tokenWallets(t).length;return `<button data-dtab="kols">Wallets${n?` <small>${n}</small>`:''}</button><button data-dtab="audit">Rug check</button><button data-dtab="holders">Top holders${DT?.R?` <small>${DT.R.toScan.length}</small>`:''}</button>`;}
 function refreshDetail(){
   if(!DT||$('vDetail').classList.contains('hide'))return;const t=DT.t;
   const a=$('dHero');if(a)a.innerHTML=detailHero(t);const b=$('dStats');if(b)b.innerHTML=detailStats(t);
@@ -2213,23 +2382,20 @@ async function openDetail(mint){
      ${so.map(s=>`<a class="soc" href="${esc(s.u)}" target="_blank" rel="noopener" aria-label="${s.k}">${ICO[s.k]}</a>`).join('')}
      <a class="soc" href="https://x.com/search?q=${encodeURIComponent(t.mint)}&f=live" target="_blank" rel="noopener" aria-label="Search CA on X">${ICO.search}</a></div>
    <div id="dHero">${detailHero(t)}</div>
-   <div class="dcard chcard" id="chSec"><div class="chbar"><div class="seg2" id="chTf">${CH_TF.map(([k,l])=>`<button data-v="${k}" class="${CH.tf===k?'on':''}">${l}</button>`).join('')}</div>
-     <div class="seg2" id="chMode"><button data-v="mc" class="${CH.mode==='mc'?'on':''}">MC</button><button data-v="price" class="${CH.mode==='price'?'on':''}">$</button></div>
-     <div class="seg2" id="chSrcSeg"><button data-v="native" class="${CH.src==='native'?'on':''}">Pro</button><button data-v="dex" class="${CH.src==='dex'?'on':''}">DexS</button></div></div>
-     <div class="chwrap"><div id="chart" class="chart"><div class="chload">Loading chart…</div></div><div class="chleg" id="chLeg"></div></div>
-     <div id="chKol"></div><div class="note" id="chNote" style="margin-top:6px"></div></div>
    <div id="dStats">${detailStats(t)}</div>
    <div class="dtabs" id="dTabs">${renderDTabs(t)}</div>
    <div id="dBody"></div>
-   <div class="dlinks"><a href="https://gmgn.ai/sol/token/${t.mint}" target="_blank" rel="noopener">GMGN</a><a href="https://solscan.io/token/${t.mint}" target="_blank" rel="noopener">Solscan</a>${t.pair?.url?`<a href="${esc(t.pair.url)}" target="_blank" rel="noopener">DexScreener</a>`:''}${t.lp==='pump'?`<a href="https://pump.fun/coin/${t.mint}" target="_blank" rel="noopener">Pump.fun</a>`:''}</div>
    <div class="note" style="padding:4px 16px 0;text-align:center">On-chain behaviour, not a promise. Never risk more than you can afford to lose.</div>`;
   $('vDetail').classList.remove('hide');$('vDetail').scrollTop=0;
   renderDBody();
-  if(kolCount(t))loadPositions([...new Set([...t.act.kol,...(t.hm?.kols||[])])].map(w=>w+'|'+t.mint)).then(()=>{if(DT?.mint===mint&&DT.tab==='kols')renderDBody();});
   history.pushState({d:1},'');
-  wireChart(t);
   // holder metrics (bundles/snipers/fresh/holders/fees): wait for a run already in progress, else start one
-  (async()=>{if(!hmFresh(t))await loadHM(t);let n=0;while(t.hmLoading&&n++<120)await new Promise(r=>setTimeout(r,500));if(DT?.mint===mint)refreshDetail();})();
+  DT.infoP=(async()=>{
+    await loadAuthOne(t);if(DT?.mint===mint)refreshDetail();
+    const dv=loadDev(t).then(()=>{if(DT?.mint===mint)refreshDetail();});
+    if(!hmFresh(t)){const before=t.hmAt;await loadHM(t);if(!hmFresh(t)&&t.hmAt===before)t.hmFail=Date.now();}
+    let n=0;while(t.hmLoading&&n++<80)await new Promise(r=>setTimeout(r,500));if(t.hmLoading){t.hmLoading=false;t.hmFail=Date.now();}
+    await dv;if(DT?.mint===mint)refreshDetail();})();
   DT.scan=()=>{if(DT.scanStarted)return;DT.scanStarted=1;(async()=>{
   try{
     const r=await scanHolders(t,(d,n)=>{if(DT?.mint!==mint)return;DT.prog=d/n*100;DT.progTxt=`Analyzing wallet ${d} of ${n}`;const el=$('hFill');if(el){el.style.width=DT.prog+'%';const tx=$('hTxt');if(tx)tx.textContent=DT.progTxt;}});
@@ -2250,6 +2416,35 @@ $('vDetail').addEventListener('click',e=>{
   const sb=e.target.closest('[data-star]');if(sb){const w=sb.dataset.star;if(SMART[w])delete SMART[w];else SMART[w]={t:Date.now(),src:'manual'};store.set('hs_smart',SMART);renderDBody();return;}
   const hx=e.target.closest('[data-hx]');if(hx&&!e.target.closest('a,button')){const w=hx.dataset.hx;DT.open.has(w)?DT.open.delete(w):DT.open.add(w);renderDBody();return;}
 });
+// ---- token page data: mint account (authorities, supply, tax) + dev wallet ----
+async function loadAuthOne(t){
+  if(t.auth&&t.auth.supply)return t.auth;
+  try{const a=await rpc('getAccountInfo',[t.mint,{encoding:'jsonParsed'}]);const inf=a?.value?.data?.parsed?.info;
+    if(inf)t.auth={mint:!!inf.mintAuthority,freeze:!!inf.freezeAuthority,t22:a.value.owner==='TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb',supply:+inf.supply/10**inf.decimals,...readExt(inf)};}catch(e){t.authFail=Date.now();}
+  return t.auth;
+}
+// dev = the wallet that paid for the token's creation transaction (its first ever signature)
+async function loadDev(t){
+  if(t.dev!==undefined&&t.dev&&Date.now()-t.dev.t<120e3)return t.dev;
+  try{const L=await launchInfo(t);if(!L||!L.sig){t.dev=null;return null;}
+    let w=t.dev?.w;
+    if(!w){const tx=await rpc('getTransaction',[L.sig,{encoding:'jsonParsed',maxSupportedTransactionVersion:0}]);const k=tx?.transaction?.message?.accountKeys?.[0];w=typeof k==='string'?k:k?.pubkey;}
+    if(!w){t.dev=null;return null;}
+    const r=await rpc('getTokenAccountsByOwner',[w,{mint:t.mint},{encoding:'jsonParsed'}]);
+    const held=(r?.value||[]).reduce((a,x)=>a+(+x.account?.data?.parsed?.info?.tokenAmount?.uiAmount||0),0);
+    let sol=null;try{const b=await rpc('getBalance',[w]);sol=(b?.value??b)/1e9;KBAL[w]={sol,t:Date.now()};}catch(e){}
+    const sup=t.auth?.supply;t.dev={w,held,pct:sup?held/sup*100:null,sol,t:Date.now()};
+  }catch(e){t.dev=t.dev||null;}
+  return t.dev;
+}
+// every tracked KOL / smart wallet that traded this token, from the stored trades (works after reloads too)
+function tokenWallets(t){
+  const by={};
+  [...KTR,...STR].forEach(x=>{if(x.m!==t.mint)return;const o=by[x.w]||(by[x.w]={w:x.w,kol:!!KOL[x.w],b:0,s:0,ba:0,sa:0,bn:0,sn:0,first:x.ts,last:x.ts});
+    if(x.side==='buy'){o.b+=x.sol;o.ba+=x.amt||0;o.bn++;}else{o.s+=x.sol;o.sa+=x.amt||0;o.sn++;}o.first=Math.min(o.first,x.ts);o.last=Math.max(o.last,x.ts);});
+  [...(t.act?.kol||[]),...(t.hm?.kols||[])].forEach(w=>{if(!by[w]&&KOL[w])by[w]={w,kol:true,b:0,s:0,ba:0,sa:0,bn:0,sn:0,first:0,last:0};});
+  return Object.values(by).sort((a,b)=>(b.kol-a.kol)||(b.b-a.b));
+}
 // ================= share card (rug check → X) =================
 function loadImg(src){return new Promise(res=>{if(!src)return res(null);const im=new Image();im.crossOrigin='anonymous';im.onload=()=>res(im);im.onerror=()=>res(null);setTimeout(()=>res(null),4000);im.src=src;});}
 function rr(x,X,Y,W,H,R){x.beginPath();x.moveTo(X+R,Y);x.arcTo(X+W,Y,X+W,Y+H,R);x.arcTo(X+W,Y+H,X,Y+H,R);x.arcTo(X,Y+H,X,Y,R);x.arcTo(X,Y,X+W,Y,R);x.closePath();}
@@ -2484,7 +2679,7 @@ $('presets').addEventListener('click',e=>{const b=e.target.closest('[data-kp]');
 $('presets').onclick=e=>{const b=e.target.closest('[data-p]');if(b)applyPreset(b.dataset.p);const sp=e.target.closest('[data-sp]');if(sp){const p=SW_TPRESETS.find(x=>x[0]===sp.dataset.sp),o=FILT.sw;FILT.sw={...o,age:[null,null],pos:'all',favOnly:false,verified:false,...p[2],preset:p[0]};saveFilt();renderControls();renderSW();}};
 $('viewRow').onclick=e=>{const b=e.target.closest('[data-v]');if(!b)return;TAB=b.dataset.v;store.set('hs_tab',TAB);store.set('hs_view',TAB);renderControls();renderList();queueTop10();window.scrollTo(0,0);};
 $('sortSel').onchange=()=>{FILT[TAB].sort=$('sortSel').value;saveFilt();renderList();};
-$('filtBtn').onclick=()=>TAB==='kol'?kolFilterSheet():TAB==='sw'?swFilterSheet():filterSheet();$('setBtn').onclick=settingsSheet;$('srchBtn').onclick=searchSheet;$('refBtn').onclick=()=>refresh(true);
+$('filtBtn').onclick=()=>{if(TAB==='kol'||TAB==='sw')feedFilterSheet(TAB);};$('setBtn').onclick=settingsSheet;$('srchBtn').onclick=searchSheet;$('refBtn').onclick=()=>refresh(true);
 $('list').onclick=async e=>{if(e.target.closest('a'))return;const kw=e.target.closest('[data-kw]');if(kw){e.stopPropagation();openKol(kw.dataset.kw);return;}
   const hm=e.target.closest('[data-hm]');if(hm){e.stopPropagation();const m=hm.dataset.hm;let t=TOK.get(m);if(!t||!t.pair){try{const arr=await getJSON('https://api.dexscreener.com/tokens/v1/solana/'+m);t=tok(m);t.seen=Date.now();t.pairs=(Array.isArray(arr)?arr:[]).filter(p=>p.baseToken?.address===m);if(t.pairs.length)derive(t);}catch(err){}}if(t&&t.pair)openDetail(m);else toast('No market data for this token');return;}const cp=e.target.closest('[data-cp]');if(cp){e.stopPropagation();copy(cp.dataset.cp);return;}const c=e.target.closest('.tc,.kt');if(c&&TOK.get(c.dataset.m)?.pair)openDetail(c.dataset.m);};
 $('kPlan').querySelectorAll('button').forEach(b=>b.onclick=()=>{$('kPlan').querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');});
