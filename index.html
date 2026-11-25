@@ -389,6 +389,7 @@ html{transition:background .2s}
 .wk{color:var(--gold)}.ws{color:var(--smart)!important}.wx{color:var(--bad)}.gi em{font-style:normal;color:var(--mut);font-weight:600}.gt{margin-left:auto;color:var(--mut);background:none!important;padding:0!important}
 .gc .kpl{margin-top:6px;padding-top:4px;border-top:1px solid var(--line)}.gc .kpr{padding:3px 0;font-size:12.5px}.gc .kpr .wav{width:20px;height:20px;flex:0 0 20px}
 .gc .pch{font-size:11px;padding:1px 6px}.gmore{padding:2px 0 0 26px}
+.kbtns{display:flex;gap:6px;margin-top:6px}.kbtns .btn{flex:1;padding:8px 6px;font-size:12.5px;margin:0}
 </style>
 </head>
 <body>
@@ -2599,7 +2600,8 @@ function applyPreset(id){const o=FILT[TAB],n={preset:id,...presetF(TAB,id)};
 function settingsSheet(){
   const list=Object.entries(SMART).sort((a,b)=>b[1].t-a[1].t);
   openSheet(`<h3>Settings</h3>
-  <div class="fl">Helius API key</div><input id="sKey" type="password" value="${esc(KEY)}">
+  <div class="fl">Helius API key</div><input id="sKey" type="password" value="${esc(KEY)}" autocomplete="off">
+  <div class="kbtns"><button class="btn gh" id="sKeyClr">✕ Clear</button><button class="btn gh" id="sKeyPaste">📋 Paste new key</button><button class="btn gh" id="sKeyShow">👁 Show</button></div>
   <div class="fl">Plan</div><div class="chipsel" id="sPlan"><button data-v="free" class="${PLAN==='free'?'on':''}">Free</button><button data-v="paid" class="${PLAN==='paid'?'on':''}">Paid</button></div>
   <div class="sw"><span>Live auto-refresh (new trades every ${trackMode().ms/1000}s · prices 15s · token page 8s)</span><input type="checkbox" id="sAuto" ${SET.auto?'checked':''}></div>
   <div class="sw"><span>⚡ Live stream (WebSocket) <span class="note">— watches every wallet in real time, best for 1,000+ wallets</span></span><input type="checkbox" id="sLive" ${SET.live!==false?'checked':''}></div>
@@ -2640,6 +2642,9 @@ function settingsSheet(){
   $('sR2t').onclick=async()=>{readR2();if(!XR.length){$('sR2r').textContent='No extra RPC URLs yet.';return;}$('sR2r').textContent='Testing…';
     const out=await Promise.all(XR.map(async x=>{const t0=Date.now();try{const r=await fetch(x.u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'getSlot',params:[]})});const j=await r.json();if(!r.ok||j.error)throw new Error(j.error?.message||'HTTP '+r.status);return `✅ ${esc(new URL(x.u).hostname)} · ${Date.now()-t0} ms`;}catch(e){return `❌ ${esc(new URL(x.u).hostname)} · ${esc(e.message)}`;}}));
     $('sR2r').innerHTML=out.join('<br>');};$('sBE').onchange=e=>{BEKEY=e.target.value.trim();store.set('hs_bekey',BEKEY);};
+  $('sKeyClr').onclick=()=>{$('sKey').value='';$('sKey').focus();};
+  $('sKeyShow').onclick=()=>{const k=$('sKey');k.type=k.type==='password'?'text':'password';$('sKeyShow').textContent=k.type==='password'?'👁 Show':'🙈 Hide';};
+  $('sKeyPaste').onclick=async()=>{try{const t=(await navigator.clipboard.readText()).trim();if(t.length<20){toast('Copy your Helius key first');return;}$('sKey').value=t;toast('Key pasted — tap Save');}catch(e){$('sKey').value='';$('sKey').focus();toast('Long-press the box and tap Paste');}};
   $('sSave').onclick=()=>{const oldK=KEY;KEY=$('sKey').value.trim();if(KEY!==oldK){parseFails=0;TRK.err='';setTimeout(()=>{if(SET.live!==false)liveStart();trackPoll();},500);}PLAN=$('sPlan').querySelector('.on').dataset.v;SET.auto=$('sAuto').checked;readR2();store.set('hs_key',KEY);store.set('hs_plan',PLAN);store.set('hs_set',SET);schedule();toast('Saved');closeSheet();refresh(true);};
   $('sAddBtn').onclick=()=>{let n=0;$('sAdd').value.split(/[\s,]+/).filter(x=>x.length>=32&&x.length<=44).forEach(w=>{SMART[w]={t:Date.now(),src:'manual'};n++;});store.set('hs_smart',SMART);toast(n+' wallets added');settingsSheet();};
   $('sheet').querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{delete SMART[b.dataset.rm];store.set('hs_smart',SMART);settingsSheet();});
