@@ -390,8 +390,8 @@ html{transition:background .2s}
 .gc .kpl{margin-top:6px;padding-top:4px;border-top:1px solid var(--line)}.gc .kpr{padding:3px 0;font-size:12.5px}.gc .kpr .wav{width:20px;height:20px;flex:0 0 20px}
 .gc .pch{font-size:11px;padding:1px 6px}.gmore{padding:2px 0 0 26px}
 .kbtns{display:flex;gap:6px;margin-top:6px}.kbtns .btn{flex:1;padding:8px 6px;font-size:12.5px;margin:0}
-.stg2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
-.stg2 button{background:var(--bg);border:1px solid var(--line2);border-radius:12px;padding:12px 8px;font-size:14px;font-weight:700;color:var(--txt2)}
+.stg2{display:grid;grid-template-columns:.8fr 1.1fr 1.3fr;gap:6px;margin-top:8px}
+.stg2 button{background:var(--bg);border:1px solid var(--line2);border-radius:12px;padding:11px 4px;font-size:13px;font-weight:700;color:var(--txt2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .stg2 button.on{border-color:var(--acc);background:rgba(124,156,255,.14);color:var(--txt)}
 .stg2 button[data-v=mig].on{border-color:var(--gold);background:rgba(251,191,36,.12);color:var(--gold)}
 .stg2 button[data-v=curve].on{border-color:var(--good);background:rgba(34,197,94,.12);color:var(--good)}
@@ -2342,7 +2342,7 @@ function feedFilterSheet(kind){
     openSheet(`<div class="fhead"><h3 style="margin:0">${kind==='kol'?'👑 KOL':kind==='alpha'?'⚡ Alpha':'🧠 Smart'} filter</h3><button class="rst" id="ffReset">Reset</button></div><div class="fbody">
      <div class="rl">Sort</div>${chips('ffSort',d.sort,SORTS)}
      <div class="rl" style="margin-top:14px">Trade</div>${chips('ffSide',d.side,[['all','Both'],['buy','Buy'],['sell','Sell']])}
-     <div class="rl" style="margin-top:14px">Token status</div><div class="stg2" id="ffStg"><button data-v="mig" class="${d.stage==='mig'?'on':''}">🎓 Migrated</button><button data-v="curve" class="${d.stage==='curve'?'on':''}">💊 Not Migrated</button></div>
+     <div class="rl" style="margin-top:14px">Token status</div><div class="stg2" id="ffStg"><button data-v="" class="${!d.stage?'on':''}">Both</button><button data-v="mig" class="${d.stage==='mig'?'on':''}">🎓 Migrated</button><button data-v="curve" class="${d.stage==='curve'?'on':''}">💊 Not Migrated</button></div>
      <div class="sw"><span>💎 Still holding only <span class="note">(buys the wallet hasn't sold)</span></span><input type="checkbox" id="ffHold" ${d.hold?'checked':''}></div>
      <div class="sw"><span>❤ Favorites only</span><input type="checkbox" id="ffFav" ${d.fav?'checked':''}></div>
      <div class="rl" style="margin-top:14px">Time window</div>${chips('ffWin',d.win,[[15,'15m'],[60,'1h'],[240,'4h'],[720,'12h'],[1440,'24h'],[2880,'48h']])}
@@ -2352,7 +2352,7 @@ function feedFilterSheet(kind){
      <div class="fbar"><button class="btn gh" id="ffCancel">Cancel</button><button class="btn wh" id="ffOk">Apply</button></div>`);
     const rd=()=>{$('sheet').querySelectorAll('input[data-fk]').forEach(el=>{d[el.dataset.fk][+el.dataset.i]=el.value===''?null:+el.value;});d.hold=$('ffHold').checked;d.fav=$('ffFav').checked;if($('ffMk')){d.minK=+$('ffMk').value||null;d.minS=+$('ffMs').value||null;}};
     [['ffSort','sort'],['ffSide','side'],['ffWin','win',1]].forEach(([id,k,isN])=>$(id).querySelectorAll('button').forEach(b=>b.onclick=()=>{rd();d[k]=isN?+b.dataset.v:b.dataset.v;if(k==='side'&&d.side==='sell')d.hold=false;draw();}));
-    $('ffStg').querySelectorAll('button').forEach(b=>b.onclick=()=>{rd();d.stage=d.stage===b.dataset.v?null:b.dataset.v;draw();});
+    $('ffStg').querySelectorAll('button').forEach(b=>b.onclick=()=>{rd();d.stage=b.dataset.v||null;draw();});
     $('ffReset').onclick=()=>{Object.assign(d,JSON.parse(JSON.stringify(FDEF)),{mode:d.mode});draw();};
     $('ffCancel').onclick=closeSheet;
     $('ffOk').onclick=()=>{rd();if(d.hold&&d.side==='sell')d.side='all';FL[kind]=d;saveFL();closeSheet();renderControls();renderList();};
