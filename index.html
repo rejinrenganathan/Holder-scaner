@@ -2176,19 +2176,22 @@ function feedTrades(kind){
   return a.sort(tradeCmp(f.sort));
 }
 // sort keys shared by Trades and Tokens views; ties fall back to newest first
-const SORTS=[['new','🕒 Newest'],['old','🕒 Oldest'],['sol','◎ Biggest'],['mcd','MC high'],['mca','MC low'],['wal','👥 Most wallets']];
+const SORTS=[['new','🕒 Newest'],['old','🕒 Oldest'],['sol','◎ Biggest'],['mcd','MC high'],['mca','MC low'],['vol','📊 Volume'],['wal','👥 Most wallets']];
 const mcOf=m=>{const t=TOK.get(m);return t&&t.pair?t.mc||0:null;};
+const volOf=m=>{const t=TOK.get(m);return t&&t.pair?t.vol?.h24||0:null;};   // token's 24h trading volume (all traders, DexScreener)
 function tradeCmp(k){const nw=(p,q)=>q.ts-p.ts||(p.s<q.s?-1:1);
   if(k==='old')return(p,q)=>p.ts-q.ts||(p.s<q.s?-1:1);
   if(k==='sol')return(p,q)=>q.sol-p.sol||nw(p,q);
   if(k==='mcd')return(p,q)=>(mcOf(q.m)??-1)-(mcOf(p.m)??-1)||nw(p,q);
   if(k==='mca')return(p,q)=>(mcOf(p.m)??1e15)-(mcOf(q.m)??1e15)||nw(p,q);
+  if(k==='vol')return(p,q)=>(volOf(q.m)??-1)-(volOf(p.m)??-1)||nw(p,q);
     return nw;}
 function groupCmp(k){const nw=(a,b)=>b.last-a.last;
   if(k==='old')return(a,b)=>a.last-b.last;
   if(k==='sol')return(a,b)=>(b.bin+b.sout)-(a.bin+a.sout)||nw(a,b);
   if(k==='mcd')return(a,b)=>(mcOf(b.m)??-1)-(mcOf(a.m)??-1)||nw(a,b);
   if(k==='mca')return(a,b)=>(mcOf(a.m)??1e15)-(mcOf(b.m)??1e15)||nw(a,b);
+  if(k==='vol')return(a,b)=>(volOf(b.m)??-1)-(volOf(a.m)??-1)||nw(a,b);
   if(k==='wal')return(a,b)=>(new Set([...b.buyers,...b.sellers]).size-new Set([...a.buyers,...a.sellers]).size)||b.buyers.size-a.buyers.size||nw(a,b);
   return nw;}
 const sortLbl=k=>(SORTS.find(x=>x[0]===k)||SORTS[0])[1];
