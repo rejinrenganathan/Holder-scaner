@@ -395,6 +395,14 @@ html{transition:background .2s}
 .stg2 button.on{border-color:var(--acc);background:rgba(124,156,255,.14);color:var(--txt)}
 .stg2 button[data-v=mig].on{border-color:var(--gold);background:rgba(251,191,36,.12);color:var(--gold)}
 .stg2 button[data-v=curve].on{border-color:var(--good);background:rgba(34,197,94,.12);color:var(--good)}
+#tabs{position:relative}
+#tFeed .fsel{display:inline-block;margin-left:4px;padding:1px 8px;border-radius:8px;background:var(--chip);color:var(--txt);font-size:12px;font-weight:800}
+#tFeed .fcar{font-style:normal;font-size:11px;margin-left:2px;display:inline-block;transition:transform .15s}#tFeed.open .fcar{transform:rotate(180deg)}
+.fmenu{position:absolute;left:8px;top:calc(100% + 4px);z-index:60;min-width:250px;background:var(--card);border:1px solid var(--line2);border-radius:14px;padding:6px;box-shadow:0 14px 40px rgba(0,0,0,.45)}
+.fmenu button{display:grid!important;grid-template-columns:1fr auto;grid-template-rows:auto auto;width:100%;text-align:left;background:none!important;border:0!important;border-radius:10px;padding:9px 10px!important;color:var(--txt)!important;font-size:14px!important;font-weight:800}
+.fmenu button span{grid-column:1}.fmenu button em{grid-column:1;font-style:normal;font-size:11px;font-weight:600;color:var(--mut)}
+.fmenu button b{grid-column:2;grid-row:1/3;align-self:center;font-size:12px!important;color:var(--mut)!important}
+.fmenu button.on{background:rgba(124,156,255,.14)!important}.fmenu button.on span::after{content:"  ✓";color:var(--acc)}
 </style>
 </head>
 <body>
@@ -426,10 +434,13 @@ html{transition:background .2s}
       <button class="ib" id="setBtn" aria-label="Settings">⚙︎</button>
     </div>
     <div class="tabs" id="tabs">
-      <button data-t="alpha">⚡ Alpha<b id="c-al"></b></button>
-      <button data-t="kol" class="on">👑 KOL<b id="c-kol"></b></button>
-      <button data-t="sw">🧠 Smart<b id="c-sw"></b></button>
+      <button data-t="feed" id="tFeed" class="on">⚡ Alpha <span class="fsel" id="tFeedL">All</span> <i class="fcar">▾</i></button>
       <button data-t="add">＋ Add</button>
+      <div class="fmenu hide" id="fMenu">
+        <button data-k="alpha"><span>⚡ All</span><em>KOL + smart money</em><b id="c-al"></b></button>
+        <button data-k="kol"><span>👑 KOL</span><em>wallets with an X handle</em><b id="c-kol"></b></button>
+        <button data-k="sw"><span>🧠 Smart money</span><em>your smart wallets</em><b id="c-sw"></b></button>
+      </div>
     </div>
   </div>
   <div class="ctl">
@@ -2148,6 +2159,7 @@ function cardHTML(t){
 function updateCard(t){const el=$('c-'+t.mint);if(el)el.outerHTML=cardHTML(t);}
 // ================= simple tracker UI: 👑 KOL · 🧠 Smart · ＋ Add =================
 const FEEDS=['alpha','kol','sw'];
+let FEEDK=(k=>FEEDS.includes(k)?k:'alpha')(store.get('hs_feedk',FEEDS.includes(store.get('hs_tab','alpha'))?store.get('hs_tab','alpha'):'alpha'));   // last choice in the Alpha drop-down
 const FDEF={stage:null,minK:null,minS:null,mode:'trades',side:'all',hold:false,fav:false,win:240,sol:[null,null],mc:[null,null],sort:'new'};
 let FL=store.get('hs_fl',null);if(!FL||!FL.kol||!FL.sw)FL={kol:{...FDEF},sw:{...FDEF}};if(!FL.alpha)FL.alpha={...FDEF,mode:'tokens',hold:true,win:1440};
 const saveFL=()=>store.set('hs_fl',FL);
@@ -2543,7 +2555,8 @@ function renderList(loading){
   $('list').innerHTML=arr.slice(0,80).map(cardHTML).join('');
 }
 function renderControls(){
-  document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.t===TAB));
+  document.querySelectorAll('#tabs>button').forEach(b=>b.classList.toggle('on',b.dataset.t==='feed'?FEEDS.includes(TAB):b.dataset.t===TAB));
+  {const k=FEEDS.includes(TAB)?TAB:FEEDK;$('tFeedL').textContent=k==='kol'?'KOL':k==='sw'?'Smart':'All';document.querySelectorAll('#fMenu [data-k]').forEach(b=>b.classList.toggle('on',b.dataset.k===k));}
   const ctl=document.querySelector('.ctl');ctl.classList.toggle('hide',TAB==='add');
   ['viewRow','presets','tfRow','sortSel'].forEach(id=>$(id).classList.add('hide'));
   if(FEEDS.includes(TAB)){const f=FL[TAB],n=fCount(f);$('fN').textContent=n;$('fN').classList.toggle('hide',!n);
@@ -3231,7 +3244,16 @@ applyTheme(THEME);
 $('themeBtn').onclick=()=>{THEME=THEME==='light'?'dark':'light';store.set('hs_theme',THEME);applyTheme(THEME);};
 
 // ================= wiring =================
-$('tabs').onclick=e=>{const b=e.target.closest('button');if(!b)return;TAB=b.dataset.t;store.set('hs_tab',TAB);renderControls();renderList();queueTop10();window.scrollTo(0,0);};
+// tab bar: ⚡ Alpha (with a drop-down: All · KOL · Smart money) and ＋ Add
+const fMenu=on=>{$('fMenu').classList.toggle('hide',!on);$('tFeed').classList.toggle('open',on);};
+$('tabs').onclick=e=>{
+  const it=e.target.closest('[data-k]');
+  if(it){fMenu(false);const k=it.dataset.k;FEEDK=k;store.set('hs_feedk',k);if(TAB!==k){TAB=k;store.set('hs_tab',TAB);renderControls();renderList();window.scrollTo(0,0);}else renderControls();return;}
+  const b=e.target.closest('button[data-t]');if(!b)return;
+  if(b.dataset.t==='feed'){if(FEEDS.includes(TAB)){fMenu($('fMenu').classList.contains('hide'));return;}TAB=FEEDK;}
+  else{fMenu(false);TAB=b.dataset.t;}
+  store.set('hs_tab',TAB);renderControls();renderList();window.scrollTo(0,0);};
+document.addEventListener('click',e=>{if(!e.target.closest('#tabs'))fMenu(false);},true);
 $('tfRow').onclick=e=>{const b=e.target.closest('[data-tf]');if(!b)return;FILT[TAB].tf=b.dataset.tf;FILT[TAB].sort='vol';saveFilt();renderControls();renderList();queueTop10();};
 $('presets').addEventListener('click',e=>{const b=e.target.closest('[data-kp]');if(!b)return;const p=KOL_PRESETS.find(x=>x[0]===b.dataset.kp);FILT.kol={...FILT.kol,age:[null,null],pos:'all',favOnly:false,...p[2],preset:p[0]};saveFilt();renderControls();renderList();});
 $('presets').onclick=e=>{const b=e.target.closest('[data-p]');if(b)applyPreset(b.dataset.p);const sp=e.target.closest('[data-sp]');if(sp){const p=SW_TPRESETS.find(x=>x[0]===sp.dataset.sp),o=FILT.sw;FILT.sw={...o,age:[null,null],pos:'all',favOnly:false,verified:false,...p[2],preset:p[0]};saveFilt();renderControls();renderSW();}};
