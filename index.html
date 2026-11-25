@@ -374,6 +374,21 @@ html{transition:background .2s}
 .alk{background:rgba(251,191,36,.13);color:var(--gold)}.als{background:rgba(167,139,250,.14);color:var(--smart)}
 .wt{font-size:9.5px;font-weight:900;padding:1px 5px;border-radius:5px;margin-left:5px;vertical-align:middle}.wt.k{background:rgba(251,191,36,.16);color:var(--gold)}.wt.s{background:rgba(167,139,250,.16);color:var(--smart)}
 .alq{margin:6px 0 2px}
+.gc{padding:12px 12px 8px!important}
+.g1{display:flex;align-items:center;gap:10px}.gc .av{flex:0 0 44px;height:44px}.gc .av img,.gc .av .ini{width:44px!important;height:44px!important}
+.gm{flex:1;min-width:0}.gn{display:flex;align-items:baseline;gap:6px;min-width:0}.gn b{font-size:16px;font-weight:900;white-space:nowrap}.gn span{color:var(--mut);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gs{display:flex;align-items:center;gap:6px;margin-top:3px;font-size:12px}.gs .age{color:var(--good);font-weight:800}.gs .cp{font-size:12px;padding:0 2px}
+.gr{flex:0 0 auto;text-align:right;font-size:12px;line-height:1.35;font-weight:800}.gr .lb{color:var(--mut);font-weight:600;font-size:11px}.gr .mcv{color:var(--acc)}
+.sps{display:flex;gap:5px;margin:9px 0 6px;overflow-x:auto;scrollbar-width:none}.sps::-webkit-scrollbar{display:none}
+.sp{flex:0 0 auto;display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:999px;border:1px solid var(--line);font-size:11.5px;color:var(--txt2)}
+.sp svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;opacity:.85}
+.sp b{font-weight:800}.sp.good{color:var(--good)}.sp.warn{color:var(--warn,#f59e0b)}.sp.bad{color:var(--bad)}
+.skl.s{display:inline-block;width:22px;height:9px;border-radius:4px}
+.g3{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12px;font-weight:700}
+.g3>span{padding:3px 8px;border-radius:8px;background:var(--bg)}.g3 b{font-weight:900}
+.wk{color:var(--gold)}.ws{color:var(--smart)!important}.wx{color:var(--bad)}.gi em{font-style:normal;color:var(--mut);font-weight:600}.gt{margin-left:auto;color:var(--mut);background:none!important;padding:0!important}
+.gc .kpl{margin-top:6px;padding-top:4px;border-top:1px solid var(--line)}.gc .kpr{padding:3px 0;font-size:12.5px}.gc .kpr .wav{width:20px;height:20px;flex:0 0 20px}
+.gc .pch{font-size:11px;padding:1px 6px}.gmore{padding:2px 0 0 26px}
 </style>
 </head>
 <body>
@@ -831,7 +846,8 @@ async function das(method,params){
 }
 // lite holder metrics: holders, top10, bundle, insiders, fresh (cheap RPC calls)
 const HM_TTL=10*60e3;
-const hmFresh=t=>t.hm&&Date.now()-t.hmAt<HM_TTL;
+const hmFresh=t=>t.hm&&!t.hm.lite&&Date.now()-t.hmAt<HM_TTL;          // full scan (token page)
+const cardFresh=t=>t.hm&&Date.now()-t.hmAt<HM_TTL;                     // full or light scan (cards)
 // exact on-chain launch: oldest signature of the mint (pages back up to 4k sigs), else DexScreener time
 async function launchInfo(t){
   if(t.launch!==undefined)return t.launch;
@@ -840,8 +856,8 @@ async function launchInfo(t){
     const o=r[r.length-1];if(r.length<1000){t.launch={slot:o.slot,time:o.blockTime,exact:true,sig:o.signature};return t.launch;}before=o.signature;}}catch(e){}
   const lt=launchTime(t);t.launch=lt?{slot:null,time:lt,exact:false}:null;return t.launch;
 }
-async function loadHM(t){
-  if(hmFresh(t)||t.hmLoading)return;t.hmLoading=true;
+async function loadHM(t,o){
+  o=o||{};if(hmFresh(t)||t.hmLoading)return;t.hmLoading=true;
   try{
     const la=await rpc('getTokenLargestAccounts',[t.mint]);const acc=(la?.value||[]).slice(0,20);
     const ta=await rpc('getMultipleAccounts',[acc.map(a=>a.address),{encoding:'jsonParsed'}]);
@@ -869,7 +885,7 @@ async function loadHM(t){
     const insider=firstKnown.length&&L?sumP(h=>h.sniper):null;
     const fresh=ageKnown.length?sumP(h=>h.fresh):null;
     // fee sample from the token's own recent trades: network + priority + Jito tips per trade
-    try{const tx=await txRecent(t.mint,100);const trades=(Array.isArray(tx)?tx:[]).filter(x=>!x.transactionError&&(x.tokenTransfers||[]).some(y=>y.mint===t.mint));
+    if(!o.card)try{const tx=await txRecent(t.mint,100);const trades=(Array.isArray(tx)?tx:[]).filter(x=>!x.transactionError&&(x.tokenTransfers||[]).some(y=>y.mint===t.mint));
       if(trades.length>=5){const tot=trades.reduce((a,x)=>a+(x.fee||0)+(x.nativeTransfers||[]).filter(n=>JITO.has(n.toUserAccount)).reduce((b,n)=>b+(n.amount||0),0),0);
         t.feeAvg=tot/trades.length/1e9;t.fees24=t.feeAvg*(t.buys.h24+t.sells.h24);}}catch(e){}
     let holders=null;
@@ -2182,13 +2198,85 @@ function feedRow(x,kind){
    <div class="mid"><div class="nm"><b class="kn" data-kw="${x.w}">${esc(wName(x.w))}</b>${kind==='alpha'?(KOL[x.w]?'<span class="wt k">KOL</span>':'<span class="wt s">SMART</span>'):''}${heart(x.w)}<span class="side ${x.side}">${x.side.toUpperCase()}</span><b class="${x.side==='buy'?'up':'dn'}">${SOLI}${num(x.sol,x.sol<1?2:1)}</b></div>
    <div class="sub">${sub}${balTxt(x.w)?'bal '+balTxt(x.w)+' · ':''}${ago(x.ts)}</div>${x.side==='buy'?`<div class="sub" style="margin-top:4px">${posChip(kolPos(x.w,x.m))}</div>`:''}</div>${tokMini(x.m)}</div>`;
 }
+// mini stat icons (Axiom style)
+const IC={
+ hold:'<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>',
+ top:'<svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
+ bun:'<svg viewBox="0 0 24 24"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7M12 11v10"/></svg>',
+ ins:'<svg viewBox="0 0 24 24"><circle cx="10" cy="8" r="4"/><path d="M2 21c0-4 3.5-6 8-6"/><path d="M18 13l1.5 3 3 .4-2.2 2.1.6 3-2.9-1.5-2.9 1.5.6-3-2.2-2.1 3-.4z"/></svg>',
+ snp:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 2v5M12 17v5M2 12h5M17 12h5"/></svg>',
+ dev:'<svg viewBox="0 0 24 24"><path d="M7 14a4 4 0 1 1 1.5-7.7A4 4 0 0 1 16 6.3 4 4 0 1 1 17 14z"/><path d="M7 14v6h10v-6"/></svg>',
+};
+function statPill(icon,val,cls,tip){return `<span class="sp ${cls||''}" title="${tip}">${IC[icon]}<b>${val}</b></span>`;}
+// holder stats for the card: from the token's holder scan (loaded in the background for the cards you can see)
+function cardStats(t){
+  const hm=t.hm||null,ld=!hm,sk='<i class="skl s"></i>',pc=v=>v==null?'—':num(v,v<10?1:0)+'%';
+  const d=t.dev,dp=d&&d.pct!=null?d.pct:null;
+  return `<div class="sps">
+   ${statPill('hold',ld?sk:hm.holders?num(hm.holders.n,0)+(hm.holders.more?'+':''):'—','','Holders')}
+   ${statPill('top',ld?sk:pc(hm.top10),ld?'':lvlCls(hm.top10,30,50),'Top 10 holders')}
+   ${statPill('dev',d===undefined?(ld?sk:'—'):d===null?'—':d.held<=0?'0%':pc(dp),d&&d.held>0?lvlCls(dp,5,15):d?'good':'','Dev holds')}
+   ${statPill('bun',ld?sk:pc(hm.bundle),ld?'':lvlCls(hm.bundle,5,15),'Bundlers')}
+   ${statPill('ins',ld?sk:pc(hm.insider),ld?'':lvlCls(hm.insider,5,15),'Insiders / snipers')}
+  </div>`;
+}
 function tokGroupCard(g,kind){
   const t=TOK.get(g.m),hw=[...g.buyers].filter(w=>/^holding|partial/.test(kolPos(w,g.m).st)),hold=hw.length;
-  const al=kind==='alpha',kb=[...g.buyers].filter(w=>KOL[w]).length,sb=g.buyers.size-kb,kh=hw.filter(w=>KOL[w]).length,sh=hold-kh;
-  return `<div class="tc" data-m="${g.m}" data-k="g${g.m}">${t&&t.pair?`<div class="r1">${avatar(t)}<div class="mid"><div class="nm"><b>${esc(t.sym)}</b><span class="full">${esc(t.name)}</span></div><div class="sub"><span class="age">${dur(t.created?(Date.now()-t.created)/1000:null)}</span>·<span>${short(g.m)}</span>${bondPill(t)}</div></div><div class="rt"><div class="mc">MC <b>${usd(t.mc)}</b></div><div class="chg ${(t.chg.h1||0)>=0?'up':'dn'}">${pct(t.chg.h1)} <span style="color:var(--mut);font-weight:500">1h</span></div></div></div>`:`<b>${short(g.m)}</b>`}
-   ${al?`<div class="alsp"><span class="alk"><b>👑 ${kh}</b> KOL holding<em>${kb} bought</em></span><span class="als"><b>🧠 ${sh}</b> smart holding<em>${sb} bought</em></span></div>`:''}
-   <div class="r3">${al?'':`<span class="bd ok">${g.buyers.size} bought</span><span class="bd ok">💎 ${hold} holding</span>`}${g.sellers.size?`<span class="bd bad">${g.sellers.size} sold</span>`:''}<span class="bd">${SOLI}${num(g.bin,1)} in</span>${g.sout?`<span class="bd">${SOLI}${num(g.sout,1)} out</span>`:''}<span class="bd">last ${ago(g.last)}</span></div>
-   <div class="kpl">${(al?[...[...g.buyers].filter(w=>KOL[w]).slice(0,5),...[...g.buyers].filter(w=>!KOL[w]).slice(0,4)]:[...g.buyers].slice(0,8)).map(w=>{const p=kolPos(w,g.m);return `<div class="kpr" data-kw="${w}">${wAv(w,'wav')}<b>${esc(wName(w))}</b>${al?(KOL[w]?'<span class="wt k">KOL</span>':'<span class="wt s">SMART</span>'):''}${posChip(p,true)}<span class="note" style="margin-left:auto">${SOLI}${num(p.inSol,1)}</span></div>`;}).join('')}</div></div>`;
+  const kb=[...g.buyers].filter(w=>KOL[w]).length,sb=g.buyers.size-kb,kh=hw.filter(w=>KOL[w]).length,sh=hold-kh;
+  const al=kind==='alpha',ok=t&&t.pair;
+  const head=ok?`<div class="g1">${avatar(t)}
+     <div class="gm"><div class="gn"><b>${esc(t.sym)}</b><span>${esc(t.name)}</span></div>
+      <div class="gs"><span class="age">${dur(t.created?(Date.now()-t.created)/1000:null)}</span><button class="cp" data-cp="${g.m}">⧉</button>${bondPill(t)}</div></div>
+     <div class="gr"><div><span class="lb">MC</span> <b class="mcv">${usd(t.mc)}</b></div><div><span class="lb">V</span> <b>${usd(t.vol.h24)}</b></div><div class="${(t.chg.h1||0)>=0?'up':'dn'}">${pct(t.chg.h1)}<span class="lb"> 1h</span></div></div></div>`
+    :`<div class="g1"><b>${short(g.m)}</b><span class="note">loading…</span></div>`;
+  // who: KOL / smart holding (Alpha shows both), money in / out, last trade
+  const who=al?`<span class="wk">👑 <b>${kh}</b>/${kb} KOL</span><span class="ws">🧠 <b>${sh}</b>/${sb} smart</span>`
+    :`<span class="wk ${kind==='sw'?'ws':''}">💎 <b>${hold}</b>/${g.buyers.size} holding</span>${g.sellers.size?`<span class="wx">${g.sellers.size} sold</span>`:''}`;
+  const list=al?[...[...g.buyers].filter(w=>KOL[w]),...[...g.buyers].filter(w=>!KOL[w])]:[...g.buyers];
+  const show=list.slice(0,4),more=list.length-show.length;
+  return `<div class="tc gc" data-m="${g.m}" data-k="g${g.m}">${head}
+   ${ok?cardStats(t):''}
+   <div class="g3">${who}<span class="gi">${SOLI}${num(g.bin,1)}${g.sout?` <em>/ ${num(g.sout,1)} out</em>`:''}</span><span class="gt">${ago(g.last)}</span></div>
+   <div class="kpl">${show.map(w=>{const p=kolPos(w,g.m);return `<div class="kpr" data-kw="${w}">${wAv(w,'wav')}<b>${esc(wName(w))}</b>${al?(KOL[w]?'<span class="wt k">KOL</span>':'<span class="wt s">SM</span>'):''}${posChip(p,true)}<span class="note" style="margin-left:auto">${SOLI}${num(p.inSol,1)}</span></div>`;}).join('')}${more>0?`<div class="note gmore">+${more} more wallet${more>1?'s':''}</div>`:''}</div></div>`;
+}
+// light holder scan for a card (~15 cheap calls): holders, top 10, bundlers (same-block buys), insiders (bought within 15s of launch)
+// cards on screen are what you're looking at: their calls use the fast lane (extra RPCs first, then Helius ahead of background checks)
+async function cardRpc(method,params){if(XR.length){const x=await xrpc(method,params);if(!x.miss)return x.r;}return heliusRpc(method,params,TH.rpc.hi);}
+async function loadCardHM(t){
+  if(cardFresh(t)||t.hmLoading)return;t.hmLoading=true;
+  try{
+    const la=await cardRpc('getTokenLargestAccounts',[t.mint]);const acc=(la?.value||[]).slice(0,20);if(!acc.length)throw 0;
+    const ta=await cardRpc('getMultipleAccounts',[acc.map(a=>a.address),{encoding:'jsonParsed'}]);
+    const hs=acc.map((a,i)=>({ata:a.address,amt:a.uiAmount||0,owner:ta?.value?.[i]?.data?.parsed?.info?.owner})).filter(h=>h.owner);
+    const oi=await cardRpc('getMultipleAccounts',[hs.map(h=>h.owner),{encoding:'base64',dataSlice:{offset:0,length:0}}]);
+    if(!t.auth)await loadAuthOne(t);
+    const sup=t.auth?.supply||hs.reduce((a,h)=>a+h.amt,0)||1;
+    const people=hs.filter((h,i)=>{const o=oi?.value?.[i];return!(BURN.has(h.owner)||POOL_AUTH.has(h.owner)||h.owner===t.pair?.pairAddress||h.owner===t.curveAddr||(o&&o.owner!==SYSTEM)||!o);});
+    people.forEach(h=>h.pct=h.amt/sup*100);
+    const top=people.slice(0,12);
+    await pool(top,3,async h=>{try{const sa=await cardRpc('getSignaturesForAddress',[h.ata,{limit:1000}]);if(sa&&sa.length&&sa.length<1000){const o=sa[sa.length-1];h.slot=o.slot;h.time=o.blockTime;}}catch(e){}});
+    const fk=top.filter(h=>h.slot),bySlot={};fk.forEach(h=>(bySlot[h.slot]=bySlot[h.slot]||[]).push(h));
+    const lt=launchTime(t)||(t.launch&&t.launch.time)||null,minT=fk.length?Math.min(...fk.map(h=>h.time||1e12)):null,L0=lt&&minT?Math.min(lt,minT):lt||minT;
+    fk.forEach(h=>{h.bundled=bySlot[h.slot].length>1;h.sniper=!!(L0&&h.time&&h.time-L0<=15&&!h.bundled);});
+    const sumP=f=>top.filter(f).reduce((a,h)=>a+h.pct,0);
+    let holders=t.hm?.holders||null;
+    try{let n=0,page=1,more=true;while(more&&page<=3){const r=await das('getTokenAccounts',{mint:t.mint,page,limit:1000});const ac=r?.token_accounts||[];n+=ac.filter(a=>+a.amount>0).length;more=ac.length===1000;page++;}holders={n,more};}catch(e){}
+    t.hm={lite:true,top10:people.slice(0,10).reduce((a,h)=>a+h.pct,0),bundle:fk.length?sumP(h=>h.bundled):null,insider:fk.length&&L0?sumP(h=>h.sniper):null,fresh:null,holders,
+      checked:top.length,firstKnown:fk.length,bundleW:top.filter(h=>h.bundled).length,sniperW:top.filter(h=>h.sniper).length,freshW:0,kols:people.filter(h=>KOL[h.owner]).map(h=>h.owner)};
+    t.hmAt=Date.now();t.top10=t.hm.top10;t.hmFail=0;
+  }catch(e){}
+  t.hmLoading=false;
+}
+// background holder scans for the token cards on screen (a few at a time, cached 10 min)
+let csRun=false;
+async function cardStatsLoad(mints){
+  if(csRun||!KEY)return;csRun=true;
+  try{for(const m of mints.slice(0,10)){const t=TOK.get(m);if(!t||!t.pair||cardFresh(t)||t.hmLoading||(t.hmFail&&Date.now()-t.hmFail<HM_TTL))continue;
+      if(!FEEDS.includes(TAB)||!visible()||!$('vDetail').classList.contains('hide'))break;
+      await loadCardHM(t);if(!cardFresh(t))t.hmFail=Date.now();
+      if(t.dev===undefined&&t.curveAddr){try{await loadDev(t);}catch(e){}}
+      renderSoft();await sleep(600);}}
+  finally{csRun=false;}
 }
 // keyed DOM update: cards are matched by key and only what changed inside them is touched
 // (pictures stay loaded, nothing jumps, scroll stays put) — like GMGN / Axiom live lists
@@ -2228,7 +2316,7 @@ function renderFeed(kind){
   if(!n){$('list').innerHTML=h+`<div class="empty">No ${kind==='kol'?'KOL':kind==='alpha'?'KOL or smart':'smart'} wallets yet.<br><br>Open <b>＋ Add</b> and paste your wallets. Wallets with an X handle become 👑 KOL, the rest 🧠 Smart.</div>`;wireFeed(kind);return;}
   const tr=feedTrades(kind);
   if(!tr.length){h+=`<div class="empty">No ${f.side==='all'?'':f.side+' '}trades in the last <b>${dur(f.win*60)}</b>${fCount(f)?' with these filters':''}.<br><br>${feedSrc(kind).length?'Widen the time window or reset Filters.':'The tracker is checking your wallets — new trades appear here automatically.'}</div>`;}
-  else if(f.mode==='tokens')h+=feedTokens(tr,kind).slice(0,60).map(g=>tokGroupCard(g,kind)).join('');
+  else if(f.mode==='tokens'){const gs=feedTokens(tr,kind).slice(0,60);h+=gs.map(g=>tokGroupCard(g,kind)).join('');setTimeout(()=>cardStatsLoad(gs.map(g=>g.m)),300);}
   else{if(f.sort==='wal'){const n={};tr.forEach(x=>{(n[x.m]=n[x.m]||new Set()).add(x.w);});tr.sort((p,q)=>n[q.m].size-n[p.m].size||q.ts-p.ts);}
     h+=tr.slice(0,150).map(x=>feedRow(x,kind)).join('')+(tr.length>150?`<div class="note" style="text-align:center;padding:10px">Showing 150 of ${tr.length} trades</div>`:'');}
   patchList($('list'),h);wireFeed(kind);
