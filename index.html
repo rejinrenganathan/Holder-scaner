@@ -562,7 +562,7 @@ async function avLookup(h){
 function avPump(){while(avRun<3&&AVQ.size){const h=AVQ.values().next().value;AVQ.delete(h);avRun++;avLookup(h).finally(()=>{avRun--;avSave();avFill(h);avPump();});}}
 function resolveAvatars(){document.querySelectorAll('.avq[data-xh]').forEach(el=>{const h=el.dataset.xh,c=XAVH[xavKey(h)];
   if(typeof c==='string'||(c&&c.f&&Date.now()-c.f<864e5)){el.outerHTML=xImg(h,el.dataset.ini);return;}if(AVQ.size<200)AVQ.add(h);});avPump();}
-{let mt=null;new MutationObserver(()=>{if(mt)return;mt=setTimeout(()=>{mt=null;resolveAvatars();},250);}).observe(document.documentElement,{childList:true,subtree:true});}
+if(typeof MutationObserver!=="undefined"){let mt=null;new MutationObserver(()=>{if(mt)return;mt=setTimeout(()=>{mt=null;resolveAvatars();},250);}).observe(document.documentElement,{childList:true,subtree:true});}
 const kolAv=(w,cls)=>{const h=KOLX[w],ini=esc((KOL[w]||'?').replace(/[^A-Za-z0-9]/g,'').slice(0,2).toUpperCase()||'K');return `<div class="${cls}">${xImg(h,ini)}</div>`;};
 const kolX=w=>KOLX[w]?'https://x.com/'+encodeURIComponent(KOLX[w]):'https://x.com/search?q='+encodeURIComponent(KOL[w]||w);
 const kolLink=w=>`<a href="${kolX(w)}" target="_blank" rel="noopener" style="color:var(--acc);text-decoration:none">${esc(KOL[w]||short(w))}${KOLX[w]?' <span class="note">@'+esc(KOLX[w])+'</span>':''}</a>`;            // wallet -> {t,src,wr,closed}
@@ -641,7 +641,7 @@ async function pool(items,n,fn,stop){let i=0;await Promise.all(Array.from({lengt
 
 // ================= launchpad / stage =================
 const isCurveDex=id=>/^(pumpfun|pump\.fun)$/i.test(id||'')||/launchlab|dbc/i.test(id||'');
-function detectLp(mint,pairs){if(/pump$/.test(mint))return'pump';if(/bonk$/.test(mint))return'bonk';if(/BAGS$/.test(mint))return'bags';if(pairs.some(p=>/launchlab/i.test(p.dexId||'')))return'launchlab';if(pairs.some(p=>/dbc/i.test(p.dexId||'')))return'dbc';return'other';}
+function detectLp(mint,pairs){if(/pump$/.test(mint)||pairs.some(p=>/^(pumpfun|pump\.fun)$/i.test(p.dexId||'')))return'pump';if(/bonk$/.test(mint))return'bonk';if(/BAGS$/.test(mint))return'bags';if(pairs.some(p=>/launchlab/i.test(p.dexId||'')))return'launchlab';if(pairs.some(p=>/dbc/i.test(p.dexId||'')))return'dbc';return'other';}
 const detectStage=pairs=>!pairs.length?'unknown':pairs.some(p=>!isCurveDex(p.dexId))?'mig':'curve';
 const lpOK=(lp,list)=>list.includes(lp)||(lp==='dbc'&&list.includes('bags'))||(lp==='launchlab'&&list.includes('bonk'));
 
@@ -700,9 +700,9 @@ const clampP=v=>v==null||!isFinite(v)||v<-1||v>105?null:Math.max(0,Math.min(100,
 // pump.fun constant-product curve: mcap(SOL) = 32190000 / (1073 - sold)^2 (millions of tokens) → progress from market cap when the account can't be read
 function pumpProgFromMc(t){if(!SOLUSD||!t.mc)return null;const M=t.mc/SOLUSD;if(M<=0)return null;const sold=1073-Math.sqrt(32190000/M);return clampP(sold/793.1*100);}
 function parseCurve(owner,u){
-  if(owner===PUMP_PROG){if(u.length<49)return null;if(u[48]===1)return{p:100};const real=u64(u,24);return{p:clampP((1-real/PUMP_REAL0)*100)};}
-  if(owner===LL_PROG){if(u.length<77)return null;const rq=u64(u,61),tq=u64(u,69);return tq>0?{p:clampP(rq/tq*100)}:null;}
-  if(owner===DBC_PROG){if(u.length<306)return null;if(u[305]===1)return{p:100};return{dbc:true,qr:u64(u,240),cfg:b58(u.slice(72,104))};}
+  if(owner===PUMP_PROG){if(u.length<49)return null;const cr=u.length>=81&&u.slice(49,81).some(x=>x)?b58(u.slice(49,81)):null,sol=u64(u,32)/1e9;if(u[48]===1)return{p:100,creator:cr,sol:0};const real=u64(u,24);return{p:clampP((1-real/PUMP_REAL0)*100),creator:cr,sol};}
+  if(owner===LL_PROG){if(u.length<77)return null;const rq=u64(u,61),tq=u64(u,69);return tq>0?{p:clampP(rq/tq*100),sol:rq/1e9}:null;}
+  if(owner===DBC_PROG){if(u.length<306)return null;if(u[305]===1)return{p:100};return{dbc:true,qr:u64(u,240),sol:u64(u,240)/1e9,cfg:b58(u.slice(72,104))};}
   return null;
 }
 const DBC_CFG=store.get('hs_dbccfg',{});                   // config address -> migration_quote_threshold
@@ -719,7 +719,8 @@ async function loadCurves(force){
     for(let i=0;i<withA.length;i+=100){const ch=withA.slice(i,i+100);
       try{const r=await rpcBg('getMultipleAccounts',[ch.map(t=>t.curveAddr),{encoding:'base64'}]);
         (r?.value||[]).forEach((a,k)=>{const t=ch[k];let res=null;try{if(a&&a.data)res=parseCurve(a.owner,b64(a.data[0]));}catch(e){}
-          if(res&&res.dbc){pend.push([t,res]);return;}
+          if(res&&res.dbc){t.curveSol=res.sol;pend.push([t,res]);return;}
+          if(res){if(res.sol!=null)t.curveSol=res.sol;if(res.creator)t.creator=res.creator;}
           if(res&&res.p!=null)t.bond={p:res.p,exact:true,t:Date.now()};
           else if(t.lp==='pump'){const p=pumpProgFromMc(t);if(p!=null)t.bond={p,est:true,t:Date.now()};}});}catch(e){}}
     const need=[...new Set(pend.map(([,r])=>r.cfg).filter(c=>DBC_CFG[c]==null))];
@@ -729,6 +730,17 @@ async function loadCurves(force){
     if(ts.length&&(TAB==='kol'||TAB==='sw'))renderSoft();
   }finally{curveBusy=false;}
 }
+// one token (token page): bonding %, SOL in the curve, and the pump.fun creator (= dev) straight from the curve account
+async function loadCurveOne(t){
+  if(!t.curveAddr||(t.curveAt&&Date.now()-t.curveAt<20e3))return;t.curveAt=Date.now();
+  try{const a=(await rpc('getAccountInfo',[t.curveAddr,{encoding:'base64'}]))?.value;if(!a||!a.data)return;const res=parseCurve(a.owner,b64(a.data[0]));if(!res)return;
+    if(res.sol!=null)t.curveSol=res.sol;if(res.creator)t.creator=res.creator;
+    if(res.dbc){let th=DBC_CFG[res.cfg];if(th==null){try{const c=(await rpc('getAccountInfo',[res.cfg,{encoding:'base64'}]))?.value;const u=c?.data?b64(c.data[0]):null;th=DBC_CFG[res.cfg]=u?u64(u,264)||0:0;store.set('hs_dbccfg',DBC_CFG);}catch(e){}}
+      if(th>0&&res.qr!=null)t.bond={p:clampP(res.qr/th*100),exact:true,t:Date.now()};}
+    else if(res.p!=null&&t.stage==='curve')t.bond={p:res.p,exact:true,t:Date.now()};}catch(e){}
+}
+// liquidity: DEX pool liquidity, or the SOL sitting in the bonding curve for tokens that haven't migrated
+const liqTxt=t=>t.liq?usd(t.liq):t.stage==='curve'&&t.curveSol!=null?`${SOLI}${num(t.curveSol,1)}${SOLUSD?' · '+usd(t.curveSol*SOLUSD*2):''}`:'—';
 const bondP=t=>t.stage==='mig'?100:t.bond?.p??null;
 async function loadAuth(){
   const need=[...TOK.values()].filter(t=>t.pair&&!t.auth).map(t=>t.mint);
@@ -803,7 +815,7 @@ const hmFresh=t=>t.hm&&Date.now()-t.hmAt<HM_TTL;
 async function launchInfo(t){
   if(t.launch!==undefined)return t.launch;
   let before=null;
-  try{for(let i=0;i<4;i++){const r=await rpc('getSignaturesForAddress',[t.mint,before?{limit:1000,before}:{limit:1000}]);if(!r||!r.length)break;
+  try{for(let i=0;i<8;i++){const r=await rpc('getSignaturesForAddress',[t.mint,before?{limit:1000,before}:{limit:1000}]);if(!r||!r.length)break;
     const o=r[r.length-1];if(r.length<1000){t.launch={slot:o.slot,time:o.blockTime,exact:true,sig:o.signature};return t.launch;}before=o.signature;}}catch(e){}
   const lt=launchTime(t);t.launch=lt?{slot:null,time:lt,exact:false}:null;return t.launch;
 }
@@ -1863,9 +1875,13 @@ function activeCount(tab){const f=FILT[tab],b=presetF(tab,f.preset==='custom'?PR
   for(const k of Object.keys(RANGE_DEF)){const a=f.r?.[k]||[null,null],c=b.r[k]||[null,null];if(a[0]!=c[0]||a[1]!=c[1])n++;}
   if(f.risk!==b.risk)n++;n+=Object.values(f.soc||{}).filter(Boolean).length;if(f.lp.length!==b.lp.length)n++;return n;}
 // ================= rendering =================
+const DEX_DOM={raydium:'raydium.io',meteora:'meteora.ag',orca:'orca.so',pumpswap:'pump.fun',pumpfun:'pump.fun',launchlab:'raydium.io',fluxbeam:'fluxbeam.xyz',lifinity:'lifinity.io',phoenix:'phoenix.trade'};
+function lpBadge(t){let d=LP_DOM[t.lp],l=LPS[t.lp];
+  if(!d){const id=String(t.pair?.dexId||'').toLowerCase();d=DEX_DOM[id]||Object.entries(DEX_DOM).find(([k])=>id.includes(k))?.[1];l=id.slice(0,2).toUpperCase();if(!d)return '';}
+  return `<span class="lp lp-${t.lp} im"><img src="${fav(d)}" alt="${esc(l)}" onerror="this.outerHTML='${esc(l)}'"></span>`;}
 function avatar(t){const ini=esc((t.sym||'?').replace('$','').slice(0,2).toUpperCase()),bp=bondP(t),mig=t.stage==='mig';
   const fb=t.dimg&&t.dimg!==t.img?`if(!this.dataset.f){this.dataset.f=1;this.src='${esc(t.dimg)}'}else{this.outerHTML='<div class=ini>${ini}</div>'}`:`this.outerHTML='<div class=ini>${ini}</div>'`;
-  return `<div class="av rg ${mig?'gold':''}" style="--bp:${mig?100:bp??0}" title="${mig?'Migrated':bp!=null?'Bonding curve '+Math.round(bp)+'%':'Bonding curve'}"><i class="ring2"></i>${t.img?`<img src="${esc(t.img)}" loading="lazy" onerror="${fb}">`:`<div class="ini">${ini}</div>`}<span class="lp lp-${t.lp}${LP_DOM[t.lp]?' im':''}">${LP_DOM[t.lp]?`<img src="${fav(LP_DOM[t.lp])}" alt="${LPS[t.lp]}" onerror="this.outerHTML='${LPS[t.lp]}'">`:LPS[t.lp]}</span></div>`;}
+  return `<div class="av rg ${mig?'gold':''}" style="--bp:${mig?100:bp??0}" title="${mig?'Migrated':bp!=null?'Bonding curve '+Math.round(bp)+'%':'Bonding curve'}"><i class="ring2"></i>${t.img?`<img src="${esc(t.img)}" loading="lazy" onerror="${fb}">`:`<div class="ini">${ini}</div>`}${lpBadge(t)}</div>`;}
 function badges(t){
   const b=[];
   if(t.act.sm.size)b.push(`<span class="bd sm">🧠 ${t.act.sm.size} smart</span>`);
@@ -2329,8 +2345,8 @@ function rugTiles(t){
     ${tile('Snipers',pc(V.snip.v,V.snip.w),lvlCls(V.snip.v,5,15))}
     ${tile('Fresh',pc(V.fresh.v,V.fresh.w),lvlCls(V.fresh.v,10,25))}
     ${tile('Holders',hm?.holders?num(hm.holders.n,0)+(hm.holders.more?'+':''):ld?'<i class="skl"></i>':'—')}
-    ${tile('KOLs',kolCount(t),kolCount(t)?'good':'')}
-    ${tile('Smart',t.act.sm.size,t.act.sm.size?'good':'')}
+    ${(()=>{const tw=tokenWallets(t),k=new Set([...tw.filter(x=>x.kol).map(x=>x.w),...(t.act.kol||[]),...(t.hm?.kols||[])].filter(w=>KOL[w])).size,sm=new Set([...tw.filter(x=>!x.kol).map(x=>x.w),...(t.act.sm||[])].filter(w=>SMART[w]&&!KOL[w])).size;
+      return tile('KOLs',k,k?'good':'')+tile('Smart',sm,sm?'good':'');})()}
     ${tile('Tax',au?num(au.tax||0,2)+'%':'—',au?(au.tax>0?'bad':'good'):'')}
     ${tile('Mint',au?(au.mint?'Enabled':'Revoked'):'—',au?(au.mint?'bad':'good'):'')}
     ${tile('Freeze',au?(au.freeze?'Enabled':'Revoked'):'—',au?(au.freeze?'bad':'good'):'')}
@@ -2347,7 +2363,7 @@ function detailHero(t){
   const cls=x=>x==null?'':x>=0?'up':'dn';
   return `<div class="dhero"><div class="dmc"><div><div class="lbl">Market cap</div><div class="big">${usd(t.mc)}</div></div>
      <div class="dpr"><div class="lbl">Price</div><div class="mid2">${fmtPrice(t.price)}</div><span class="chgp ${cls(t.chg.h24)}">${pct(t.chg.h24)} · 24h</span></div></div>
-   <div class="dkv"><div><span>Liquidity</span><b>${t.liq?usd(t.liq):'—'}</b></div><div><span>Vol 24h</span><b>${usd(t.vol.h24)}</b></div><div><span>Holders</span><b>${t.hm?.holders?num(t.hm.holders.n,0)+(t.hm.holders.more?'+':''):t.hmLoading?'…':'—'}</b></div><div><span>Age</span><b>${dur(t.created?(Date.now()-t.created)/1000:null)}</b></div></div>
+   <div class="dkv"><div><span>Liquidity</span><b>${liqTxt(t)}</b></div><div><span>Vol 24h</span><b>${usd(t.vol.h24)}</b></div><div><span>Holders</span><b>${t.hm?.holders?num(t.hm.holders.n,0)+(t.hm.holders.more?'+':''):t.hmLoading?'…':'—'}</b></div><div><span>Age</span><b>${dur(t.created?(Date.now()-t.created)/1000:null)}</b></div></div>
    <div class="qlinks">${quickLinks(t)}</div></div>`;
 }
 function infoCard(t){
@@ -2479,6 +2495,7 @@ async function openDetail(mint){
   history.pushState({d:1},'');
   // holder metrics (bundles/snipers/fresh/holders/fees): wait for a run already in progress, else start one
   DT.infoP=(async()=>{
+    loadCurveOne(t).then(()=>{if(DT?.mint===mint)refreshDetail();});
     await loadAuthOne(t);if(DT?.mint===mint)refreshDetail();
     const dv=loadDev(t).then(()=>{if(DT?.mint===mint)refreshDetail();});
     if(!hmFresh(t)){const before=t.hmAt;await loadHM(t);if(!hmFresh(t)&&t.hmAt===before)t.hmFail=Date.now();}
@@ -2514,9 +2531,9 @@ async function loadAuthOne(t){
 // dev = the wallet that paid for the token's creation transaction (its first ever signature)
 async function loadDev(t){
   if(t.dev!==undefined&&t.dev&&Date.now()-t.dev.t<120e3)return t.dev;
-  try{const L=await launchInfo(t);if(!L||!L.sig){t.dev=null;return null;}
-    let w=t.dev?.w;
-    if(!w){const tx=await rpc('getTransaction',[L.sig,{encoding:'jsonParsed',maxSupportedTransactionVersion:0}]);const k=tx?.transaction?.message?.accountKeys?.[0];w=typeof k==='string'?k:k?.pubkey;}
+  try{let w=t.dev?.w;
+    if(!w&&t.curveAddr){await loadCurveOne(t);w=t.creator||null;}
+    if(!w){const L=await launchInfo(t);if(!L||!L.sig){t.dev=null;return null;}const tx=await rpc('getTransaction',[L.sig,{encoding:'jsonParsed',maxSupportedTransactionVersion:0}]);const k=tx?.transaction?.message?.accountKeys?.[0];w=typeof k==='string'?k:k?.pubkey;}
     if(!w){t.dev=null;return null;}
     const r=await rpc('getTokenAccountsByOwner',[w,{mint:t.mint},{encoding:'jsonParsed'}]);
     const held=(r?.value||[]).reduce((a,x)=>a+(+x.account?.data?.parsed?.info?.tokenAmount?.uiAmount||0),0);
