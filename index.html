@@ -369,6 +369,11 @@ html{transition:background .2s}
 .lbr.isbot{opacity:.55}
 .wsetup{margin-top:10px;background:var(--bg);border-radius:12px;padding:8px 10px}.wsetup summary{cursor:pointer}.wsetup ol{margin:8px 0 6px;padding-left:20px;font-size:13px;line-height:1.5}.wsetup li{margin:4px 0}.wsetup a{color:var(--acc)}
 .hsxdemo{display:inline-block;background:#6d5dfc;color:#fff;border-radius:6px;padding:0 5px}
+.alsp{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:8px 0 2px}.alsp>span{display:flex;flex-direction:column;padding:7px 10px;border-radius:11px;font-size:12px;font-weight:700}
+.alsp b{font-size:15px;font-weight:900}.alsp em{font-style:normal;font-weight:600;font-size:11px;opacity:.75}
+.alk{background:rgba(251,191,36,.13);color:var(--gold)}.als{background:rgba(167,139,250,.14);color:var(--smart)}
+.wt{font-size:9.5px;font-weight:900;padding:1px 5px;border-radius:5px;margin-left:5px;vertical-align:middle}.wt.k{background:rgba(251,191,36,.16);color:var(--gold)}.wt.s{background:rgba(167,139,250,.16);color:var(--smart)}
+.alq{margin:6px 0 2px}
 </style>
 </head>
 <body>
@@ -400,6 +405,7 @@ html{transition:background .2s}
       <button class="ib" id="setBtn" aria-label="Settings">⚙︎</button>
     </div>
     <div class="tabs" id="tabs">
+      <button data-t="alpha">⚡ Alpha<b id="c-al"></b></button>
       <button data-t="kol" class="on">👑 KOL<b id="c-kol"></b></button>
       <button data-t="sw">🧠 Smart<b id="c-sw"></b></button>
       <button data-t="add">＋ Add</button>
@@ -581,7 +587,7 @@ let FILT=store.get('hs_filt3',null);
 if(!FILT)FILT={};
 VIEWS.forEach(([k])=>{if(!FILT[k]||!FILT[k].r)FILT[k]={preset:PRESETS[k][0][0],...presetF(k,PRESETS[k][0][0])};});
 const TOK=new Map();                           // mint -> token
-let TAB=(t=>['kol','sw','add'].includes(t)?t:'kol')(store.get('hs_tab','kol')),busy=false,lastRefresh=0,timer=null,enhBase=null,stopScan=false,deferredPrompt=null;
+let TAB=(t=>['alpha','kol','sw','add'].includes(t)?t:'alpha')(store.get('hs_tab','alpha')),busy=false,lastRefresh=0,timer=null,enhBase=null,stopScan=false,deferredPrompt=null;
 
 // ================= network =================
 function throttle(getRps){let next=0;return async()=>{const gap=1000/getRps(),now=Date.now(),w=Math.max(0,next-now);next=Math.max(now,next)+gap;if(w)await sleep(w);};}
@@ -701,7 +707,7 @@ async function loadImages(){
         const f=(a.content?.files||[]).find(x=>/image/.test(x.mime||'')||x.cdn_uri)||(a.content?.files||[])[0];
         const u=f?.cdn_uri||a.content?.links?.image||f?.uri;if(u&&/^https?:/.test(u)){IMG[a.id]=u;if(t){t.img=u;if(t.pair)updateCard(t);}}});}catch(e){ch.forEach(m=>{const t=TOK.get(m);if(t)t.imgTry=0;});}}
     const e=Object.entries(IMG);if(e.length>2500)IMG=Object.fromEntries(e.slice(-2000));store.set('hs_img',IMG);
-    if(TAB==='kol'||TAB==='sw')renderSoft();
+    if(FEEDS.includes(TAB))renderSoft();
   }finally{imgBusy=false;}
 }
 // ---- bonding curve progress, read from the launchpad's own curve account ----
@@ -742,7 +748,7 @@ async function loadCurves(force){
     for(let i=0;i<need.length;i+=100){const ch=need.slice(i,i+100);try{const r=await rpcBg('getMultipleAccounts',[ch,{encoding:'base64'}]);(r?.value||[]).forEach((a,k)=>{try{const u=a&&a.data?b64(a.data[0]):null;const th=u?u64(u,264):null;DBC_CFG[ch[k]]=th>0?th:0;}catch(e){}});}catch(e){}}
     if(need.length)store.set('hs_dbccfg',DBC_CFG);
     pend.forEach(([t,r])=>{const th=DBC_CFG[r.cfg];if(th>0&&r.qr!=null)t.bond={p:clampP(r.qr/th*100),exact:true,t:Date.now()};});
-    if(ts.length&&(TAB==='kol'||TAB==='sw'))renderSoft();
+    if(ts.length&&(FEEDS.includes(TAB)))renderSoft();
   }finally{curveBusy=false;}
 }
 // one token (token page): bonding %, SOL in the curve, and the pump.fun creator (= dev) straight from the curve account
@@ -1237,8 +1243,8 @@ async function smartScanAll(){
   try{await trackPoll({all:true,user:true,kind:'smart',stop:()=>smStop,onStep:(d,n)=>{if(TAB==='sw'&&(d%10===0||d===n))$('cnt').textContent=`scanning smart wallets ${d}/${n}`;}});}
   finally{smScanning=false;smStop=false;$('cnt').textContent='';renderSWSoft();}
 }
-function renderSWSoft(){if(TAB==='sw'&&$('sheet').classList.contains('hide')&&$('vDetail').classList.contains('hide'))renderFeed('sw');}
-function renderSW(){if(TAB==='kol'||TAB==='sw'){renderFeed(TAB);return;}
+function renderSWSoft(){if(FEEDS.includes(TAB)&&$('sheet').classList.contains('hide')&&$('vDetail').classList.contains('hide'))renderFeed(TAB);}
+function renderSW(){if(FEEDS.includes(TAB)){renderFeed(TAB);return;}
   const f=FILT.sw,all=Object.keys(SMART),n=all.length;$('c-sw').textContent=n||'';
   const ver=all.filter(swVerified).length,act=all.filter(w=>SMART[w].last&&Date.now()/1000-SMART[w].last<ACTIVE_DAYS*86400).length;
   let h=`<div class="kbar"><div class="seg2" id="swMode">${[['trades','Trades'],['tokens','Tokens'],['favs','❤ '+([...FAV].filter(w=>SMART[w]).length||'')],['wallets','Wallets']].map(([k,l])=>`<button data-v="${k}" class="${f.mode===k?'on':''}">${l}</button>`).join('')}</div>
@@ -1706,7 +1712,7 @@ async function loadPositions(pairs){
   const items=[...posQ].slice(0,40);items.forEach(k=>posQ.delete(k));
   let changed=0;await pool(items,Math.max(4,PAR()),async k=>{const [w,m]=k.split('|');try{const r=await rpcBg('getTokenAccountsByOwner',[w,{mint:m},{encoding:'jsonParsed'}]);
     const bal=(r?.value||[]).reduce((a,x)=>a+(+x.account?.data?.parsed?.info?.tokenAmount?.uiAmount||0),0);POSBAL[k]={bal,t:Date.now()};changed++;}catch(e){POSBAL[k]={bal:null,t:Date.now()};}});
-  posRunning=false;if(changed&&TAB==='sw')renderSWSoft();if(changed&&TAB==='kol'&&$('vDetail').classList.contains('hide')&&$('sheet').classList.contains('hide'))renderFeed('kol');
+  posRunning=false;if(changed&&FEEDS.includes(TAB)&&$('vDetail').classList.contains('hide')&&$('sheet').classList.contains('hide'))renderFeed(TAB);
 }
 function kolIni(w){return esc((KOL[w]||'?').replace(/[^A-Za-z0-9]/g,'').slice(0,2).toUpperCase()||'K');}
 // bonding status: 🟢 green ring + % while on the launchpad curve, 🟡 golden ring once migrated to a DEX
@@ -1716,7 +1722,7 @@ function tokMini(m){const t=TOK.get(m);const sym=t?.sym&&t.pair?t.sym:(t?.dsym||
   const b=bondInfo(t),img=t?.img||IMG[m];
   const pic=`<div class="tav ${b?b.mig?'gold':'grn':''}" style="--bp:${b?(b.mig?100:b.p??0):0}">${img?`<img src="${esc(img)}" loading="lazy" alt="" onerror="${t?.dimg&&t.dimg!==img?`if(!this.dataset.f){this.dataset.f=1;this.src='${esc(t.dimg)}'}else{this.outerHTML='<div class=ini>${ini}</div>'}`:`this.outerHTML='<div class=ini>${ini}</div>'`}">`:`<div class="ini">${ini}</div>`}</div>`;
   return `<div class="ktok"><div><b>${esc(sym)}</b><div class="note">${t&&t.pair?'MC '+usd(t.mc):'loading…'}</div>${bondPill(t)}</div>${pic}</div>`;}
-function renderKol(){if(TAB==='kol'||TAB==='sw'){renderFeed(TAB);return;}
+function renderKol(){if(FEEDS.includes(TAB)){renderFeed(TAB);return;}
   const f=FILT.kol,tr=kolTradesFiltered(),nK=Object.keys(KOL).length;
   $('c-kol').textContent=tr.length||'';
   let h=`<div class="kbar"><div class="seg2" id="kMode"><button data-v="trades" class="${f.mode==='trades'?'on':''}">Trades</button><button data-v="tokens" class="${f.mode==='tokens'?'on':''}">Tokens</button><button data-v="favs" class="${f.mode==='favs'?'on':''}">❤ ${FAV.size||''}</button></div>
@@ -2119,15 +2125,20 @@ function cardHTML(t){
 }
 function updateCard(t){const el=$('c-'+t.mint);if(el)el.outerHTML=cardHTML(t);}
 // ================= simple tracker UI: 👑 KOL · 🧠 Smart · ＋ Add =================
-const FDEF={mode:'trades',side:'all',hold:false,fav:false,win:240,sol:[null,null],mc:[null,null],sort:'new'};
-let FL=store.get('hs_fl',null);if(!FL||!FL.kol||!FL.sw)FL={kol:{...FDEF},sw:{...FDEF}};
+const FEEDS=['alpha','kol','sw'];
+const FDEF={minK:null,minS:null,mode:'trades',side:'all',hold:false,fav:false,win:240,sol:[null,null],mc:[null,null],sort:'new'};
+let FL=store.get('hs_fl',null);if(!FL||!FL.kol||!FL.sw)FL={kol:{...FDEF},sw:{...FDEF}};if(!FL.alpha)FL.alpha={...FDEF,mode:'tokens',hold:true,win:1440};
 const saveFL=()=>store.set('hs_fl',FL);
-const isKind=(kind,w)=>kind==='kol'?!!KOL[w]:(!!SMART[w]&&!KOL[w]);
-const fCount=f=>(f.side!=='all')+f.hold+f.fav+(f.win!==240)+rOn(f.sol)+rOn(f.mc)+(f.sort!=='new');
+const isKind=(kind,w)=>kind==='alpha'?!!(KOL[w]||SMART[w]):kind==='kol'?!!KOL[w]:(!!SMART[w]&&!KOL[w]);
+const fCount=f=>(f.side!=='all')+f.hold+f.fav+(f.win!==240)+rOn(f.sol)+rOn(f.mc)+(f.sort!=='new')+!!f.minK+!!f.minS;
+const feedSrc=kind=>kind==='alpha'?[...KTR,...STR]:kind==='kol'?KTR:STR;
 // trades after the filter, newest or oldest first
+// per token: which KOL and which smart wallets bought it (in the filtered trades)
+function alphaCounts(tr){const c={};tr.forEach(x=>{if(x.side!=='buy')return;const g=c[x.m]||(c[x.m]={k:new Set(),s:new Set()});(KOL[x.w]?g.k:g.s).add(x.w);});return c;}
 function feedTrades(kind){
-  const f=FL[kind],now=Date.now()/1000,src=kind==='kol'?KTR:STR;
-  const a=src.filter(x=>{
+  const f=FL[kind],now=Date.now()/1000,src=feedSrc(kind),seen=new Set();
+  let a=src.filter(x=>{
+    if(kind==='alpha'){const k=(x.s||'')+x.w+x.m;if(seen.has(k))return false;seen.add(k);}
     if(!isKind(kind,x.w))return false;
     if(now-x.ts>f.win*60)return false;
     if(f.side!=='all'&&x.side!==f.side)return false;
@@ -2137,6 +2148,7 @@ function feedTrades(kind){
     // still holding = a buy whose wallet hasn't sold the token (on-chain balance when known, else from its trades)
     if(f.hold){if(x.side!=='buy')return false;if(!/^holding|partial/.test(kolPos(x.w,x.m).st))return false;}
     return true;});
+  if(kind==='alpha'&&(f.minK||f.minS)){const c=alphaCounts(a);a=a.filter(x=>{const g=c[x.m];return g&&g.k.size>=(f.minK||0)&&g.s.size>=(f.minS||0);});}
   return a.sort(tradeCmp(f.sort));
 }
 // sort keys shared by Trades and Tokens views; ties fall back to newest first
@@ -2167,14 +2179,16 @@ const wAv=(w,cls)=>KOL[w]?kolAv(w,cls):swAv(w).replace('kav sav',(cls||'kav')+' 
 function feedRow(x,kind){
   const sub=KOL[x.w]?(KOLX[x.w]?'@'+esc(KOLX[x.w])+' · ':''):'';
   return `<div class="kt" data-m="${x.m}" data-k="${x.s||''}${x.w}"><span data-kw="${x.w}">${wAv(x.w,'kav')}</span>
-   <div class="mid"><div class="nm"><b class="kn" data-kw="${x.w}">${esc(wName(x.w))}</b>${heart(x.w)}<span class="side ${x.side}">${x.side.toUpperCase()}</span><b class="${x.side==='buy'?'up':'dn'}">${SOLI}${num(x.sol,x.sol<1?2:1)}</b></div>
+   <div class="mid"><div class="nm"><b class="kn" data-kw="${x.w}">${esc(wName(x.w))}</b>${kind==='alpha'?(KOL[x.w]?'<span class="wt k">KOL</span>':'<span class="wt s">SMART</span>'):''}${heart(x.w)}<span class="side ${x.side}">${x.side.toUpperCase()}</span><b class="${x.side==='buy'?'up':'dn'}">${SOLI}${num(x.sol,x.sol<1?2:1)}</b></div>
    <div class="sub">${sub}${balTxt(x.w)?'bal '+balTxt(x.w)+' · ':''}${ago(x.ts)}</div>${x.side==='buy'?`<div class="sub" style="margin-top:4px">${posChip(kolPos(x.w,x.m))}</div>`:''}</div>${tokMini(x.m)}</div>`;
 }
-function tokGroupCard(g){
-  const t=TOK.get(g.m),hold=[...g.buyers].filter(w=>/^holding|partial/.test(kolPos(w,g.m).st)).length;
+function tokGroupCard(g,kind){
+  const t=TOK.get(g.m),hw=[...g.buyers].filter(w=>/^holding|partial/.test(kolPos(w,g.m).st)),hold=hw.length;
+  const al=kind==='alpha',kb=[...g.buyers].filter(w=>KOL[w]).length,sb=g.buyers.size-kb,kh=hw.filter(w=>KOL[w]).length,sh=hold-kh;
   return `<div class="tc" data-m="${g.m}" data-k="g${g.m}">${t&&t.pair?`<div class="r1">${avatar(t)}<div class="mid"><div class="nm"><b>${esc(t.sym)}</b><span class="full">${esc(t.name)}</span></div><div class="sub"><span class="age">${dur(t.created?(Date.now()-t.created)/1000:null)}</span>·<span>${short(g.m)}</span>${bondPill(t)}</div></div><div class="rt"><div class="mc">MC <b>${usd(t.mc)}</b></div><div class="chg ${(t.chg.h1||0)>=0?'up':'dn'}">${pct(t.chg.h1)} <span style="color:var(--mut);font-weight:500">1h</span></div></div></div>`:`<b>${short(g.m)}</b>`}
-   <div class="r3"><span class="bd ok">${g.buyers.size} bought</span><span class="bd ok">💎 ${hold} holding</span>${g.sellers.size?`<span class="bd bad">${g.sellers.size} sold</span>`:''}<span class="bd">${SOLI}${num(g.bin,1)} in</span>${g.sout?`<span class="bd">${SOLI}${num(g.sout,1)} out</span>`:''}<span class="bd">last ${ago(g.last)}</span></div>
-   <div class="kpl">${[...g.buyers].slice(0,8).map(w=>{const p=kolPos(w,g.m);return `<div class="kpr" data-kw="${w}">${wAv(w,'wav')}<b>${esc(wName(w))}</b>${posChip(p,true)}<span class="note" style="margin-left:auto">${SOLI}${num(p.inSol,1)}</span></div>`;}).join('')}</div></div>`;
+   ${al?`<div class="alsp"><span class="alk"><b>👑 ${kh}</b> KOL holding<em>${kb} bought</em></span><span class="als"><b>🧠 ${sh}</b> smart holding<em>${sb} bought</em></span></div>`:''}
+   <div class="r3">${al?'':`<span class="bd ok">${g.buyers.size} bought</span><span class="bd ok">💎 ${hold} holding</span>`}${g.sellers.size?`<span class="bd bad">${g.sellers.size} sold</span>`:''}<span class="bd">${SOLI}${num(g.bin,1)} in</span>${g.sout?`<span class="bd">${SOLI}${num(g.sout,1)} out</span>`:''}<span class="bd">last ${ago(g.last)}</span></div>
+   <div class="kpl">${(al?[...[...g.buyers].filter(w=>KOL[w]).slice(0,5),...[...g.buyers].filter(w=>!KOL[w]).slice(0,4)]:[...g.buyers].slice(0,8)).map(w=>{const p=kolPos(w,g.m);return `<div class="kpr" data-kw="${w}">${wAv(w,'wav')}<b>${esc(wName(w))}</b>${al?(KOL[w]?'<span class="wt k">KOL</span>':'<span class="wt s">SMART</span>'):''}${posChip(p,true)}<span class="note" style="margin-left:auto">${SOLI}${num(p.inSol,1)}</span></div>`;}).join('')}</div></div>`;
 }
 // keyed DOM update: cards are matched by key and only what changed inside them is touched
 // (pictures stay loaded, nothing jumps, scroll stays put) — like GMGN / Axiom live lists
@@ -2203,35 +2217,41 @@ function patchList(box,html){
   const cur=[...box.children];if(cur.length===out.length&&cur.every((c,i)=>c===out[i]))return;
   box.replaceChildren(...out);
 }
+// quick chips on the Alpha tab: any token · at least 1 KOL + 1 smart · 2+ KOL · 3+ smart
+const ALPHA_Q=[['any','All',null,null],['both','👑+🧠 Both',1,1],['k2','👑 2+ KOL',2,null],['s3','🧠 3+ smart',null,3]];
+function alphaBar(f){const cur=(ALPHA_Q.find(q=>(q[2]||null)==(f.minK||null)&&(q[3]||null)==(f.minS||null))||[''])[0];
+  return `<div class="chipsel alq" id="alQ">${ALPHA_Q.map(q=>`<button data-v="${q[0]}" class="${cur===q[0]?'on':''}">${q[1]}</button>`).join('')}</div>`;}
 function renderFeed(kind){
-  const f=FL[kind],n=Object.keys(kind==='kol'?KOL:SMART).filter(w=>isKind(kind,w)).length;
-  let h=`<div class="kbar"><div class="seg2" id="fdMode"><button data-v="trades" class="${f.mode==='trades'?'on':''}">Trades</button><button data-v="tokens" class="${f.mode==='tokens'?'on':''}">Tokens</button></div><select id="fdSort" class="fdsort">${SORTS.map(([k,l])=>`<option value="${k}" ${f.sort===k?'selected':''}>${l}</option>`).join('')}</select><span class="note">${n} ${kind==='kol'?'KOL':'smart'} wallet${n===1?'':'s'}</span></div>`+trkHTML();
-  if(!n){$('list').innerHTML=h+`<div class="empty">No ${kind==='kol'?'KOL':'smart'} wallets yet.<br><br>Open <b>＋ Add</b> and paste your wallets. Wallets with an X handle become 👑 KOL, the rest 🧠 Smart.</div>`;wireFeed(kind);return;}
+  const f=FL[kind],n=kind==='alpha'?new Set([...Object.keys(KOL),...Object.keys(SMART)]).size:Object.keys(kind==='kol'?KOL:SMART).filter(w=>isKind(kind,w)).length;
+  const lbl=kind==='alpha'?`${Object.keys(KOL).length} KOL + ${Object.keys(SMART).filter(w=>!KOL[w]).length} smart`:`${n} ${kind==='kol'?'KOL':'smart'} wallet${n===1?'':'s'}`;
+  let h=`<div class="kbar"><div class="seg2" id="fdMode"><button data-v="trades" class="${f.mode==='trades'?'on':''}">Trades</button><button data-v="tokens" class="${f.mode==='tokens'?'on':''}">Tokens</button></div><select id="fdSort" class="fdsort">${SORTS.map(([k,l])=>`<option value="${k}" ${f.sort===k?'selected':''}>${l}</option>`).join('')}</select><span class="note">${lbl}</span></div>`+(kind==='alpha'?alphaBar(f):'')+trkHTML();
+  if(!n){$('list').innerHTML=h+`<div class="empty">No ${kind==='kol'?'KOL':kind==='alpha'?'KOL or smart':'smart'} wallets yet.<br><br>Open <b>＋ Add</b> and paste your wallets. Wallets with an X handle become 👑 KOL, the rest 🧠 Smart.</div>`;wireFeed(kind);return;}
   const tr=feedTrades(kind);
-  if(!tr.length){h+=`<div class="empty">No ${f.side==='all'?'':f.side+' '}trades in the last <b>${dur(f.win*60)}</b>${fCount(f)?' with these filters':''}.<br><br>${(kind==='kol'?KTR:STR).length?'Widen the time window or reset Filters.':'The tracker is checking your wallets — new trades appear here automatically.'}</div>`;}
-  else if(f.mode==='tokens')h+=feedTokens(tr,kind).slice(0,60).map(tokGroupCard).join('');
+  if(!tr.length){h+=`<div class="empty">No ${f.side==='all'?'':f.side+' '}trades in the last <b>${dur(f.win*60)}</b>${fCount(f)?' with these filters':''}.<br><br>${feedSrc(kind).length?'Widen the time window or reset Filters.':'The tracker is checking your wallets — new trades appear here automatically.'}</div>`;}
+  else if(f.mode==='tokens')h+=feedTokens(tr,kind).slice(0,60).map(g=>tokGroupCard(g,kind)).join('');
   else{if(f.sort==='wal'){const n={};tr.forEach(x=>{(n[x.m]=n[x.m]||new Set()).add(x.w);});tr.sort((p,q)=>n[q.m].size-n[p.m].size||q.ts-p.ts);}
     h+=tr.slice(0,150).map(x=>feedRow(x,kind)).join('')+(tr.length>150?`<div class="note" style="text-align:center;padding:10px">Showing 150 of ${tr.length} trades</div>`:'');}
   patchList($('list'),h);wireFeed(kind);
   const pos=[...new Set(tr.slice(0,80).filter(x=>x.side==='buy').map(x=>x.w+'|'+x.m))];if(pos.length)loadPositions(pos);
   const ws=[...new Set(tr.slice(0,80).map(x=>x.w))];if(ws.some(w=>!KBAL[w]))loadKolBal(ws).then(()=>{if(TAB===kind)renderSoft();});
 }
-function wireFeed(kind){const so=$('fdSort');if(so)so.onchange=()=>{FL[kind].sort=so.value;saveFL();renderControls();renderFeed(kind);window.scrollTo(0,0);};const m=$('fdMode');if(m)m.querySelectorAll('button').forEach(b=>b.onclick=()=>{FL[kind].mode=b.dataset.v;saveFL();renderFeed(kind);});}
+function wireFeed(kind){const aq=$('alQ');if(aq)aq.querySelectorAll('button').forEach(b=>b.onclick=()=>{const q=ALPHA_Q.find(x=>x[0]===b.dataset.v);FL.alpha.minK=q[2];FL.alpha.minS=q[3];saveFL();renderControls();renderFeed('alpha');});const so=$('fdSort');if(so)so.onchange=()=>{FL[kind].sort=so.value;saveFL();renderControls();renderFeed(kind);window.scrollTo(0,0);};const m=$('fdMode');if(m)m.querySelectorAll('button').forEach(b=>b.onclick=()=>{FL[kind].mode=b.dataset.v;saveFL();renderFeed(kind);});}
 function feedFilterSheet(kind){
   const d=JSON.parse(JSON.stringify(FL[kind])),v=x=>x==null?'':x;
   const draw=()=>{
     const chips=(id,cur,opts)=>`<div class="chipsel" id="${id}">${opts.map(([a,b])=>`<button data-v="${a}" class="${String(cur)===String(a)?'on':''}">${b}</button>`).join('')}</div>`;
     const row=(k,l,u)=>`<div class="rr"><div class="rl">${l}</div><div class="rg"><label class="ri"><input type="number" inputmode="decimal" data-fk="${k}" data-i="0" placeholder="Min" value="${v(d[k][0])}"><em>${u}</em></label><span class="dash">–</span><label class="ri"><input type="number" inputmode="decimal" data-fk="${k}" data-i="1" placeholder="Max" value="${v(d[k][1])}"><em>${u}</em></label></div></div>`;
-    openSheet(`<div class="fhead"><h3 style="margin:0">${kind==='kol'?'👑 KOL':'🧠 Smart'} filter</h3><button class="rst" id="ffReset">Reset</button></div><div class="fbody">
+    openSheet(`<div class="fhead"><h3 style="margin:0">${kind==='kol'?'👑 KOL':kind==='alpha'?'⚡ Alpha':'🧠 Smart'} filter</h3><button class="rst" id="ffReset">Reset</button></div><div class="fbody">
      <div class="rl">Sort</div>${chips('ffSort',d.sort,SORTS)}
      <div class="rl" style="margin-top:14px">Trade</div>${chips('ffSide',d.side,[['all','Both'],['buy','Buy'],['sell','Sell']])}
      <div class="sw"><span>💎 Still holding only <span class="note">(buys the wallet hasn't sold)</span></span><input type="checkbox" id="ffHold" ${d.hold?'checked':''}></div>
      <div class="sw"><span>❤ Favorites only</span><input type="checkbox" id="ffFav" ${d.fav?'checked':''}></div>
      <div class="rl" style="margin-top:14px">Time window</div>${chips('ffWin',d.win,[[15,'15m'],[60,'1h'],[240,'4h'],[720,'12h'],[1440,'24h']])}
      ${row('sol','Trade size','SOL')}${row('mc','Token market cap ($K)','K')}
+     ${kind==='alpha'?`<div class="rr"><div class="rl">Same token bought by at least</div><div class="rg"><label class="ri"><input type="number" inputmode="numeric" id="ffMk" placeholder="0" value="${v(d.minK)}"><em>KOL</em></label><span class="dash">+</span><label class="ri"><input type="number" inputmode="numeric" id="ffMs" placeholder="0" value="${v(d.minS)}"><em>smart</em></label></div></div>`:''}
      <div class="note" style="margin-top:10px">Trades are kept for 24 hours. "Still holding" uses the wallet's real token balance once loaded (🟢 / 🟡 chips), otherwise its tracked buys and sells.</div></div>
      <div class="fbar"><button class="btn gh" id="ffCancel">Cancel</button><button class="btn wh" id="ffOk">Apply</button></div>`);
-    const rd=()=>{$('sheet').querySelectorAll('input[data-fk]').forEach(el=>{d[el.dataset.fk][+el.dataset.i]=el.value===''?null:+el.value;});d.hold=$('ffHold').checked;d.fav=$('ffFav').checked;};
+    const rd=()=>{$('sheet').querySelectorAll('input[data-fk]').forEach(el=>{d[el.dataset.fk][+el.dataset.i]=el.value===''?null:+el.value;});d.hold=$('ffHold').checked;d.fav=$('ffFav').checked;if($('ffMk')){d.minK=+$('ffMk').value||null;d.minS=+$('ffMs').value||null;}};
     [['ffSort','sort'],['ffSide','side'],['ffWin','win',1]].forEach(([id,k,isN])=>$(id).querySelectorAll('button').forEach(b=>b.onclick=()=>{rd();d[k]=isN?+b.dataset.v:b.dataset.v;if(k==='side'&&d.side==='sell')d.hold=false;draw();}));
     $('ffReset').onclick=()=>{Object.assign(d,JSON.parse(JSON.stringify(FDEF)),{mode:d.mode});draw();};
     $('ffCancel').onclick=closeSheet;
@@ -2405,8 +2425,9 @@ function webAddCard(){
    <div class="mbtns" style="margin-top:8px"><button class="btn gh" id="bkEx">📤 Export backup</button><label class="btn gh" style="text-align:center">📥 Import backup<input type="file" id="bkIm" accept=".json,application/json" style="display:none"></label></div></div>`;
 }
 function renderList(loading){
+  {const now=Date.now()/1000,c=alphaCounts([...KTR,...STR].filter(x=>now-x.ts<86400));const n=Object.values(c).filter(g=>g.k.size&&g.s.size).length;if($('c-al'))$('c-al').textContent=n||'';}
   $('c-kol').textContent=Object.keys(KOL).length||'';$('c-sw').textContent=Object.keys(SMART).filter(w=>!KOL[w]).length||'';
-  if(TAB==='kol'||TAB==='sw'){renderFeed(TAB);return;}
+  if(FEEDS.includes(TAB)){renderFeed(TAB);return;}
   if(TAB==='add'){renderAdd();return;}
   if(loading){$('list').innerHTML='<div class="skel"></div>'.repeat(6);return;}
   const arr=filtered(TAB),pend=pendingHolder(TAB),f=FILT[TAB];
@@ -2422,7 +2443,7 @@ function renderControls(){
   document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.t===TAB));
   const ctl=document.querySelector('.ctl');ctl.classList.toggle('hide',TAB==='add');
   ['viewRow','presets','tfRow','sortSel'].forEach(id=>$(id).classList.add('hide'));
-  if(TAB==='kol'||TAB==='sw'){const f=FL[TAB],n=fCount(f);$('fN').textContent=n;$('fN').classList.toggle('hide',!n);
+  if(FEEDS.includes(TAB)){const f=FL[TAB],n=fCount(f);$('fN').textContent=n;$('fN').classList.toggle('hide',!n);
     $('cnt').textContent=[sortLbl(f.sort),f.side!=='all'?f.side+'s':'',f.hold?'holding':'',f.fav?'❤':'',dur(f.win*60)].filter(Boolean).join(' · ');}
 }
 function saveFilt(){store.set('hs_filt3',FILT);}
@@ -3109,7 +3130,7 @@ $('presets').addEventListener('click',e=>{const b=e.target.closest('[data-kp]');
 $('presets').onclick=e=>{const b=e.target.closest('[data-p]');if(b)applyPreset(b.dataset.p);const sp=e.target.closest('[data-sp]');if(sp){const p=SW_TPRESETS.find(x=>x[0]===sp.dataset.sp),o=FILT.sw;FILT.sw={...o,age:[null,null],pos:'all',favOnly:false,verified:false,...p[2],preset:p[0]};saveFilt();renderControls();renderSW();}};
 $('viewRow').onclick=e=>{const b=e.target.closest('[data-v]');if(!b)return;TAB=b.dataset.v;store.set('hs_tab',TAB);store.set('hs_view',TAB);renderControls();renderList();queueTop10();window.scrollTo(0,0);};
 $('sortSel').onchange=()=>{FILT[TAB].sort=$('sortSel').value;saveFilt();renderList();};
-$('filtBtn').onclick=()=>{if(TAB==='kol'||TAB==='sw')feedFilterSheet(TAB);};$('setBtn').onclick=settingsSheet;$('srchBtn').onclick=searchSheet;$('refBtn').onclick=()=>refresh(true);
+$('filtBtn').onclick=()=>{if(FEEDS.includes(TAB))feedFilterSheet(TAB);};$('setBtn').onclick=settingsSheet;$('srchBtn').onclick=searchSheet;$('refBtn').onclick=()=>refresh(true);
 $('list').onclick=async e=>{if(e.target.closest('a'))return;const kw=e.target.closest('[data-kw]');if(kw){e.stopPropagation();openKol(kw.dataset.kw);return;}
   const hm=e.target.closest('[data-hm]');if(hm){e.stopPropagation();const m=hm.dataset.hm;let t=TOK.get(m);if(!t||!t.pair){try{const arr=await getJSON('https://api.dexscreener.com/tokens/v1/solana/'+m);t=tok(m);t.seen=Date.now();t.pairs=(Array.isArray(arr)?arr:[]).filter(p=>p.baseToken?.address===m);if(t.pairs.length)derive(t);}catch(err){}}if(t&&t.pair)openDetail(m);else toast('No market data for this token');return;}const cp=e.target.closest('[data-cp]');if(cp){e.stopPropagation();copy(cp.dataset.cp);return;}const c=e.target.closest('.tc,.kt');if(c&&TOK.get(c.dataset.m)?.pair)openDetail(c.dataset.m);};
 $('kPlan').querySelectorAll('button').forEach(b=>b.onclick=()=>{$('kPlan').querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');});
