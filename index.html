@@ -1223,7 +1223,7 @@ const saveHook=()=>store.set('hs_hook',HOOK);
 const hookOn=()=>!!(HOOK.url&&HOOK.secret&&HOOK.id);
 const hookOK=()=>hookOn()&&HK.ok&&Date.now()-HK.t<5*60e3;
 function hookSecret(){if(!HOOK.secret){const a=new Uint8Array(18);crypto.getRandomValues(a);HOOK.secret='hs_'+[...a].map(x=>x.toString(16).padStart(2,'0')).join('');saveHook();}return HOOK.secret;}
-const WORKER_V=2;
+const WORKER_V=3;
 function workerCode(){return `// Holder Scan 24/7 webhook receiver v${WORKER_V} — paste this into your Cloudflare Worker
 const SECRET=${JSON.stringify(hookSecret())};
 let ready=false;
@@ -1233,7 +1233,8 @@ const J=(o,s=200)=>new Response(JSON.stringify(o),{status:s,headers:H});
 const slim=t=>({signature:t.signature,timestamp:t.timestamp,feePayer:t.feePayer,transactionError:t.transactionError||null,
   tokenTransfers:(t.tokenTransfers||[]).map(x=>({mint:x.mint,fromUserAccount:x.fromUserAccount,toUserAccount:x.toUserAccount,tokenAmount:x.tokenAmount})),
   accountData:(t.accountData||[]).filter(a=>a.nativeBalanceChange).map(a=>({account:a.account,nativeBalanceChange:a.nativeBalanceChange}))});
-export default{async fetch(req,env){
+export default{async fetch(req,env){try{return await handle(req,env);}catch(e){return J({ok:false,error:String(e&&e.message||e)},500);}}};
+async function handle(req,env){
   const u=new URL(req.url);
   if(req.method==='OPTIONS')return new Response(null,{headers:H});
   if(!env.DB)return J({ok:false,error:'D1 database is not connected as DB'},500);
@@ -1244,7 +1245,7 @@ export default{async fetch(req,env){
     const st=env.DB.prepare("INSERT OR IGNORE INTO ev(sig,ts,tx) VALUES(?,?,?)");
     const b=a.filter(t=>t&&t.signature).map(t=>st.bind(t.signature,t.timestamp||Math.floor(Date.now()/1000),JSON.stringify(slim(t))));
     if(b.length)await env.DB.batch(b);
-    if(Math.random()<0.01)await env.DB.prepare("DELETE FROM ev WHERE id < (SELECT id FROM ev WHERE ts>=? ORDER BY id LIMIT 1)").bind(Math.floor(Date.now()/1000)-172800).run();
+    if(Math.random()<0.005)await env.DB.prepare("DELETE FROM ev WHERE id < (SELECT MAX(id) FROM ev) - 60000").run();
     return J({ok:true,n:b.length});
   }
   if(u.searchParams.get('key')!==SECRET)return J({ok:false,error:'wrong key'},401);
@@ -1254,12 +1255,12 @@ export default{async fetch(req,env){
     const rows=r.results||[];
     return new Response('{"ok":true,"events":['+rows.map(x=>'{"id":'+x.id+',"tx":'+x.tx+'}').join(',')+']}',{headers:H});}
   return J({ok:true,app:'holder-scan-hook'});
-}};
+}
 `;}
 const hookBase=()=>HOOK.url.replace(/\/+$/,'');
 async function hookFetch(path){const c=new AbortController(),tm=setTimeout(()=>c.abort(new Error('timeout')),30000);
   try{const r=await fetch(hookBase()+path+(path.includes('?')?'&':'?')+'key='+encodeURIComponent(HOOK.secret),{signal:c.signal});const j=await r.json().catch(()=>null);
-    if(!r.ok||!j||!j.ok)throw new Error(j&&j.error?j.error:'Worker HTTP '+r.status);return j;}finally{clearTimeout(tm);}}
+    if(!r.ok||!j||!j.ok){const m=j&&j.error?j.error:'Worker HTTP '+r.status;throw new Error(/limit|exceeded|quota/i.test(m)?'Cloudflare free daily database limit reached (resets 5:30 AM IST): '+m:m);}return j;}finally{clearTimeout(tm);}}
 // Helius webhook management (create / update the wallet list / delete)
 const HAPI=['https://api-mainnet.helius-rpc.com','https://api.helius.xyz','https://mainnet.helius-rpc.com'];
 async function heliusHooks(method,path,body){let last;
@@ -1331,7 +1332,7 @@ function hookSheet(){
   $('hkCopy').onclick=async()=>{const c=workerCode();try{await navigator.clipboard.writeText(c);toast('Worker code copied');}catch(e){const ta=document.createElement('textarea');ta.value=c;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();toast('Worker code copied');}};
   $('hkGo').onclick=async()=>{const b=$('hkGo');b.disabled=true;$('hkMsg').textContent='Checking your Worker…';
     try{await hookConnect($('hkUrl').value);$('hkMsg').innerHTML='<span class="up">✅ Connected — trades now arrive 24/7.</span>';toast('Webhook connected');setTimeout(hookSheet,900);hookPoll();}
-    catch(e){$('hkMsg').innerHTML=`<span class="bad">⚠ ${esc(e.message)}</span>${/wrong key/.test(e.message)?'<br>Paste the Worker code again (Copy Worker code) and Deploy.':/not connected|D1/.test(e.message)?'<br>Do step 4: add the D1 binding named DB.':/Failed to fetch|abort/i.test(e.message)?'<br>Check the address and that the Worker is deployed.':''}`;}
+    catch(e){$('hkMsg').innerHTML=`<span class="bad">⚠ ${esc(e.message)}</span>${/Failed to fetch|NetworkError|Load failed/i.test(e.message)?'<br>Your Worker crashed or is blocked. Paste the newest Worker code (Copy Worker code → Edit code → Deploy) and try again.':/wrong key/.test(e.message)?'<br>Paste the Worker code again (Copy Worker code) and Deploy.':/not connected|D1/.test(e.message)?'<br>Do step 4: add the D1 binding named DB.':/Failed to fetch|abort/i.test(e.message)?'<br>Check the address and that the Worker is deployed.':''}`;}
     b.disabled=false;};
   if($('hkSync'))$('hkSync').onclick=async()=>{await hookSync(true);toast(HK.err||'Wallet list updated');hookSheet();};
   if($('hkOff'))armBtn($('hkOff'),async()=>{await hookDisconnect();toast('Webhook disconnected');hookSheet();});
