@@ -1223,7 +1223,8 @@ const saveHook=()=>store.set('hs_hook',HOOK);
 const hookOn=()=>!!(HOOK.url&&HOOK.secret&&HOOK.id);
 const hookOK=()=>hookOn()&&HK.ok&&Date.now()-HK.t<5*60e3;
 function hookSecret(){if(!HOOK.secret){const a=new Uint8Array(18);crypto.getRandomValues(a);HOOK.secret='hs_'+[...a].map(x=>x.toString(16).padStart(2,'0')).join('');saveHook();}return HOOK.secret;}
-function workerCode(){return `// Holder Scan 24/7 webhook receiver — paste this into your Cloudflare Worker
+const WORKER_V=2;
+function workerCode(){return `// Holder Scan 24/7 webhook receiver v${WORKER_V} — paste this into your Cloudflare Worker
 const SECRET=${JSON.stringify(hookSecret())};
 let ready=false;
 async function init(env){if(ready)return;await env.DB.prepare("CREATE TABLE IF NOT EXISTS ev(id INTEGER PRIMARY KEY AUTOINCREMENT,sig TEXT UNIQUE,ts INTEGER,tx TEXT)").run();ready=true;}
@@ -1243,14 +1244,15 @@ export default{async fetch(req,env){
     const st=env.DB.prepare("INSERT OR IGNORE INTO ev(sig,ts,tx) VALUES(?,?,?)");
     const b=a.filter(t=>t&&t.signature).map(t=>st.bind(t.signature,t.timestamp||Math.floor(Date.now()/1000),JSON.stringify(slim(t))));
     if(b.length)await env.DB.batch(b);
-    if(Math.random()<0.02)await env.DB.prepare("DELETE FROM ev WHERE ts<?").bind(Math.floor(Date.now()/1000)-172800).run();
+    if(Math.random()<0.01)await env.DB.prepare("DELETE FROM ev WHERE id < (SELECT id FROM ev WHERE ts>=? ORDER BY id LIMIT 1)").bind(Math.floor(Date.now()/1000)-172800).run();
     return J({ok:true,n:b.length});
   }
   if(u.searchParams.get('key')!==SECRET)return J({ok:false,error:'wrong key'},401);
-  if(u.pathname==='/ping'){const r=await env.DB.prepare("SELECT COUNT(*) AS n, MAX(id) AS last FROM ev").first();return J({ok:true,n:r.n,last:r.last||0});}
+  if(u.pathname==='/ping'){const r=await env.DB.prepare("SELECT MAX(id) AS last FROM ev").first();return J({ok:true,v:${WORKER_V},last:r.last||0});}
   if(u.pathname==='/events'){const since=+u.searchParams.get('since')||0;
-    const r=await env.DB.prepare("SELECT id,tx FROM ev WHERE id>? ORDER BY id LIMIT 500").bind(since).all();
-    return J({ok:true,events:(r.results||[]).map(x=>({id:x.id,tx:JSON.parse(x.tx)}))});}
+    const r=await env.DB.prepare("SELECT id,tx FROM ev WHERE id>? ORDER BY id LIMIT 300").bind(since).all();
+    const rows=r.results||[];
+    return new Response('{"ok":true,"events":['+rows.map(x=>'{"id":'+x.id+',"tx":'+x.tx+'}').join(',')+']}',{headers:H});}
   return J({ok:true,app:'holder-scan-hook'});
 }};
 `;}
@@ -1281,7 +1283,7 @@ async function hookPoll(){
       ev.forEach(x=>{const e=x.tx;if(!e||!e.signature)return;const who=new Set([e.feePayer,...(e.tokenTransfers||[]).flatMap(t=>[t.fromUserAccount,t.toUserAccount]),...(e.accountData||[]).map(a=>a.account)]);
         who.forEach(w=>{if(!w)return;if(KOL[w]?addTrade(e,w):SMART[w]?addSTrade(e,w):false){got++;LASTSIG[w]=LASTSIG[w]||e.signature;}});
         if(x.id>HOOK.since)HOOK.since=x.id;});
-      if(ev.length<500)break;}
+      if(ev.length<300)break;}
     HK.ok=true;HK.t=Date.now();HK.err='';HK.fails=0;HK.ev+=got;saveHook();
     if(got){saveKTR();saveSTR();renderSoft();liveDirty();}   // show at once, then fetch prices for any new tokens
   }catch(e){
@@ -1298,6 +1300,7 @@ window.addEventListener('online',()=>{if(hookOn())hookPoll();});
 async function hookConnect(url){
   HOOK.url=url.trim().replace(/\/+$/,'');if(!/^https:\/\//.test(HOOK.url))throw new Error('The Worker address must start with https://');saveHook();
   const p=await hookFetch('/ping');                                   // Worker + database work, secret matches
+  HK.wv=p.v||1;
   HOOK.since=p.last||0;
   const list=liveList().slice(0,100000);
   if(HOOK.id){try{await heliusHooks('PUT','/'+HOOK.id,hookBody(list));}catch(e){HOOK.id='';}}
@@ -1310,6 +1313,7 @@ function hookSheet(){
   const on=hookOn();
   openSheet(`<h3 style="margin:0 0 4px">🪝 24/7 webhook</h3>
    <div class="note">Helius sends every trade of all your wallets to a small free server of yours (Cloudflare), even while your phone is locked. The app picks them up instantly when open — no live-stream limits, far fewer Helius credits.</div>
+   ${on&&HK.wv&&HK.wv<WORKER_V?`<div class="hkst bad">⚠ Your Worker code is old (v${HK.wv}). Tap <b>Copy Worker code</b>, paste it over the old code in Cloudflare, Deploy, then tap Reconnect.</div>`:''}
    ${on?`<div class="hkst ${hookOK()?'ok':''}">${hookOK()?'✅ Connected':'⏳ Connected — waiting for the Worker'} · ${liveList().length} wallets watched${HK.t?` · checked ${ago(HK.t/1000)}`:''}${HK.err?`<br><span class="bad">${esc(HK.err)}</span>`:''}</div>
      <div class="mbtns"><button class="btn gh" id="hkSync">↻ Update wallet list</button><button class="btn gh dng" id="hkOff">Disconnect</button></div>`:''}
    <details class="wsetup" ${on?'':'open'}><summary><b>${on?'Setup steps':'Set up (about 15 minutes, all on your phone)'}</b></summary><ol>
@@ -1338,7 +1342,7 @@ async function trackTick(){if(!visible()||!KEY||!$('vDetail').classList.contains
 function trkHTML(){
   const xs=XR.map(x=>`${esc(new URL(x.u).hostname.split('.').slice(-2,-1)[0]||'rpc')} ${Date.now()>x.until?'✅':'⏸'}`).join(' · ');
   const ago_=TRK.t?Math.round((Date.now()-TRK.t)/1000)+'s ago':'starting…';
-  return `<div class="trk ${TRK.err?'bad':''}" id="trk">${TRK.prog?`⏳ ${esc(TRK.prog)}`:`⏱ Tracking ${TRK.total||'…'} wallets · last round ${ago_} · checked ${TRK.checked} · <b>${TRK.added}</b> new trade${TRK.added===1?'':'s'}`}${hookOn()?`<br><span class="note">🪝 Webhook 24/7: ${hookOK()?'<b class="up">on</b>':'connecting…'} · ${liveList().length} wallets${HK.ev?` · ${HK.ev} trades received`:''}${HK.t?` · checked ${Math.round((Date.now()-HK.t)/1000)}s ago`:''}</span>`:''}${HK.err?`<br><span class="note bad">${esc(HK.err)}</span>`:''}${LIVE.on?`<br><span class="note">⚡ Live: <b>${LIVE.subs}</b>/${LIVE.want} wallets streaming${LIVE.trades?` · ${LIVE.trades} live trades`:''}${LIVE.t?` · last event ${Math.round((Date.now()-LIVE.t)/1000)}s ago`:''}</span>`:''}${LIVE.err?`<br><span class="note">${esc(LIVE.err)}</span>`:''}${xs?`<br><span class="note">RPCs: Helius ✅ · ${xs}</span>`:''}${TRK.err?`<br>⚠ ${esc(TRK.err)}`:''}</div>`;
+  return `<div class="trk ${TRK.err?'bad':''}" id="trk">${TRK.prog?`⏳ ${esc(TRK.prog)}`:`⏱ Tracking ${TRK.total||'…'} wallets · last round ${ago_} · checked ${TRK.checked} · <b>${TRK.added}</b> new trade${TRK.added===1?'':'s'}`}${hookOn()?`<br><span class="note">🪝 Webhook 24/7: ${hookOK()?'<b class="up">on</b>':'connecting…'} · ${liveList().length} wallets${HK.ev?` · ${HK.ev} trades received`:''}${HK.t?` · checked ${Math.round((Date.now()-HK.t)/1000)}s ago`:''}</span>`:''}${HK.err?`<br><span class="note bad">${esc(HK.err)}</span>`:''}${hookOn()&&HK.wv&&HK.wv<WORKER_V?'<br><span class="note bad">⚠ Update your Worker code: ⚙ Settings → 🪝 24/7 webhook</span>':''}${LIVE.on?`<br><span class="note">⚡ Live: <b>${LIVE.subs}</b>/${LIVE.want} wallets streaming${LIVE.trades?` · ${LIVE.trades} live trades`:''}${LIVE.t?` · last event ${Math.round((Date.now()-LIVE.t)/1000)}s ago`:''}</span>`:''}${LIVE.err?`<br><span class="note">${esc(LIVE.err)}</span>`:''}${xs?`<br><span class="note">RPCs: Helius ✅ · ${xs}</span>`:''}${TRK.err?`<br>⚠ ${esc(TRK.err)}`:''}</div>`;
 }
 function showTrk(){const el=$('trk');if(el)el.outerHTML=trkHTML();}
 setInterval(()=>{if(visible()&&!TRK.prog)showTrk();},5000);
@@ -3531,7 +3535,7 @@ $('instBtn').onclick=async()=>{if(!deferredPrompt)return;deferredPrompt.prompt()
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
 
 function start(){REFRESH_MS=PLAN==='paid'?35e3:60e3;$('vSetup').classList.add('hide');$('vMain').classList.remove('hide');renderControls();
-  if(hookOn()){hookPoll();setTimeout(()=>hookSync(),6000);if(!lastTrack)lastTrack=Date.now()-4*60e3;}   // webhook keeps everything while the app is closed: first safety check after ~1 min
+  if(hookOn()){hookPoll();setTimeout(()=>{hookSync();hookFetch('/ping').then(p=>{HK.wv=p.v||1;}).catch(()=>{});},6000);if(!lastTrack)lastTrack=Date.now()-4*60e3;}   // webhook keeps everything while the app is closed: first safety check after ~1 min
   setTimeout(()=>{if(SET.live!==false)liveStart();},4000);
   {const p=readAddHash()||store.get('hs_pendadd',null);if(p){store.set('hs_pendadd',null);setTimeout(()=>applyAdd(p),600);}}
   const cached=loadTokCache();if(cached){renderList();setLive('busy','updating…');}else renderList(true);
