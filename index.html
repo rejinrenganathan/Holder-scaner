@@ -1758,7 +1758,7 @@ function lbAdd(r){
 }
 const LBADD=new Set();let lbAddT=null;
 function lbFlush(){LBADD_DIRTY=true;store.set('hs_kol',KOL);store.set('hs_kolx',KOLX);store.set('hs_kact',KACT);saveSmart();liveResync();const ws=[...LBADD];LBADD.clear();
-  if(ws.length)trackPoll(ws.length<=150?{list:ws,user:true}:{});$('c-kol').textContent=Object.keys(KOL).length||'';$('c-sw').textContent=Object.keys(SMART).filter(w=>!KOL[w]).length||'';}
+  if(ws.length)trackPoll(ws.length<=150?{list:ws,user:true}:{});$('c-kol').textContent=Object.keys(KOL).length||'';$('c-sw').textContent=Object.keys(SMART).filter(w=>!KOL[w]).length||'';$('c-al').textContent=(Object.keys(KOL).length+Object.keys(SMART).filter(w=>!KOL[w]).length)||'';}
 const lbShown=()=>LBB.rows.filter(r=>!(LBB.hideBots&&r.bot));
 function lbRowHTML(r,i){
   const added=KOL[r.w]?'kol':SMART[r.w]?'smart':null,ini=esc((r.name||r.x||r.w).replace(/[^A-Za-z0-9]/g,'').slice(0,2).toUpperCase()||'?');
@@ -2788,8 +2788,9 @@ function webAddCard(){
    <div class="mbtns" style="margin-top:8px"><button class="btn gh" id="bkEx">📤 Export backup</button><label class="btn gh" style="text-align:center">📥 Import backup<input type="file" id="bkIm" accept=".json,application/json" style="display:none"></label></div></div>`;
 }
 function renderList(loading){
-  {const now=Date.now()/1000,c=alphaCounts([...KTR,...STR].filter(x=>now-x.ts<86400));const n=Object.values(c).filter(g=>g.k.size&&g.s.size).length;if($('c-al'))$('c-al').textContent=n||'';}
-  $('c-kol').textContent=Object.keys(KOL).length||'';$('c-sw').textContent=Object.keys(SMART).filter(w=>!KOL[w]).length||'';
+  // drop-down counts: wallets in each view (All = KOL + smart money combined)
+  {const nk=Object.keys(KOL).length,ns=Object.keys(SMART).filter(w=>!KOL[w]).length;if($('c-al'))$('c-al').textContent=(nk+ns)||'';}
+  $('c-kol').textContent=Object.keys(KOL).length||'';$('c-sw').textContent=Object.keys(SMART).filter(w=>!KOL[w]).length||'';$('c-al').textContent=(Object.keys(KOL).length+Object.keys(SMART).filter(w=>!KOL[w]).length)||'';
   if(FEEDS.includes(TAB)){renderFeed(TAB);return;}
   if(TAB==='add'){if(!$('adT'))renderAdd();return;}
   if(loading){$('list').innerHTML='<div class="skel"></div>'.repeat(6);return;}
