@@ -436,6 +436,35 @@ html{transition:background .2s}
 .mi svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 a.mi:not(.dx){color:var(--txt2)}.mi.dx b{font-size:9.5px;font-weight:900;letter-spacing:.3px}.mi.dx.on{color:var(--good);background:rgba(34,197,94,.12)}
 .gc .sps{margin-top:6px}
+.gc{padding:11px 11px 8px!important}
+.tk{display:flex;gap:10px;align-items:stretch}
+.sq{position:relative;flex:0 0 64px;width:64px;height:64px;border-radius:12px;border:2px solid var(--line2);overflow:visible}
+.sq.grn{border-color:var(--good)}.sq.gold{border-color:var(--gold)}
+.sq>img,.sq>.ini{width:100%!important;height:100%!important;border-radius:10px!important;object-fit:cover;display:grid;place-items:center;font-weight:900}
+.sq .lp{position:absolute;right:-5px;bottom:-5px;min-width:17px;height:17px;border-radius:50%;border:2px solid var(--card);background:var(--card);display:grid;place-items:center;overflow:hidden;padding:0;font-size:8px}
+.sq .lp img{width:13px!important;height:13px!important;border-radius:50%!important}
+.tb{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:space-between;gap:3px}
+.l1,.l2,.l3{display:flex;align-items:center;gap:7px;min-width:0;white-space:nowrap}
+.l1 .gnm{flex:1 1 auto;min-width:0}.l1 .gnm b{font-size:15px}
+.l1 .gv,.l1 .gmc{flex:0 0 auto;font-size:12.5px;font-weight:800}.l1 em{font-style:normal;color:var(--mut);font-weight:600;font-size:10.5px}.l1 .gmc{color:var(--gold)}
+.l2{font-size:12px;color:var(--mut)}.tsym{max-width:70px;overflow:hidden;text-overflow:ellipsis;font-weight:600}.tage{color:var(--good);font-weight:800}
+.si{flex:0 0 auto;display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:none;border:0;color:var(--txt2);padding:0;text-decoration:none;font-size:12px}
+.si svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.si.dxl img{width:15px;height:15px;border-radius:4px;filter:grayscale(1) brightness(.75);opacity:.6}
+.si.dxl.on{background:rgba(34,197,94,.16);box-shadow:0 0 0 1.5px var(--good)}.si.dxl.on img{filter:none;opacity:1}
+.sb{font-size:11px;font-weight:800}.sb.boost{color:#f59e0b}.sb.cto{color:var(--smart);border:1px solid currentColor;border-radius:5px;padding:0 3px;font-size:9.5px}
+.l3{gap:10px;overflow-x:auto;scrollbar-width:none}.l3::-webkit-scrollbar{display:none}
+.hs{display:inline-flex;align-items:center;gap:3px;font-size:12px;color:var(--txt2)}.hs svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.hs b{font-weight:800}.hs.good{color:var(--good)}.hs.warn{color:var(--warn,#f59e0b)}.hs.bad{color:var(--bad)}
+.mig{display:flex;align-items:center;gap:8px;margin:9px 0 6px;font-size:11px;font-weight:800;color:var(--good)}
+.mig .ml{flex:0 0 auto;font-weight:700;color:var(--mut)}.mig .mbar{flex:1;height:6px;border-radius:4px;background:var(--line);overflow:hidden}
+.mig .mbar i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,#16a34a,#22c55e)}
+.mig.done{color:var(--gold)}.mig.done .mbar i{background:linear-gradient(90deg,#f59e0b,#fde68a,#fbbf24)}
+.mig b{flex:0 0 auto;min-width:34px;text-align:right}
+.gc .g3{font-size:11.5px}.gc .g3>span{padding:2px 7px}
+.wh{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;color:var(--good)}.wh i{width:7px;height:7px;border-radius:50%;background:currentColor}
+.wh.part{color:var(--gold)}.wh.sold{color:var(--bad)}
+.wmore{display:block;width:100%;margin-top:4px;padding:6px;border:0;border-radius:8px;background:var(--bg);color:var(--txt2);font-size:12px;font-weight:700}
 </style>
 </head>
 <body>
@@ -2408,31 +2437,57 @@ function posPerf(p,t){
   let pc=null;if(p.st==='sold'&&p.sold>0)pc=(p.outSol/(avgSol*p.sold)-1)*100;else if(t.price>0&&SOLUSD)pc=(t.price/(avgSol*SOLUSD)-1)*100;
   return{pc,entryMc};
 }
+const WEXP=new Set();   // cards whose full wallet list is open
+const heldTxt=p=>{if(!p.first)return '';const end=p.st==='sold'?(p.lastSell||Date.now()/1000):Date.now()/1000;return dur(Math.max(0,end-p.first));};
 function walletRow(w,m,t,al){
   const p=kolPos(w,m),pf=posPerf(p,t),sold=p.st==='sold',part=p.st==='partial';
-  const pcs=pf&&pf.pc!=null?`<span class="wp ${pf.pc>=0?'up':'dn'}">${pf.pc>=0?'▲':'▼'} ${num(Math.abs(pf.pc),Math.abs(pf.pc)<10?1:0)}%</span>`:'<span class="wp">—</span>';
+  const pcs=pf&&pf.pc!=null?`<span class="wp ${pf.pc>=0?'up':'dn'}">${pf.pc>=0?'▲':'▼'}${num(Math.abs(pf.pc),Math.abs(pf.pc)<10?1:0)}%</span>`:'<span class="wp">—</span>';
+  const ht=heldTxt(p);
   return `<div class="kpr wr" data-kw="${w}">${wAv(w,'wav')}<b class="wn">${esc(wName(w))}</b>${al?(KOL[w]?'<span class="wt k">KOL</span>':'<span class="wt s">SM</span>'):''}
-   <span class="wst ${sold?'sold':part?'part':'hold'}" title="${sold?'Sold':part?'Partly sold':'Holding'}"></span>${part&&p.left!=null?`<span class="wl">${Math.round(p.left)}% left</span>`:''}
-   <span class="wr2">${pcs}<span class="we">${pf&&pf.entryMc?'@ '+usd(pf.entryMc):''}</span></span></div>`;
+   <span class="wh ${sold?'sold':part?'part':'hold'}" title="${sold?'Sold — held':part?'Partly sold — holding':'Holding'} ${ht}"><i></i>${ht}${part&&p.left!=null?` · ${Math.round(p.left)}%`:''}</span>
+   <span class="wr2">${pcs}<span class="we">${pf&&pf.entryMc?'@'+usd(pf.entryMc):''}</span></span></div>`;
 }
+// ---- token card (Axiom-style): picture · 3 slim lines · migration bar · up to 3 wallets ----
+function sqPic(t){const ini=esc((t.sym||'?').replace('$','').slice(0,2).toUpperCase()),b=bondInfo(t);
+  const fb=t.dimg&&t.dimg!==t.img?`if(!this.dataset.f){this.dataset.f=1;this.src='${esc(t.dimg)}'}else{this.outerHTML='<div class=ini>${ini}</div>'}`:`this.outerHTML='<div class=ini>${ini}</div>'`;
+  const img=t.img||IMG[t.mint]||t.dimg;
+  return `<div class="sq ${b?b.mig?'gold':'grn':''}">${img?`<img src="${esc(img)}" loading="lazy" alt="" onerror="${fb}">`:`<div class="ini">${ini}</div>`}${lpBadge(t)}</div>`;}
+function socIcons(t){
+  const x=t.twitter,tg=(t.socials||[]).find(z=>/telegram/i.test(z.type||'')||/t\.me\//.test(z.url||''))?.url,web=(t.sites||[])[0]?.url;
+  const lk=(u,ic,tip)=>u?`<a class="si" href="${esc(u)}" target="_blank" rel="noopener" title="${tip}">${SI[ic]}</a>`:'';
+  const paid=dsPaid(t);
+  return `${lk(x,'x','X')}${lk(web,'web','Website')}${lk(tg,'tg','Telegram')}<a class="si dxl ${paid?'on':''}" href="https://dexscreener.com/solana/${t.pair?.pairAddress||t.mint}" target="_blank" rel="noopener" title="${paid?'DEX paid':'DEX not paid'}"><img src="${fav('dexscreener.com')}" alt="DEX"></a>${t.boostN?`<span class="sb boost" title="DexScreener boosts">🚀${t.boostN}</span>`:''}${t.ords?.ad?'<span class="sb ad" title="DexScreener ad">📢</span>':''}${t.ords?.cto?'<span class="sb cto">CTO</span>':''}`;
+}
+function holdStats(t){
+  const hm=t.hm||null,ld=!hm&&!(t.hmFail&&Date.now()-t.hmFail<HM_TTL),pc=v=>v==null?'—':num(v,v<10?1:0)+'%',sk='<i class="skl s"></i>';
+  if(!hm&&!ld)return '<span class="note" style="font-size:11px">holder stats unavailable</span>';
+  const d=t.dev,dp=d&&d.pct!=null?d.pct:null;
+  const st=(ic,v,c,tip)=>`<span class="hs ${c||''}" title="${tip}">${IC[ic]}<b>${v}</b></span>`;
+  return st('hold',ld?sk:hm.holders?num(hm.holders.n,0)+(hm.holders.more?'+':''):'—','','Holders')
+    +st('top',ld?sk:pc(hm.top10),ld?'':lvlCls(hm.top10,30,50),'Top 10 holders')
+    +st('dev',d===undefined?(ld?sk:'—'):d===null?'—':d.held<=0?'0%':pc(dp),d&&d.held>0?lvlCls(dp,5,15):d?'good':'','Dev holds')
+    +st('bun',ld?sk:pc(hm.bundle),ld?'':lvlCls(hm.bundle,5,15),'Bundlers')
+    +st('ins',ld?sk:pc(hm.insider),ld?'':lvlCls(hm.insider,5,15),'Insiders / snipers');
+}
+function migBar(t){const b=bondInfo(t);if(!b)return '';const p=b.mig?100:(b.p==null?0:Math.max(0,Math.min(100,b.p)));
+  return `<div class="mig ${b.mig?'done':''}" title="${b.mig?'Migrated to DEX':'Bonding curve progress'}"><span class="ml">${b.mig?'🎓 Migrated':'💊 Bonding'}</span><div class="mbar"><i style="width:${p}%"></i></div><b>${b.mig?'100%':b.p==null?'—':(b.est?'~':'')+Math.round(p)+'%'}</b></div>`;}
 function tokGroupCard(g,kind){
   const t=TOK.get(g.m),hw=[...g.buyers].filter(w=>/^holding|partial/.test(kolPos(w,g.m).st)),hold=hw.length;
   const kb=[...g.buyers].filter(w=>KOL[w]).length,sb=g.buyers.size-kb,kh=hw.filter(w=>KOL[w]).length,sh=hold-kh;
   const al=kind==='alpha',ok=t&&t.pair;
-  // one line: picture · ticker · name (fades; tap for full name) · volume · market cap
-  const head=ok?`<div class="g1">${avatar(t)}<div class="gnm${NAMEFULL.has(g.m)?' full':''}" data-nm="${g.m}"><b>${esc(t.sym)}</b><span>${esc(t.name)}</span></div>
-     <div class="gv"><span class="lb">V</span> ${usd(t.vol.h24)}</div><div class="gmc"><span class="lb">MC</span> ${usd(t.mc)}</div></div>`
-    :`<div class="g1"><b>${short(g.m)}</b><span class="note">loading…</span></div>`;
-  const who=al?`${kb?`<span class="wk">👑 <b>${kh}</b>/${kb} KOL</span>`:''}${sb?`<span class="ws">🧠 <b>${sh}</b>/${sb} smart</span>`:''}`
-    :`<span class="wk ${kind==='sw'?'ws':''}">💎 <b>${hold}</b>/${g.buyers.size} holding</span>${g.sellers.size?`<span class="wx">${g.sellers.size} sold</span>`:''}`;
   let si=0,so=0;[...g.buyers].forEach(w=>{const p=kolPos(w,g.m);si+=p.inSol||0;so+=p.outSol||0;});
   const list=al?[...[...g.buyers].filter(w=>KOL[w]),...[...g.buyers].filter(w=>!KOL[w])]:[...g.buyers];
-  const show=list.slice(0,4),more=list.length-show.length;
-  const b=ok?bondInfo(t):null,age=ok&&t.created?dur((Date.now()-t.created)/1000):null;
-  return `<div class="tc gc" data-m="${g.m}" data-k="g${g.m}">${head}
-   ${ok?cardStats(t,age,b):''}
-   <div class="g3">${who}<span class="gi" title="SOL your wallets put in / took out">${SOLI}${num(si,1)}${so?` <em>/ ${num(so,1)} out</em>`:''}</span><span class="gt">${ago(g.last)}</span></div>
-   <div class="kpl">${show.map(w=>walletRow(w,g.m,t,al)).join('')}${more>0?`<div class="note gmore">+${more} more wallet${more>1?'s':''}</div>`:''}</div></div>`;
+  const open=WEXP.has(g.m),show=open?list:list.slice(0,3),more=list.length-3;
+  const age=ok&&t.created?dur((Date.now()-t.created)/1000):null;
+  const top=ok?`<div class="tk">${sqPic(t)}<div class="tb">
+      <div class="l1"><div class="gnm${NAMEFULL.has(g.m)?' full':''}" data-nm="${g.m}"><b>${esc(t.name||t.sym)}</b></div><span class="gv"><em>V</em> ${usd(t.vol.h24)}</span><span class="gmc"><em>MC</em> ${usd(t.mc)}</span></div>
+      <div class="l2"><span class="tsym">${esc(t.sym)}</span>${age?`<span class="tage">${age}</span>`:''}<button class="si cp" data-cp="${g.m}" title="Copy CA">⧉</button>${socIcons(t)}</div>
+      <div class="l3">${holdStats(t)}</div></div></div>`
+    :`<div class="tk"><div class="sq"><div class="ini">…</div></div><div class="tb"><div class="l1"><b>${short(g.m)}</b></div><div class="l2 note">loading…</div></div></div>`;
+  const who=al?`${kb?`<span class="wk">👑 ${kh}/${kb}</span>`:''}${sb?`<span class="ws">🧠 ${sh}/${sb}</span>`:''}`:`<span class="${kind==='sw'?'ws':'wk'}">💎 ${hold}/${g.buyers.size} holding</span>`;
+  return `<div class="tc gc" data-m="${g.m}" data-k="g${g.m}">${top}${ok?migBar(t):''}
+   <div class="g3">${who}<span class="gi">${SOLI}${num(si,1)}${so?` <em>/ ${num(so,1)}</em>`:''}</span><span class="gt">${ago(g.last)}</span></div>
+   <div class="kpl">${show.map(w=>walletRow(w,g.m,t,al)).join('')}${more>0?`<button class="wmore" data-wx="${g.m}">${open?'▴ Show less':`▾ ${more} more wallet${more>1?'s':''}`}</button>`:''}</div></div>`;
 }
 async function loadOrders(t){
   if(t.ordAt&&Date.now()-t.ordAt<10*60e3)return;t.ordAt=Date.now();
@@ -3456,7 +3511,8 @@ $('presets').onclick=e=>{const b=e.target.closest('[data-p]');if(b)applyPreset(b
 $('viewRow').onclick=e=>{const b=e.target.closest('[data-v]');if(!b)return;TAB=b.dataset.v;store.set('hs_tab',TAB);store.set('hs_view',TAB);renderControls();renderList();queueTop10();window.scrollTo(0,0);};
 $('sortSel').onchange=()=>{FILT[TAB].sort=$('sortSel').value;saveFilt();renderList();};
 $('filtBtn').onclick=()=>{if(FEEDS.includes(TAB))feedFilterSheet(TAB);};$('setBtn').onclick=settingsSheet;$('srchBtn').onclick=searchSheet;$('refBtn').onclick=()=>refresh(true);
-$('list').onclick=async e=>{if(e.target.closest('a'))return;const nm=e.target.closest('[data-nm]');if(nm){e.stopPropagation();const m=nm.dataset.nm;NAMEFULL.has(m)?NAMEFULL.delete(m):NAMEFULL.add(m);nm.classList.toggle('full',NAMEFULL.has(m));return;}const kw=e.target.closest('[data-kw]');if(kw){e.stopPropagation();openKol(kw.dataset.kw);return;}
+$('list').onclick=async e=>{if(e.target.closest('a'))return;const wx=e.target.closest('[data-wx]');if(wx){e.stopPropagation();const m=wx.dataset.wx;WEXP.has(m)?WEXP.delete(m):WEXP.add(m);renderSoft();return;}
+  const nm=e.target.closest('[data-nm]');if(nm){e.stopPropagation();const m=nm.dataset.nm;NAMEFULL.has(m)?NAMEFULL.delete(m):NAMEFULL.add(m);nm.classList.toggle('full',NAMEFULL.has(m));return;}const kw=e.target.closest('[data-kw]');if(kw){e.stopPropagation();openKol(kw.dataset.kw);return;}
   const hm=e.target.closest('[data-hm]');if(hm){e.stopPropagation();const m=hm.dataset.hm;let t=TOK.get(m);if(!t||!t.pair){try{const arr=await getJSON('https://api.dexscreener.com/tokens/v1/solana/'+m);t=tok(m);t.seen=Date.now();t.pairs=(Array.isArray(arr)?arr:[]).filter(p=>p.baseToken?.address===m);if(t.pairs.length)derive(t);}catch(err){}}if(t&&t.pair)openDetail(m);else toast('No market data for this token');return;}const cp=e.target.closest('[data-cp]');if(cp){e.stopPropagation();copy(cp.dataset.cp);return;}const c=e.target.closest('.tc,.kt');if(c&&TOK.get(c.dataset.m)?.pair)openDetail(c.dataset.m);};
 $('kPlan').querySelectorAll('button').forEach(b=>b.onclick=()=>{$('kPlan').querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');});
 $('kGo').onclick=async()=>{const k=$('kIn').value.trim();if(k.length<20){$('kErr').textContent='That key looks too short.';return;}
