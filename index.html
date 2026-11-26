@@ -1150,7 +1150,7 @@ function rawToEnh(tx,sig){
   return{signature:sig,timestamp:tx.blockTime||Math.floor(Date.now()/1000),feePayer:keys[0],transactionError:m.err||null,tokenTransfers,accountData};
 }
 let liveT=null;function liveDirty(){if(liveT)return;liveT=setTimeout(async()=>{liveT=null;saveKTR();saveSTR();store.set('hs_lastsig',LASTSIG);
-  try{await loadMarket(true);}catch(e){}renderSoft();loadImages();loadCurves(true);},1500);}
+  try{await loadMarket(true);}catch(e){}renderSoft();loadImages();loadCurves(true);},400);}
 // wallets added / removed: subscribe / unsubscribe only the difference (no full reconnect)
 function liveSync(){
   if(!LIVE.on)return;const want=new Set(liveList());LIVE.want=want.size;const have=new Set();
@@ -1241,12 +1241,15 @@ async function hookPoll(){
         who.forEach(w=>{if(!w)return;if(KOL[w]?addTrade(e,w):SMART[w]?addSTrade(e,w):false){got++;LASTSIG[w]=LASTSIG[w]||e.signature;}});
         if(x.id>HOOK.since)HOOK.since=x.id;});
       if(ev.length<500)break;}
-    HK.ok=true;HK.t=Date.now();HK.err='';HK.ev+=got;saveHook();if(got)liveDirty();
+    HK.ok=true;HK.t=Date.now();HK.err='';HK.ev+=got;saveHook();
+    if(got){saveKTR();saveSTR();renderSoft();liveDirty();}   // show at once, then fetch prices for any new tokens
   }catch(e){HK.ok=false;HK.err='Webhook: '+e.message;}
   hpRun=false;
 }
-setInterval(()=>{if(visible()&&KEY)hookPoll();},10e3);
-document.addEventListener('visibilitychange',()=>{if(visible())hookPoll();});
+setInterval(()=>{if(visible()&&KEY)hookPoll();},5e3);   // every 5s while the app is open
+document.addEventListener('visibilitychange',()=>{if(visible()&&hookOn())hookPoll();});
+window.addEventListener('pageshow',()=>{if(hookOn())hookPoll();});
+window.addEventListener('online',()=>{if(hookOn())hookPoll();});
 async function hookConnect(url){
   HOOK.url=url.trim().replace(/\/+$/,'');if(!/^https:\/\//.test(HOOK.url))throw new Error('The Worker address must start with https://');saveHook();
   const p=await hookFetch('/ping');                                   // Worker + database work, secret matches
@@ -2145,7 +2148,7 @@ async function refresh(manual){
   try{
     [...KTR,...STR].forEach(x=>{const t=tok(x.m);if(!t.seen)t.seen=Date.now();});
     await loadMarket();renderList();                              // saved trades show with fresh prices first
-    trackPoll();                                                  // new trades (runs on its own; never blocks the refresh)
+    if(!(hookOn()&&Date.now()-lastTrack<5*60e3))trackPoll();      // new trades (with the webhook on, only a check every 5 min as a safety net)
     lastRefresh=Date.now();saveTokCache();setLive(SET.auto?'on':'',new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',hour12:false}));
     renderList();loadImages();loadCurves(true);ensureSolUsd();
     // wallets the tracker skips as inactive are re-checked twice a day (1 cheap call each), so a KOL who starts trading again comes back
@@ -3430,6 +3433,7 @@ $('instBtn').onclick=async()=>{if(!deferredPrompt)return;deferredPrompt.prompt()
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
 
 function start(){REFRESH_MS=PLAN==='paid'?35e3:60e3;$('vSetup').classList.add('hide');$('vMain').classList.remove('hide');renderControls();
+  if(hookOn())hookPoll();
   setTimeout(()=>{if(SET.live!==false)liveStart();},4000);
   {const p=readAddHash()||store.get('hs_pendadd',null);if(p){store.set('hs_pendadd',null);setTimeout(()=>applyAdd(p),600);}}
   const cached=loadTokCache();if(cached){renderList();setLive('busy','updating…');}else renderList(true);
