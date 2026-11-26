@@ -403,6 +403,13 @@ html{transition:background .2s}
 .fmenu button span{grid-column:1}.fmenu button em{grid-column:1;font-style:normal;font-size:11px;font-weight:600;color:var(--mut)}
 .fmenu button b{grid-column:2;grid-row:1/3;align-self:center;font-size:12px!important;color:var(--mut)!important}
 .fmenu button.on{background:rgba(124,156,255,.14)!important}.fmenu button.on span::after{content:"  ✓";color:var(--acc)}
+.kbar{flex-wrap:nowrap!important;gap:6px!important;margin:8px 0 6px!important}
+.kbar .seg2{flex:0 0 auto}.kbar .seg2 button{padding:7px 11px;font-size:13px}
+.kbar .fdsort{flex:1 1 auto;min-width:0;max-width:none!important;padding:8px 8px;height:36px}
+.fdf{position:relative;flex:0 0 38px;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--chip);color:var(--txt2);display:grid;place-items:center;padding:0}
+.fdf svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2;stroke-linejoin:round}
+.fdf.act{border-color:var(--acc);color:var(--acc)}
+.fdf span{position:absolute;top:-6px;right:-6px;min-width:17px;height:17px;border-radius:9px;background:var(--acc);color:#fff;font-size:10.5px;font-weight:800;display:grid;place-items:center;padding:0 4px}
 </style>
 </head>
 <body>
@@ -2337,7 +2344,7 @@ function patchList(box,html){
 function renderFeed(kind){
   const f=FL[kind],n=kind==='alpha'?new Set([...Object.keys(KOL),...Object.keys(SMART)]).size:Object.keys(kind==='kol'?KOL:SMART).filter(w=>isKind(kind,w)).length;
   const lbl=kind==='alpha'?`${Object.keys(KOL).length} KOL + ${Object.keys(SMART).filter(w=>!KOL[w]).length} smart`:`${n} ${kind==='kol'?'KOL':'smart'} wallet${n===1?'':'s'}`;
-  let h=`<div class="kbar"><div class="seg2" id="fdMode"><button data-v="trades" class="${f.mode==='trades'?'on':''}">Trades</button><button data-v="tokens" class="${f.mode==='tokens'?'on':''}">Tokens</button></div><select id="fdSort" class="fdsort">${SORTS.map(([k,l])=>`<option value="${k}" ${f.sort===k?'selected':''}>${l}</option>`).join('')}</select><span class="note">${lbl}</span></div>`+trkHTML();
+  let h=`<div class="kbar"><div class="seg2" id="fdMode"><button data-v="trades" class="${f.mode==='trades'?'on':''}">Trades</button><button data-v="tokens" class="${f.mode==='tokens'?'on':''}">Tokens</button></div><select id="fdSort" class="fdsort">${SORTS.map(([k,l])=>`<option value="${k}" ${f.sort===k?'selected':''}>${l}</option>`).join('')}</select><button class="fdf${fCount(f)?' act':''}" id="fdFilt" aria-label="Filters" title="Filters"><svg viewBox="0 0 24 24"><path d="M3 5h18l-7 8v6l-4 2v-8z"/></svg>${fCount(f)?`<span>${fCount(f)}</span>`:''}</button></div>`+trkHTML();
   if(!n){$('list').innerHTML=h+`<div class="empty">No ${kind==='kol'?'KOL':kind==='alpha'?'KOL or smart':'smart'} wallets yet.<br><br>Open <b>＋ Add</b> and paste your wallets. Wallets with an X handle become 👑 KOL, the rest 🧠 Smart.</div>`;wireFeed(kind);return;}
   const tr=feedTrades(kind);
   if(!tr.length){h+=`<div class="empty">No ${f.side==='all'?'':f.side+' '}trades in the last <b>${dur(f.win*60)}</b>${fCount(f)?' with these filters':''}.<br><br>${feedSrc(kind).length?'Widen the time window or reset Filters.':'The tracker is checking your wallets — new trades appear here automatically.'}</div>`;}
@@ -2348,7 +2355,7 @@ function renderFeed(kind){
   const pos=[...new Set(tr.slice(0,80).filter(x=>x.side==='buy').map(x=>x.w+'|'+x.m))];if(pos.length)loadPositions(pos);
   const ws=[...new Set(tr.slice(0,80).map(x=>x.w))];if(ws.some(w=>!KBAL[w]))loadKolBal(ws).then(()=>{if(TAB===kind)renderSoft();});
 }
-function wireFeed(kind){const so=$('fdSort');if(so)so.onchange=()=>{FL[kind].sort=so.value;saveFL();renderControls();renderFeed(kind);window.scrollTo(0,0);};const m=$('fdMode');if(m)m.querySelectorAll('button').forEach(b=>b.onclick=()=>{FL[kind].mode=b.dataset.v;saveFL();renderFeed(kind);});}
+function wireFeed(kind){const fb=$('fdFilt');if(fb)fb.onclick=()=>feedFilterSheet(kind);const so=$('fdSort');if(so)so.onchange=()=>{FL[kind].sort=so.value;saveFL();renderControls();renderFeed(kind);window.scrollTo(0,0);};const m=$('fdMode');if(m)m.querySelectorAll('button').forEach(b=>b.onclick=()=>{FL[kind].mode=b.dataset.v;saveFL();renderFeed(kind);});}
 function feedFilterSheet(kind){
   const d=JSON.parse(JSON.stringify(FL[kind])),v=x=>x==null?'':x;
   const draw=()=>{
@@ -2557,7 +2564,7 @@ function renderList(loading){
 function renderControls(){
   document.querySelectorAll('#tabs>button').forEach(b=>b.classList.toggle('on',b.dataset.t==='feed'?FEEDS.includes(TAB):b.dataset.t===TAB));
   {const k=FEEDS.includes(TAB)?TAB:FEEDK;$('tFeedL').textContent=k==='kol'?'KOL':k==='sw'?'Smart':'All';document.querySelectorAll('#fMenu [data-k]').forEach(b=>b.classList.toggle('on',b.dataset.k===k));}
-  const ctl=document.querySelector('.ctl');ctl.classList.toggle('hide',TAB==='add');
+  const ctl=document.querySelector('.ctl');ctl.classList.toggle('hide',TAB==='add'||FEEDS.includes(TAB));
   ['viewRow','presets','tfRow','sortSel'].forEach(id=>$(id).classList.add('hide'));
   if(FEEDS.includes(TAB)){const f=FL[TAB],n=fCount(f);$('fN').textContent=n;$('fN').classList.toggle('hide',!n);
     $('cnt').textContent=[sortLbl(f.sort),f.stage==='mig'?'migrated':f.stage==='curve'?'bonding':'',f.side!=='all'?f.side+'s':'',f.hold?'holding':'',f.fav?'❤':'',dur(f.win*60)].filter(Boolean).join(' · ');}
