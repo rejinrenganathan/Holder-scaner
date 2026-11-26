@@ -1298,7 +1298,7 @@ document.addEventListener('visibilitychange',()=>{if(visible()&&hookOn())hookPol
 window.addEventListener('pageshow',()=>{if(hookOn())hookPoll();});
 window.addEventListener('online',()=>{if(hookOn())hookPoll();});
 async function hookConnect(url){
-  HOOK.url=url.trim().replace(/\/+$/,'');if(!/^https:\/\//.test(HOOK.url))throw new Error('The Worker address must start with https://');saveHook();
+  const u=String(url||'').trim().replace(/\/+$/,'')||HOOK.url;if(!/^https:\/\/[^\s]+$/.test(u))throw new Error('Paste your Worker address — it starts with https://');HOOK.url=u;saveHook();
   const p=await hookFetch('/ping');                                   // Worker + database work, secret matches
   HK.wv=p.v||1;
   HOOK.since=p.last||0;
