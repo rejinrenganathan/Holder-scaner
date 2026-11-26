@@ -1263,7 +1263,7 @@ function hookSheet(){
   openSheet(`<h3 style="margin:0 0 4px">🪝 24/7 webhook</h3>
    <div class="note">Helius sends every trade of all your wallets to a small free server of yours (Cloudflare), even while your phone is locked. The app picks them up instantly when open — no live-stream limits, far fewer Helius credits.</div>
    ${on?`<div class="hkst ${hookOK()?'ok':''}">${hookOK()?'✅ Connected':'⏳ Connected — waiting for the Worker'} · ${liveList().length} wallets watched${HK.t?` · checked ${ago(HK.t/1000)}`:''}${HK.err?`<br><span class="bad">${esc(HK.err)}</span>`:''}</div>
-     <div class="mbtns"><button class="btn gh" id="hkSync">↻ Update wallet list</button><button class="btn dng" id="hkOff">Disconnect</button></div>`:''}
+     <div class="mbtns"><button class="btn gh" id="hkSync">↻ Update wallet list</button><button class="btn gh dng" id="hkOff">Disconnect</button></div>`:''}
    <details class="wsetup" ${on?'':'open'}><summary><b>${on?'Setup steps':'Set up (about 15 minutes, all on your phone)'}</b></summary><ol>
     <li>Open <a href="https://dash.cloudflare.com/sign-up" target="_blank" rel="noopener"><b>dash.cloudflare.com</b></a> and create a free account (or log in).</li>
     <li><b>Make the database:</b> menu → <b>Storage & databases → D1 SQL database → Create</b>. Name it <code>holderscan</code> → Create.</li>
