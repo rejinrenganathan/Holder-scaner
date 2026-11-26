@@ -1265,8 +1265,10 @@ async function heliusHooks(method,path,body){let last;
       if(r.status===404&&method!=='DELETE'&&h!==HAPI[HAPI.length-1]){last=new Error('HTTP 404');continue;}
       const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||j.message||'Helius HTTP '+r.status);return j;}catch(e){last=e;}}
   throw last;}
-const hookBody=list=>({webhookURL:hookBase()+'/hook',transactionTypes:['ANY'],accountAddresses:list,webhookType:'enhanced',authHeader:HOOK.secret,txnStatus:'success'});
-const addrHash=l=>{let h=0;const s=l.slice().sort().join(',');for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))|0;return l.length+':'+h;};
+const HOOK_TYPES=['SWAP'];
+const hookBody=list=>({webhookURL:hookBase()+'/hook',transactionTypes:HOOK_TYPES,accountAddresses:list,webhookType:'enhanced',authHeader:HOOK.secret,txnStatus:'success'});
+const addrHash=l=>{let h=7;   // v2: SWAP-only webhook (changing this re-sends the webhook settings once)
+  const s=l.slice().sort().join(',');for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))|0;return l.length+':'+h;};
 async function hookSync(force){
   if(!hookOn()||HK.syncing)return;const list=liveList().slice(0,100000),hh=addrHash(list);if(!force&&hh===HOOK.addrHash)return;
   HK.syncing=true;try{await heliusHooks('PUT','/'+HOOK.id,hookBody(list));HOOK.addrHash=hh;saveHook();HK.err='';}catch(e){HK.err='Webhook wallet list: '+e.message;}finally{HK.syncing=false;}}
@@ -1285,7 +1287,7 @@ async function hookPoll(){
   }catch(e){
     // one slow answer (weak signal, Worker waking up) isn't a problem — only report after 3 misses in a row
     HK.fails=(HK.fails||0)+1;
-    if(HK.fails>=3){HK.ok=false;HK.err=/abort|timeout/i.test(e.message)?'Webhook: your Worker is answering slowly — retrying':/Failed to fetch|NetworkError|Load failed/i.test(e.message)?'Webhook: no internet connection — retrying':'Webhook: '+e.message;}
+    if(HK.fails>=3){HK.ok=false;HK.err=/abort|timeout/i.test(e.message)?'Webhook: your Worker is answering slowly — retrying':/Failed to fetch|NetworkError|Load failed/i.test(e.message)?(navigator.onLine===false?'Webhook: no internet connection — retrying':'Webhook: Worker not reachable — Cloudflare\'s free daily limit may be used up (resets 5:30 AM IST). Trades are still checked by polling.'):'Webhook: '+e.message;}
   }
   hpRun=false;
 }
@@ -1331,7 +1333,7 @@ function hookSheet(){
   if($('hkOff'))armBtn($('hkOff'),async()=>{await hookDisconnect();toast('Webhook disconnected');hookSheet();});
 }
 const renderSoft=()=>{if($('sheet').classList.contains('hide')&&$('vDetail').classList.contains('hide'))renderList();};
-async function trackTick(){if(!visible()||!KEY||!$('vDetail').classList.contains('hide'))return;if(hookOK()&&Date.now()-lastTrack<5*60e3)return;if(liveOK()&&Date.now()-lastTrack<60e3)return;await trackPoll();}
+async function trackTick(){if(!visible()||!KEY||!$('vDetail').classList.contains('hide'))return;if(hookOK()&&!(HK.fails>=3)&&Date.now()-lastTrack<5*60e3)return;if(liveOK()&&Date.now()-lastTrack<60e3)return;await trackPoll();}
 // status line under the KOL / Smart toolbar: what the tracker did last round, and any problem
 function trkHTML(){
   const xs=XR.map(x=>`${esc(new URL(x.u).hostname.split('.').slice(-2,-1)[0]||'rpc')} ${Date.now()>x.until?'✅':'⏸'}`).join(' · ');
@@ -3529,7 +3531,7 @@ $('instBtn').onclick=async()=>{if(!deferredPrompt)return;deferredPrompt.prompt()
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
 
 function start(){REFRESH_MS=PLAN==='paid'?35e3:60e3;$('vSetup').classList.add('hide');$('vMain').classList.remove('hide');renderControls();
-  if(hookOn()){hookPoll();if(!lastTrack)lastTrack=Date.now()-4*60e3;}   // webhook keeps everything while the app is closed: first safety check after ~1 min
+  if(hookOn()){hookPoll();setTimeout(()=>hookSync(),6000);if(!lastTrack)lastTrack=Date.now()-4*60e3;}   // webhook keeps everything while the app is closed: first safety check after ~1 min
   setTimeout(()=>{if(SET.live!==false)liveStart();},4000);
   {const p=readAddHash()||store.get('hs_pendadd',null);if(p){store.set('hs_pendadd',null);setTimeout(()=>applyAdd(p),600);}}
   const cached=loadTokCache();if(cached){renderList();setLive('busy','updating…');}else renderList(true);
