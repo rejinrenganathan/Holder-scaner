@@ -1133,7 +1133,7 @@ const liveList=()=>[...Object.keys(KOL),...Object.keys(SMART).filter(w=>!KOL[w])
 function wsUrls(){return ['wss://mainnet.helius-rpc.com/?api-key='+encodeURIComponent(KEY)];}   // Alchemy & co. don't support logsSubscribe on Solana
 function liveStop(){LIVE.conns.forEach(c=>{c.dead=true;try{c.ws.close();}catch(e){}});LIVE.conns=[];LIVE.subs=0;LIVE.on=false;}
 function liveStart(){
-  liveStop();if(!KEY||SET.live===false||hookOn())return;
+  liveStop();if(!KEY||SET.live===false||hookWorking())return;
   const ws=liveList();LIVE.want=ws.length;LIVE.on=true;LIVE.err='';if(!ws.length)return;
   const P=perConn(),urls=wsUrls(),n=Math.min(WS_MAX_CONN,Math.max(1,Math.ceil(ws.length/P)));
   // favorites and the most active wallets get the live slots first
@@ -1222,6 +1222,7 @@ let HOOK={url:'',secret:'',id:'',since:0,addrHash:'',...store.get('hs_hook',{})}
 const saveHook=()=>store.set('hs_hook',HOOK);
 const hookOn=()=>!!(HOOK.url&&HOOK.secret&&HOOK.id);
 const hookOK=()=>hookOn()&&HK.ok&&Date.now()-HK.t<5*60e3;
+const hookWorking=()=>hookOn()&&!(HK.fails>=3)&&!(HK.down);   // webhook connected and answering
 function hookSecret(){if(!HOOK.secret){const a=new Uint8Array(18);crypto.getRandomValues(a);HOOK.secret='hs_'+[...a].map(x=>x.toString(16).padStart(2,'0')).join('');saveHook();}return HOOK.secret;}
 const WORKER_V=3;
 function workerCode(){return `// Holder Scan 24/7 webhook receiver v${WORKER_V} — paste this into your Cloudflare Worker
@@ -1285,11 +1286,14 @@ async function hookPoll(){
         who.forEach(w=>{if(!w)return;if(KOL[w]?addTrade(e,w):SMART[w]?addSTrade(e,w):false){got++;LASTSIG[w]=LASTSIG[w]||e.signature;}});
         if(x.id>HOOK.since)HOOK.since=x.id;});
       if(ev.length<300)break;}
-    HK.ok=true;HK.t=Date.now();HK.err='';HK.fails=0;HK.ev+=got;saveHook();
+    HK.ok=true;HK.t=Date.now();HK.err='';HK.fails=0;HK.down=false;HK.ev+=got;saveHook();
+    if(LIVE.on)liveStop();                                   // webhook is back: the live stream isn't needed
     if(got){saveKTR();saveSTR();renderSoft();liveDirty();}   // show at once, then fetch prices for any new tokens
   }catch(e){
     // one slow answer (weak signal, Worker waking up) isn't a problem — only report after 3 misses in a row
     HK.fails=(HK.fails||0)+1;
+    // webhook down (e.g. Cloudflare's daily limit): switch the live stream + normal checks back on so nothing is missed
+    if(HK.fails===3||(/daily database limit|limit/i.test(e.message)&&!HK.down)){HK.down=true;HK.fails=Math.max(HK.fails,3);if(!LIVE.on&&SET.live!==false)liveStart();lastTrack=0;}
     if(HK.fails>=3){HK.ok=false;HK.err=/abort|timeout/i.test(e.message)?'Webhook: your Worker is answering slowly — retrying':/Failed to fetch|NetworkError|Load failed/i.test(e.message)?(navigator.onLine===false?'Webhook: no internet connection — retrying':'Webhook: Worker not reachable — Cloudflare\'s free daily limit may be used up (resets 5:30 AM IST). Trades are still checked by polling.'):'Webhook: '+e.message;}
   }
   hpRun=false;
@@ -2198,7 +2202,7 @@ async function refresh(manual){
   try{
     [...KTR,...STR].forEach(x=>{const t=tok(x.m);if(!t.seen)t.seen=Date.now();});
     await loadMarket();renderList();                              // saved trades show with fresh prices first
-    if(!(hookOn()&&Date.now()-lastTrack<5*60e3))trackPoll();      // new trades (with the webhook on, only a check every 5 min as a safety net)
+    if(!(hookWorking()&&Date.now()-lastTrack<5*60e3))trackPoll();      // new trades (with the webhook on, only a check every 5 min as a safety net)
     lastRefresh=Date.now();saveTokCache();setLive(SET.auto?'on':'',new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',hour12:false}));
     renderList();loadImages();loadCurves(true);ensureSolUsd();
     // wallets the tracker skips as inactive are re-checked twice a day (1 cheap call each), so a KOL who starts trading again comes back
@@ -3536,7 +3540,7 @@ $('instBtn').onclick=async()=>{if(!deferredPrompt)return;deferredPrompt.prompt()
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
 
 function start(){REFRESH_MS=PLAN==='paid'?35e3:60e3;$('vSetup').classList.add('hide');$('vMain').classList.remove('hide');renderControls();
-  if(hookOn()){hookPoll();setTimeout(()=>{hookSync();hookFetch('/ping').then(p=>{HK.wv=p.v||1;}).catch(()=>{});},6000);if(!lastTrack)lastTrack=Date.now()-4*60e3;}   // webhook keeps everything while the app is closed: first safety check after ~1 min
+  if(hookOn()){hookPoll();setTimeout(()=>{if(hookWorking())hookSync();hookFetch('/ping').then(p=>{HK.wv=p.v||1;}).catch(()=>{});},6000);if(!lastTrack)lastTrack=Date.now()-4*60e3;}   // webhook keeps everything while the app is closed: first safety check after ~1 min
   setTimeout(()=>{if(SET.live!==false)liveStart();},4000);
   {const p=readAddHash()||store.get('hs_pendadd',null);if(p){store.set('hs_pendadd',null);setTimeout(()=>applyAdd(p),600);}}
   const cached=loadTokCache();if(cached){renderList();setLive('busy','updating…');}else renderList(true);
