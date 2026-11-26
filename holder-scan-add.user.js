@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Holder Scan – add wallets from any site
 // @namespace    holder-scan
-// @version      1.2.0
+// @version      1.3.0
 // @description  Puts a ＋ button next to every Solana wallet on GMGN, Axiom, Pump.fun, Padre Terminal, Solscan, Birdeye, Kolscan, DexScreener… Tap ＋ on the wallets you want, then "Send" to add them to your Holder Scan tracker (with name and X handle when the page shows them).
 // @match        https://gmgn.ai/*
 // @match        https://*.gmgn.ai/*
@@ -62,7 +62,9 @@
     padding:9px 10px;font:600 13px -apple-system,system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.5)}
   #hsx-cp span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#hsx-cp em{font-style:normal;color:#9ca3af;font-size:12px}
   #hsx-cp button{all:unset;cursor:pointer;padding:6px 10px;border-radius:9px;font-weight:800;font-size:12.5px;background:#22c55e;color:#06210f}
-  #hsx-cp button.x{background:#1f2937;color:#f87171}`;
+  #hsx-cp button.x{background:#1f2937;color:#f87171}
+  #hsx-cb{all:unset;position:fixed;right:12px;bottom:186px;z-index:2147483646;width:44px;height:44px;border-radius:50%;background:#6d5dfc;color:#fff;
+    font:800 13px/44px -apple-system,system-ui,sans-serif;text-align:center;box-shadow:0 6px 18px rgba(0,0,0,.45);cursor:pointer}`;
   document.documentElement.appendChild(css);
 
   // ---------- floating panel ----------
@@ -222,7 +224,7 @@
 
   // ---------- copied wallets (Axiom & co. show only "4vsM…qdRj" with a copy icon) ----------
   let lastTap = null, copyEl = null;
-  document.addEventListener('pointerdown', e => { lastTap = e.target; }, true);
+  document.addEventListener('pointerdown', e => { if (!e.target.closest('#hsx-cb,#hsx-cp,#hsx-p')) lastTap = e.target; }, true);
   const CP = document.createElement('div'); CP.id = 'hsx-cp'; document.documentElement.appendChild(CP);
   let cpT = null;
   function onCopied(text) {
@@ -252,15 +254,30 @@
     }, 0);
   }, true);
   // copy through navigator.clipboard.writeText (what most apps use)
+  // (Firefox keeps the page's objects behind a wrapper: patch the real page prototype so the site's own calls are seen)
   try {
-    const W = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
-    const clip = W.navigator && W.navigator.clipboard;
-    if (clip && clip.writeText) {
-      const orig = clip.writeText.bind(clip);
-      const wrapped = function (t) { try { onCopied(t); } catch (e) {} return orig(t); };
-      clip.writeText = typeof exportFunction === 'function' ? exportFunction(wrapped, W) : wrapped;
+    const W0 = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
+    const W = W0.wrappedJSObject || W0;
+    const proto = W.Clipboard && W.Clipboard.prototype;
+    if (proto && proto.writeText && !proto.__hsx) {
+      const orig = proto.writeText;
+      const wrapped = function (t) { try { onCopied(String(t)); } catch (e) {} return orig.call(this, t); };
+      proto.writeText = typeof exportFunction === 'function' ? exportFunction(wrapped, W) : wrapped;
+      try { proto.__hsx = true; } catch (e) {}
     }
   } catch (e) {}
+  // last resort that always works: tap 📋＋ after copying a wallet — the script reads the clipboard (Firefox asks "Paste")
+  const CB = document.createElement('button'); CB.id = 'hsx-cb'; CB.type = 'button'; CB.textContent = '📋＋'; CB.title = 'Add the wallet you just copied';
+  document.documentElement.appendChild(CB);
+  CB.addEventListener('click', async e => {
+    e.preventDefault(); e.stopPropagation();
+    let t = '';
+    try { t = await navigator.clipboard.readText(); } catch (x) { t = ''; }
+    if (!t) { try { t = prompt('Paste the wallet address') || ''; } catch (x) {} }
+    t = String(t).trim();
+    if (B58.test(t)) onCopied(t);
+    else { CP.innerHTML = '<span>Clipboard has no wallet address — tap a copy icon first</span><button data-c="x" class="x">✕</button>'; CP.style.display = 'flex'; clearTimeout(cpT); cpT = setTimeout(() => { CP.style.display = 'none'; }, 4000); }
+  }, true);
 
   // pages here are single-page apps: rescan when the page changes
   let t = null;
