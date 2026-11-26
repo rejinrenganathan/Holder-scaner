@@ -427,6 +427,15 @@ html{transition:background .2s}
 .fmenu button em{display:none}.fmenu button b{margin-left:auto}
 .hkst{margin:10px 0 6px;padding:9px 11px;border-radius:11px;background:var(--bg);font-size:13px;font-weight:700}.hkst.ok{color:var(--good)}
 .wsetup code{background:var(--bg);padding:1px 5px;border-radius:5px;font-size:12px}
+.gc .av>img,.gc .av>.ini{width:38px!important;height:38px!important}
+.gc .av .lp{min-width:15px!important;height:15px!important;right:-2px!important;bottom:-2px!important;border-width:1.5px!important;border-radius:5px!important;padding:0 2px}
+.gc .av .lp img{width:11px!important;height:11px!important;border-radius:3px!important}
+.mrow{display:flex;align-items:center;gap:6px;margin:8px 0 0;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;font-size:12px;font-weight:700;color:var(--txt2)}.mrow::-webkit-scrollbar{display:none}
+.mt{flex:0 0 auto;white-space:nowrap}.mt.good{color:var(--good)}.mt.gold{color:var(--gold)}.mt.boost{color:#f59e0b}.mt.ad{color:#38bdf8}.mt.cto{color:var(--smart);border:1px solid currentColor;border-radius:5px;padding:0 4px;font-size:10px}
+.mi{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;gap:3px;min-width:24px;height:24px;padding:0 5px;border-radius:7px;background:var(--bg);color:var(--mut);border:0;font-size:12px;text-decoration:none;cursor:pointer}
+.mi svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+a.mi:not(.dx){color:var(--txt2)}.mi.dx b{font-size:9.5px;font-weight:900;letter-spacing:.3px}.mi.dx.on{color:var(--good);background:rgba(34,197,94,.12)}
+.gc .sps{margin-top:6px}
 </style>
 </head>
 <body>
@@ -739,8 +748,8 @@ async function discover(){
   const keep=new Set([...KTR.map(x=>x.m),...STR.map(x=>x.m)]);
   TOK.forEach((t,m)=>{if(now-t.seen>TOKEN_TTL&&!keep.has(m))TOK.delete(m);});
 }
-async function loadMarket(onlyNew){
-  const mints=[...TOK.keys()].filter(m=>!onlyNew||!TOK.get(m).pairs),chunks=[];for(let i=0;i<mints.length;i+=30)chunks.push(mints.slice(i,i+30));
+async function loadMarket(onlyNew,only){
+  const mints=only?only.filter(m=>TOK.has(m)):[...TOK.keys()].filter(m=>!onlyNew||!TOK.get(m).pairs),chunks=[];for(let i=0;i<mints.length;i+=30)chunks.push(mints.slice(i,i+30));
   await Promise.all(chunks.map(async ch=>{
     try{const arr=await getJSON('https://api.dexscreener.com/tokens/v1/solana/'+ch.join(','));
       const by={};(Array.isArray(arr)?arr:[]).forEach(p=>{const m=p.baseToken?.address;if(m&&ch.includes(m))(by[m]=by[m]||[]).push(p);});
@@ -854,7 +863,8 @@ function derive(t){
   const created=ps.map(x=>x.pairCreatedAt).filter(Boolean);
   t.created=created.length?Math.min(...created):null;
   t.gradAt=t.stage==='mig'?(p.pairCreatedAt||null):null;
-  t.socials=p.info?.socials||[];t.sites=p.info?.websites||[];
+  {const inf=ps.find(x=>x.info&&((x.info.socials||[]).length||(x.info.websites||[]).length))?.info||p.info||{};t.socials=inf.socials||[];t.sites=inf.websites||[];
+   t.dsProfile=ps.some(x=>x.info&&(x.info.imageUrl||x.info.header||(x.info.socials||[]).length));t.boostN=ps.reduce((a,x)=>a+(x.boosts?.active||0),0);}
   if(!t.snap)t.snap=[];const ln=t.snap[t.snap.length-1];if(!ln||Date.now()-ln.t>50e3){t.snap.push({t:Date.now(),m5:t.vol.m5});if(t.snap.length>40)t.snap.shift();}
   if(t.feeAvg!=null)t.fees24=t.feeAvg*(t.buys.h24+t.sells.h24);else t.fees24=t.act.feeN>=5?(t.act.fee/t.act.feeN)/1e9*(t.buys.h24+t.sells.h24):null;
   t.twitter=(t.socials||[]).find(x=>/twitter|^x$/i.test(x.type||'')||/x\.com|twitter\.com/.test(x.url||''))?.url||null;
@@ -2379,9 +2389,8 @@ function statPill(icon,val,cls,tip){return `<span class="sp ${cls||''}" title="$
 function cardStats(t,age,b){
   const hm=t.hm||null,ld=!hm&&!(t.hmFail&&Date.now()-t.hmFail<HM_TTL),sk='<i class="skl s"></i>',pc=v=>v==null?'—':num(v,v<10?1:0)+'%';
   const d=t.dev,dp=d&&d.pct!=null?d.pct:null;
-  if(!hm&&!ld)return `<div class="sps">${age?`<span class="sp">🕒<b>${age}</b></span>`:''}<span class="note" style="font-size:11px;align-self:center">Holder stats unavailable right now — open the token for a full scan</span></div>`;
-  const lead=`${age?`<span class="sp" title="Token age">🕒<b>${age}</b></span>`:''}${b?b.mig?'<span class="sp gold" title="Migrated">🎓<b>Migrated</b></span>':`<span class="sp good" title="Bonding curve">💊<b>${b.p==null?'Bonding':Math.round(b.p)+'%'}</b></span>`:''}<button class="sp cp" data-cp="${t.mint}" title="Copy CA">⧉</button>`;
-  return `<div class="sps">${lead}
+  if(!hm&&!ld)return `${metaRow(t,age,b)}<div class="sps"><span class="note" style="font-size:11px;align-self:center">Holder stats unavailable right now — open the token for a full scan</span></div>`;
+  return `${metaRow(t,age,b)}<div class="sps">
    ${statPill('hold',ld?sk:hm.holders?num(hm.holders.n,0)+(hm.holders.more?'+':''):'—','','Holders')}
    ${statPill('top',ld?sk:pc(hm.top10),ld?'':lvlCls(hm.top10,30,50),'Top 10 holders')}
    ${statPill('dev',d===undefined?(ld?sk:'—'):d===null?'—':d.held<=0?'0%':pc(dp),d&&d.held>0?lvlCls(dp,5,15):d?'good':'','Dev holds')}
@@ -2425,6 +2434,31 @@ function tokGroupCard(g,kind){
    <div class="g3">${who}<span class="gi" title="SOL your wallets put in / took out">${SOLI}${num(si,1)}${so?` <em>/ ${num(so,1)} out</em>`:''}</span><span class="gt">${ago(g.last)}</span></div>
    <div class="kpl">${show.map(w=>walletRow(w,g.m,t,al)).join('')}${more>0?`<div class="note gmore">+${more} more wallet${more>1?'s':''}</div>`:''}</div></div>`;
 }
+async function loadOrders(t){
+  if(t.ordAt&&Date.now()-t.ordAt<10*60e3)return;t.ordAt=Date.now();
+  try{const j=await getJSON('https://api.dexscreener.com/orders/v1/solana/'+t.mint);const arr=Array.isArray(j)?j:(j?.orders||[]);
+    const ok=arr.filter(o=>/approved|processing/i.test(o.status||''));const had=!!t.ords?.profile;
+    t.ords={profile:ok.some(o=>/tokenProfile/i.test(o.type)),cto:ok.some(o=>/communityTakeover/i.test(o.type)),ad:ok.some(o=>/tokenAd|trendingBarAd/i.test(o.type)),
+      paidAt:Math.max(0,...ok.filter(o=>/tokenProfile|communityTakeover/i.test(o.type)).map(o=>o.paymentTimestamp||0))||null};
+    // just paid for DEX → pull the new socials / picture right away
+    if(t.ords.profile&&!had&&!(t.socials||[]).length&&!(t.sites||[]).length){try{await loadMarket(true,[t.mint]);}catch(e){}}
+  }catch(e){t.ordAt=Date.now()-8*60e3;}
+}
+const dsPaid=t=>!!(t.ords?.profile||t.ords?.cto||t.dsProfile);
+// one slim line of facts: age · bonding · CA · socials · DEX paid · boosts · ads
+const SI={x:'<svg viewBox="0 0 24 24"><path d="M4 4l16 16M20 4L4 20" stroke-width="2.4"/></svg>',
+  web:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/></svg>',
+  tg:'<svg viewBox="0 0 24 24"><path d="M21 4L3 11l6 2 2 6 3-4 5 4z"/><path d="M9 13l12-9"/></svg>',
+  dex:'<svg viewBox="0 0 24 24"><path d="M4 18l5-6 4 3 7-9"/><path d="M15 6h5v5"/></svg>'};
+function metaRow(t,age,b){
+  const x=t.twitter,tg=(t.socials||[]).find(z=>/telegram/i.test(z.type||'')||/t\.me\//.test(z.url||''))?.url,web=(t.sites||[])[0]?.url;
+  const lk=(u,ic,tip)=>u?`<a class="mi" href="${esc(u)}" target="_blank" rel="noopener" title="${tip}">${SI[ic]}</a>`:'';
+  const paid=dsPaid(t);
+  return `<div class="mrow">${age?`<span class="mt">🕒 ${age}</span>`:''}${b?b.mig?'<span class="mt gold">🎓 Migrated</span>':`<span class="mt good">💊 ${b.p==null?'Bonding':Math.round(b.p)+'%'}</span>`:''}
+    <button class="mi cp" data-cp="${t.mint}" title="Copy CA">⧉</button>${lk(x,'x','X')}${lk(web,'web','Website')}${lk(tg,'tg','Telegram')}
+    <a class="mi dx ${paid?'on':''}" href="https://dexscreener.com/solana/${t.pair?.pairAddress||t.mint}" target="_blank" rel="noopener" title="${paid?'DEX paid':'DEX not paid'}">${SI.dex}<b>DEX</b></a>
+    ${t.boostN?`<span class="mt boost" title="Active DexScreener boosts">🚀 ${t.boostN}</span>`:''}${t.ords?.ad?'<span class="mt ad" title="Running a DexScreener ad">📢 Ad</span>':''}${t.ords?.cto?'<span class="mt cto" title="Community takeover">CTO</span>':''}</div>`;
+}
 // light holder scan for a card (~15 cheap calls): holders, top 10, bundlers (same-block buys), insiders (bought within 15s of launch)
 // cards on screen are what you're looking at: their calls use the fast lane (extra RPCs first, then Helius ahead of background checks)
 async function cardRpc(method,params){if(XR.length){const x=await xrpc(method,params);if(!x.miss)return x.r;}return heliusRpc(method,params,TH.rpc.hi);}
@@ -2457,7 +2491,8 @@ async function loadCardHM(t){
 let csRun=false;
 async function cardStatsLoad(mints){
   if(csRun||!KEY)return;csRun=true;
-  try{for(const m of mints.slice(0,10)){const t=TOK.get(m);if(!t||!t.pair||cardFresh(t)||t.hmLoading||(t.hmFail&&Date.now()-t.hmFail<HM_TTL))continue;
+  try{mints.slice(0,12).forEach((m,i)=>{const t=TOK.get(m);if(t&&t.pair&&!(t.ordAt&&Date.now()-t.ordAt<10*60e3))setTimeout(()=>loadOrders(t).then(()=>renderSoft()),i*1100);});   // DexScreener allows ~60/min
+    for(const m of mints.slice(0,10)){const t=TOK.get(m);if(!t||!t.pair||cardFresh(t)||t.hmLoading||(t.hmFail&&Date.now()-t.hmFail<HM_TTL))continue;
       if(!FEEDS.includes(TAB)||!visible()||!$('vDetail').classList.contains('hide'))break;
       await loadCardHM(t);if(!cardFresh(t))t.hmFail=Date.now();
       if(t.dev===undefined&&t.curveAddr){try{await loadDev(t);}catch(e){}}
