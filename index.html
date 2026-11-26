@@ -1255,7 +1255,7 @@ export default{async fetch(req,env){
 }};
 `;}
 const hookBase=()=>HOOK.url.replace(/\/+$/,'');
-async function hookFetch(path){const c=new AbortController(),tm=setTimeout(()=>c.abort(),12000);
+async function hookFetch(path){const c=new AbortController(),tm=setTimeout(()=>c.abort(new Error('timeout')),30000);
   try{const r=await fetch(hookBase()+path+(path.includes('?')?'&':'?')+'key='+encodeURIComponent(HOOK.secret),{signal:c.signal});const j=await r.json().catch(()=>null);
     if(!r.ok||!j||!j.ok)throw new Error(j&&j.error?j.error:'Worker HTTP '+r.status);return j;}finally{clearTimeout(tm);}}
 // Helius webhook management (create / update the wallet list / delete)
@@ -1280,9 +1280,13 @@ async function hookPoll(){
         who.forEach(w=>{if(!w)return;if(KOL[w]?addTrade(e,w):SMART[w]?addSTrade(e,w):false){got++;LASTSIG[w]=LASTSIG[w]||e.signature;}});
         if(x.id>HOOK.since)HOOK.since=x.id;});
       if(ev.length<500)break;}
-    HK.ok=true;HK.t=Date.now();HK.err='';HK.ev+=got;saveHook();
+    HK.ok=true;HK.t=Date.now();HK.err='';HK.fails=0;HK.ev+=got;saveHook();
     if(got){saveKTR();saveSTR();renderSoft();liveDirty();}   // show at once, then fetch prices for any new tokens
-  }catch(e){HK.ok=false;HK.err='Webhook: '+e.message;}
+  }catch(e){
+    // one slow answer (weak signal, Worker waking up) isn't a problem — only report after 3 misses in a row
+    HK.fails=(HK.fails||0)+1;
+    if(HK.fails>=3){HK.ok=false;HK.err=/abort|timeout/i.test(e.message)?'Webhook: your Worker is answering slowly — retrying':/Failed to fetch|NetworkError|Load failed/i.test(e.message)?'Webhook: no internet connection — retrying':'Webhook: '+e.message;}
+  }
   hpRun=false;
 }
 setInterval(()=>{if(visible()&&KEY)hookPoll();},5e3);   // every 5s while the app is open
