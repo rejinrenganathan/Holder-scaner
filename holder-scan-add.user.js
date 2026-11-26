@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Holder Scan – add wallets from any site
 // @namespace    holder-scan
-// @version      1.1.1
+// @version      1.2.0
 // @description  Puts a ＋ button next to every Solana wallet on GMGN, Axiom, Pump.fun, Padre Terminal, Solscan, Birdeye, Kolscan, DexScreener… Tap ＋ on the wallets you want, then "Send" to add them to your Holder Scan tracker (with name and X handle when the page shows them).
 // @match        https://gmgn.ai/*
 // @match        https://*.gmgn.ai/*
@@ -21,6 +21,7 @@
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        GM_openInTab
+// @grant        unsafeWindow
 // @run-at       document-idle
 // @updateURL    https://rejinrenganathan.github.io/Holder-scaner/holder-scan-add.user.js
 // @downloadURL  https://rejinrenganathan.github.io/Holder-scaner/holder-scan-add.user.js
@@ -56,7 +57,12 @@
     padding:8px 10px;font:700 13px -apple-system,system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.45)}
   #hsx-p button{all:unset;cursor:pointer;padding:6px 10px;border-radius:9px;font-weight:800;font-size:12.5px}
   #hsx-p .go{background:#6d5dfc}#hsx-p .md{background:#1f2937}#hsx-p .x{background:#1f2937;color:#f87171}
-  #hsx-p .pg{background:#22c55e;color:#06210f}`;
+  #hsx-p .pg{background:#22c55e;color:#06210f}
+  #hsx-cp{position:fixed;left:10px;right:10px;bottom:128px;z-index:2147483647;display:none;align-items:center;gap:8px;background:#111827;color:#fff;border:1px solid #22c55e;border-radius:14px;
+    padding:9px 10px;font:600 13px -apple-system,system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+  #hsx-cp span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#hsx-cp em{font-style:normal;color:#9ca3af;font-size:12px}
+  #hsx-cp button{all:unset;cursor:pointer;padding:6px 10px;border-radius:9px;font-weight:800;font-size:12.5px;background:#22c55e;color:#06210f}
+  #hsx-cp button.x{background:#1f2937;color:#f87171}`;
   document.documentElement.appendChild(css);
 
   // ---------- floating panel ----------
@@ -197,9 +203,11 @@
     });
     // 2) full addresses shown as text or in a title / data attribute (profile headers, holder lists, copy buttons)
     const pageW = pageWallet(), path = location.pathname;
-    document.querySelectorAll('[title]:not([data-hsx]),[data-address]:not([data-hsx]),span:not([data-hsx]),div:not([data-hsx]),td:not([data-hsx]),p:not([data-hsx])').forEach(el => {
-      if (el.children.length > 1) { el.dataset.hsx = '1'; return; }
-      const cand = [el.getAttribute('data-address'), el.getAttribute('title'), el.children.length === 0 ? (el.textContent || '').trim() : ''].find(v => v && B58.test(v.trim()));
+    const ATTR = ['data-address', 'data-wallet', 'data-clipboard-text', 'data-copy', 'data-value', 'aria-label', 'title'];
+    document.querySelectorAll('[title]:not([data-hsx]),[aria-label]:not([data-hsx]),[data-address]:not([data-hsx]),[data-wallet]:not([data-hsx]),[data-clipboard-text]:not([data-hsx]),[data-copy]:not([data-hsx]),span:not([data-hsx]),div:not([data-hsx]),td:not([data-hsx]),p:not([data-hsx])').forEach(el => {
+      const attrHit = ATTR.some(a => { const v = (el.getAttribute(a) || '').trim(); return v && B58.test(v); });
+      if (el.children.length > 1 && !attrHit) { el.dataset.hsx = '1'; return; }
+      const cand = [...ATTR.map(a => el.getAttribute(a)), el.children.length === 0 ? (el.textContent || '').trim() : ''].find(v => v && B58.test(v.trim()));
       el.dataset.hsx = '1';
       if (!cand) return;
       const w = cand.trim();
@@ -211,6 +219,48 @@
     });
     drawPanel();
   }
+
+  // ---------- copied wallets (Axiom & co. show only "4vsM…qdRj" with a copy icon) ----------
+  let lastTap = null, copyEl = null;
+  document.addEventListener('pointerdown', e => { lastTap = e.target; }, true);
+  const CP = document.createElement('div'); CP.id = 'hsx-cp'; document.documentElement.appendChild(CP);
+  let cpT = null;
+  function onCopied(text) {
+    const w = String(text || '').trim();
+    if (!B58.test(w) || SKIP.has(w)) return;
+    const row = lastTap ? rowOf(lastTap, w) : null;
+    const info = { w, n: row ? nameIn(row, null, w) : '', x: row ? handleIn(row) : '' };
+    const q = inQ(w), sent = SENT.has(w);
+    CP.innerHTML = `<span>📋 <b>${w.slice(0, 4)}…${w.slice(-4)}</b>${info.n ? ' · ' + info.n.replace(/</g, '') : ''}${info.x ? ' · @' + info.x : ''}</span>` +
+      (q ? '<em>already picked ✓</em>' : `<button data-c="add">＋ Add wallet</button>`) + '<button data-c="x" class="x">✕</button>';
+    CP.style.display = 'flex'; CP.__info = info;
+    if (sent && !q) CP.querySelector('span').insertAdjacentHTML('beforeend', ' <em>(sent before)</em>');
+    clearTimeout(cpT); cpT = setTimeout(() => { CP.style.display = 'none'; }, 9000);
+  }
+  CP.addEventListener('click', e => {
+    const b = e.target.closest('[data-c]'); if (!b) return; e.preventDefault(); e.stopPropagation();
+    if (b.dataset.c === 'add' && CP.__info && !inQ(CP.__info.w)) toggle(CP.__info);
+    CP.style.display = 'none';
+  }, true);
+  // copy through the browser's copy command
+  document.addEventListener('copy', e => {
+    setTimeout(() => {
+      let t = '';
+      try { t = (e.clipboardData && e.clipboardData.getData('text/plain')) || ''; } catch (x) {}
+      if (!t) { const a = document.activeElement; t = (a && 'value' in a ? a.value.slice(a.selectionStart || 0, a.selectionEnd || a.value.length) : '') || String(document.getSelection() || ''); }
+      onCopied(t);
+    }, 0);
+  }, true);
+  // copy through navigator.clipboard.writeText (what most apps use)
+  try {
+    const W = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
+    const clip = W.navigator && W.navigator.clipboard;
+    if (clip && clip.writeText) {
+      const orig = clip.writeText.bind(clip);
+      const wrapped = function (t) { try { onCopied(t); } catch (e) {} return orig(t); };
+      clip.writeText = typeof exportFunction === 'function' ? exportFunction(wrapped, W) : wrapped;
+    }
+  } catch (e) {}
 
   // pages here are single-page apps: rescan when the page changes
   let t = null;
