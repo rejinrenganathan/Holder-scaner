@@ -416,7 +416,7 @@ html{transition:background .2s}
 .gnm.full{white-space:normal;-webkit-mask-image:none;mask-image:none;flex-wrap:wrap}
 .gv,.gmc{flex:0 0 auto;font-size:12.5px;font-weight:800;white-space:nowrap}.gmc{color:var(--acc)}.gv .lb,.gmc .lb{color:var(--mut);font-weight:600;font-size:10.5px}
 .sp.gold{color:var(--gold)}.sp.cp{background:none;cursor:pointer;color:var(--mut)}
-.wr{display:flex;align-items:center;gap:6px;white-space:nowrap}.wr .wn{min-width:0;overflow:hidden;text-overflow:ellipsis;max-width:38%}
+.wr{display:flex;align-items:center;gap:6px;white-space:nowrap}.ww{display:inline-flex;align-items:center;gap:1px;font-size:11px;flex:none;opacity:.9}.ww b{font-weight:600;color:var(--mut);margin-left:1px}.ww .solx{width:10px;height:10px;margin-left:1px}.wr .wn{min-width:0;overflow:hidden;text-overflow:ellipsis;max-width:38%}
 .wst{width:7px;height:7px;border-radius:50%;flex:0 0 7px;background:var(--good)}.wst.part{background:var(--gold)}.wst.sold{background:var(--bad)}
 .wl{font-size:10.5px;color:var(--gold);font-weight:700}
 .wr2{margin-left:auto;display:flex;align-items:center;gap:7px;flex:0 0 auto}.wp{font-weight:900;font-size:12.5px}.we{color:var(--mut);font-size:11.5px;font-weight:600}
@@ -2481,11 +2481,17 @@ function posPerf(p,t){
 }
 const WEXP=new Set();   // cards whose full wallet list is open
 const heldTxt=p=>{if(!p.first)return '';const end=p.st==='sold'?(p.lastSell||Date.now()/1000):Date.now()/1000;return dur(Math.max(0,end-p.first));};
+// wallet size from its SOL balance: 🐋 whale ≥500 · 🦈 shark ≥100 · 🐟 fish below
+const WBQ=new Set();let wbT=null;
+function worthTag(w){const b=KBAL[w];
+  if(!b||Date.now()-b.t>10*60e3){WBQ.add(w);clearTimeout(wbT);wbT=setTimeout(()=>{const l=[...WBQ];WBQ.clear();loadKolBal(l).then(renderSoft);},800);}
+  if(!b||b.sol==null)return '';const v=b.sol,e=v>=500?'🐋':v>=100?'🦈':'🐟';
+  return `<span class="ww" title="${v>=500?'Whale':v>=100?'Shark':'Fish'} — wallet holds ${num(v,1)} SOL">${e}<b>${num(v,v<10?1:0)}</b>${SOLI}</span>`;}
 function walletRow(w,m,t,al){
   const p=kolPos(w,m),pf=posPerf(p,t),sold=p.st==='sold',part=p.st==='partial';
   const pcs=pf&&pf.pc!=null?`<span class="wp ${pf.pc>=0?'up':'dn'}">${pf.pc>=0?'▲':'▼'}${num(Math.abs(pf.pc),Math.abs(pf.pc)<10?1:0)}%</span>`:'<span class="wp">—</span>';
   const ht=heldTxt(p);
-  return `<div class="kpr wr" data-kw="${w}">${wAv(w,'wav')}<b class="wn">${esc(wName(w))}</b>${al?(KOL[w]?'<span class="wt k">KOL</span>':'<span class="wt s">SM</span>'):''}
+  return `<div class="kpr wr" data-kw="${w}">${wAv(w,'wav')}<b class="wn">${esc(wName(w))}</b>${worthTag(w)}${al?(KOL[w]?'<span class="wt k">KOL</span>':'<span class="wt s">SM</span>'):''}
    <span class="wh ${sold?'sold':part?'part':'hold'}" title="${sold?'Sold — held':part?'Partly sold — holding':'Holding'} ${ht}"><i></i>${ht}${part&&p.left!=null?` · ${Math.round(p.left)}%`:''}</span>
    <span class="wr2">${pcs}<span class="we">${pf&&pf.entryMc?'@'+usd(pf.entryMc):''}</span></span></div>`;
 }
