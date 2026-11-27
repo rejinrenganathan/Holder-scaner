@@ -1,5 +1,5 @@
 // Holder Scanner service worker: caches the app shell + SOL logo only, never live API data.
-const CACHE = 'hs-shell-v71';
+const CACHE = 'hs-shell-v72';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 const SOL_LOGOS = [
   'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png',

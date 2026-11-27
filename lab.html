@@ -110,7 +110,7 @@ input[type=text],input[type=password]{width:100%;background:var(--bg2);color:var
 // 3) keep real trades: profit, ROI, buy size, hold time; drop bots, devs, pools, exchanges
 // 4) wallets that are top earners in several different winners AND profitable over their whole history = smart
 // 5) Helius finds who funded them (same funder = maybe one person)
-const LAB_V=8;   // bump on every Lab change: old saved results are cleared and phones reload the new page
+const LAB_V=9;   // bump on every Lab change: old saved results are cleared and phones reload the new page
 const $=id=>document.getElementById(id);
 const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v);}catch(e){return d;}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true;}catch(e){return false;}}};
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -234,13 +234,23 @@ async function rpc(method,params){
   throw new Error('Helius rate limit');
 }
 // ---------- cache (per coin; coins are ≥1 day old so their past doesn't change) ----------
-const CK='hslab_c_',CACHE_S=10*86400;
-function cGet(mint,kind){const v=store.get(CK+kind+'_'+mint,null);return v&&Date.now()/1000-v.t<CACHE_S?v.d:null;}
-function cSet(mint,kind,d){if(!store.set(CK+kind+'_'+mint,{t:Date.now()/1000,d})){cPrune(true);store.set(CK+kind+'_'+mint,{t:Date.now()/1000,d});}}
-function cPrune(hard){const now=Date.now()/1000,ks=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith(CK))ks.push(k);}
-  ks.forEach(k=>{const v=store.get(k,null);if(!v||now-v.t>CACHE_S||(hard&&now-v.t>2*86400))localStorage.removeItem(k);});}
-
-
+// The Lab keeps its big data (charts, trader lists, coin lists, results) in IndexedDB, NOT localStorage:
+// localStorage (~5 MB) is shared with the Holder Scan app on this site, and filling it stopped the app saving wallets.
+const IDB=(()=>{let dbp=null;const mem=new Map();
+  const open=()=>dbp||(dbp=new Promise((res,rej)=>{try{const r=indexedDB.open('hslab',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);}catch(e){rej(e);}}));
+  const tx=async(mode,f)=>{const d=await open();return new Promise((res,rej)=>{const t=d.transaction('kv',mode),q=f(t.objectStore('kv'));t.oncomplete=()=>res(q?q.result:undefined);t.onerror=t.onabort=()=>rej(t.error);});};
+  // if IndexedDB is unavailable (private tab), keep things in memory for this visit only
+  return{get:async k=>{try{return await tx('readonly',s=>s.get(k));}catch(e){return mem.get(k);}},
+    set:async(k,v)=>{try{await tx('readwrite',s=>{s.put(v,k);});return true;}catch(e){mem.set(k,v);return false;}},
+    del:async k=>{try{await tx('readwrite',s=>{s.delete(k);});}catch(e){mem.delete(k);}},
+    keys:async()=>{try{return await tx('readonly',s=>s.getAllKeys());}catch(e){return[...mem.keys()];}}};})();
+const CK='c_',CACHE_S=10*86400;
+async function cGet(mint,kind){const v=await IDB.get(CK+kind+'_'+mint);return v&&Date.now()/1000-v.t<CACHE_S?v.d:null;}
+async function cSet(mint,kind,d){await IDB.set(CK+kind+'_'+mint,{t:Date.now()/1000,d});}
+async function cPrune(){const now=Date.now()/1000;for(const k of await IDB.keys()){if(!String(k).startsWith(CK))continue;const v=await IDB.get(k);if(!v||now-v.t>CACHE_S)await IDB.del(k);}}
+// remove everything older Lab versions left in the shared localStorage (keeps only settings, keys and the call counter)
+function freeShared(){try{Object.keys(localStorage).filter(k=>/^hslab_(c_|grad|last|f_)/.test(k)).forEach(k=>localStorage.removeItem(k));}catch(e){}}
+freeShared();
 // ---------- progress / log ----------
 let STOP=false,RUNNING=false;
 function prog(p,t){$('progBox').classList.remove('hide');if(p!=null)$('progBar').style.width=Math.round(p*100)+'%';$('progTxt').textContent=t;}
@@ -260,7 +270,7 @@ function slimToken(x){
 async function loadGraduated(){
   const now=Math.floor(Date.now()/1000),from=now-CFG.d2*86400,to=now-CFG.d1*86400;
   const key='hslab_grad5_'+CFG.d1+'_'+CFG.d2+'_'+Math.floor(now/3600);   // one fetch per hour per window
-  const hit=store.get(key,null);if(hit)return hit;
+  const hit=await IDB.get(key);if(hit)return hit;
   const out=new Map();let total=0;
   for(let page=1;page<=Math.min(30,CFG.d2-CFG.d1+1)&&!STOP;page++){
     prog(0.02+page*0.01,`Loading graduated coins · page ${page}`);
@@ -271,16 +281,16 @@ async function loadGraduated(){
     if(arr.length<500)break;
   }
   const res={total,list:[...out.values()]};
-  for(let i=localStorage.length-1;i>=0;i--){const k=localStorage.key(i);if(k&&k.startsWith('hslab_grad'))localStorage.removeItem(k);}
-  store.set(key,res);return res;
+  for(const k of await IDB.keys())if(String(k).startsWith('hslab_grad'))await IDB.del(k);
+  await IDB.set(key,res);return res;
 }
 const isJunk=t=>t.mintAuth||t.freezeAuth||(t.holders<100&&t.vol>1e6);
 
 // ---------- step 2: is it a real winner? (5m market-cap chart, first 24h) ----------
 async function chartOf(t){
-  let c=cGet(t.mint,'ch');
+  let c=await cGet(t.mint,'ch');
   if(!c){const j=await stGet(`/chart/${t.mint}?type=5m&marketCap=true&time_from=${Math.floor(t.created)}&time_to=${Math.floor(t.created+86400)}`);
-    c=(j?.oclhv||j?.ohlcv||[]).map(k=>[k.time,+k.high||0,+k.close||0]).filter(k=>k[0]).sort((a,b)=>a[0]-b[0]);cSet(t.mint,'ch',c);}
+    c=(j?.oclhv||j?.ohlcv||[]).map(k=>[k.time,+k.high||0,+k.close||0]).filter(k=>k[0]).sort((a,b)=>a[0]-b[0]);await cSet(t.mint,'ch',c);}
   return c;
 }
 
@@ -298,14 +308,14 @@ const mcAt=(c,ts)=>{let v=null;for(const k of c){if(k[0]<=ts)v=k[2];else break;}
 
 // ---------- step 3: top traders of a winner, ranked by profit ----------
 async function tradersOf(t){
-  let b=cGet(t.mint,'tr');
+  let b=await cGet(t.mint,'tr');
   if(!b){const j=await stGet(`/v2/pnl/tokens/${t.mint}/traders?sort=pnl&direction=desc&limit=100`);
     b=(j?.traders||[]).map(x=>{const id=x.identity||{},tags=(id.tags||[]).map(String),pw=x.pnl?.wallet||{};
       return{w:x.wallet,pnl:x.pnl?.token?.total??null,real:x.pnl?.token?.realized??null,inv:x.invested??x.buyUsd??0,
         fb:toSec(x.timing?.firstBuy??x.timing?.firstTrade),hold:x.timing?.holdTimeSecs??null,buys:x.counts?.buys??null,
         tt:pw.tokensTraded??null,trades:pw.totalTrades??null,lt:pw.total??null,lr:pw.realized??null,linv:pw.invested??null,
         name:id.name||'',tw:id.twitter||'',bot:!!id.bot||tags.some(g=>/bot|sniper|mev|arb/i.test(g)),skip:!!(id.pool||id.exchange||id.developer)};}).filter(x=>x.w);
-    cSet(t.mint,'tr',b);}
+    await cSet(t.mint,'tr',b);}
   return b;
 }
 // why a top trader is NOT counted ('' = counted)
@@ -326,24 +336,24 @@ function txFunder(tx,owner){
   const k=tx?.transaction?.message?.accountKeys?.[0];const fp=typeof k==='string'?k:k?.pubkey;return fp&&fp!==owner?fp:null;
 }
 async function funderOf(w){
-  const hit=store.get('hslab_f_'+w,undefined);if(hit!==undefined)return hit;
+  const hit=await IDB.get('f_'+w);if(hit!==undefined)return hit;
   let before=null,oldest=null,complete=false;
   for(let p=0;p<3;p++){const s=await rpc('getSignaturesForAddress',[w,{limit:1000,...(before?{before}:{})}]);if(!Array.isArray(s)||!s.length){complete=true;break;}
     oldest=s[s.length-1].signature;before=oldest;if(s.length<1000){complete=true;break;}}
   let f=null;
   if(complete&&oldest){const tx=await rpc('getTransaction',[oldest,{encoding:'jsonParsed',maxSupportedTransactionVersion:0}]);f=txFunder(tx,w);}
-  const v=complete?f:'deep';store.set('hslab_f_'+w,v);return v;   // 'deep' = 3,000+ transactions, too old to trace cheaply
+  const v=complete?f:'deep';await IDB.set('f_'+w,v);return v;   // 'deep' = 3,000+ transactions, too old to trace cheaply
 }
 
 
 // ---------- the run ----------
-let RES=store.get('hslab_last5',null);if(RES&&RES.v!==LAB_V)RES=null;
+let RES=null;
 async function run(){
   if(!KEYS.st){alert('Add your Solana Tracker key first');return;}
   if(cfgError())return;
   STOP=false;RUNNING=true;$('runBtn').disabled=true;$('stopBtn').classList.remove('hide');$('log').textContent='';$('log').classList.add('hide');
   let lock=null;try{lock=await navigator.wakeLock?.request('screen');}catch(e){}
-  cPrune(false);
+  cPrune().catch(()=>{});
   try{
     const G=await loadGraduated();if(STOP)throw new Error('Stopped');
     const fromLp=G.list.filter(t=>CFG.lp.includes(lpOf(t))),clean=fromLp.filter(t=>!isJunk(t));
@@ -369,7 +379,7 @@ async function run(){
       linkFunders(R);
     }
     Object.assign(R,{v:LAB_V,cfg:{...CFG},at:Date.now(),total:G.total,checked,failed:wins.filter(x=>!x.top).length});
-    RES=R;if(!store.set('hslab_last5',R)){cPrune(true);if(!store.set('hslab_last5',R))log('Result too big to save on this phone — it is shown now, but send your wallets before closing the Lab');}
+    RES=R;if(!await IDB.set('last',R))log('This browser can\'t keep results (private tab?) — download your wallets before closing the Lab');
     prog(1,STOP?'Stopped — showing what was finished':'Done');TAB='wallets';show();setTimeout(()=>$('results').scrollIntoView({behavior:'smooth'}),200);
   }catch(e){prog(1,'⚠ '+e.message);log('⚠ '+e.message);}
   try{lock&&lock.release();}catch(e){}
@@ -490,7 +500,7 @@ function sendToApp(){
 $('tabs').onclick=e=>{const b=e.target.closest('button');if(!b)return;TAB=b.dataset.t;show();};
 $('runBtn').onclick=run;
 $('stopBtn').onclick=()=>{STOP=true;$('stopBtn').textContent='Stopping…';};
-for(let i=localStorage.length-1;i>=0;i--){const k=localStorage.key(i);if(k&&(/^hslab_c_fb2?_/.test(k)||k==='hslab_last2'||k==='hslab_last'))localStorage.removeItem(k);}   // old v1–v4 data
+IDB.get('last').then(r=>{if(r&&r.v===LAB_V&&!RES){RES=r;show();}});   // last run, from IndexedDB
 drawKeys();drawCfg();drawCount();show();
 $('labV').textContent='v'+LAB_V;
 // phones keep an old copy of this page for a while: check the live page and reload once if it's newer

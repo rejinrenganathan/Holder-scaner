@@ -682,7 +682,19 @@ const usd=x=>x==null||isNaN(x)?'—':'$'+(x>=1e9?num(x/1e9,2)+'B':x>=1e6?num(x/1
 const pct=x=>x==null||isNaN(x)?'—':(x>0?'+':'')+num(x,x>=100||x<=-100?0:1)+'%';
 function dur(s){if(s==null||isNaN(s))return'—';s=Math.abs(s);if(s<60)return Math.round(s)+'s';if(s<3600)return Math.round(s/60)+'m';if(s<86400)return Math.round(s/3600)+'h';return Math.round(s/86400)+'d';}
 function median(a){if(!a.length)return null;const s=[...a].sort((x,y)=>x-y),m=s.length>>1;return s.length%2?s[m]:(s[m-1]+s[m])/2;}
-const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v);}catch(e){return d;}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}};
+// localStorage is ~5 MB per site and shared with the Winner Lab page. When it's full, saving used to fail silently
+// (new wallets vanished after a restart). Now: free rebuildable caches, retry, and warn if your data still can't be saved.
+const STORE_FREE=[/^hslab_(c_|grad|last|f_)/,/^hs_wc$/,/^hs_img$/,/^hs_xav$/,/^hs_kev$/,/^hs_devh$/];   // all re-fetched automatically
+const STORE_MUST=/^hs_(kol|kolx|smart|key|stkey|bekey|hook|set|plan|fav)$/;                             // your own data
+let storeWarned=0;
+const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v);}catch(e){return d;}},
+  set(k,v){let j;try{j=JSON.stringify(v);}catch(e){return false;}
+    try{localStorage.setItem(k,j);return true;}catch(e){}
+    for(const rx of STORE_FREE){let freed=false;
+      Object.keys(localStorage).filter(x=>x!==k&&rx.test(x)).forEach(x=>{localStorage.removeItem(x);freed=true;});
+      if(freed){try{localStorage.setItem(k,j);return true;}catch(e){}}}
+    if(STORE_MUST.test(k)&&Date.now()-storeWarned>20e3){storeWarned=Date.now();setTimeout(()=>{try{toast('⚠ Phone storage full — your wallets could not be saved. Settings → Clear wallet cache, then add them again.');}catch(e){}},0);}
+    return false;}};
 function toast(t){const el=$('toast');el.textContent=t;el.classList.remove('hide');el.style.opacity=1;clearTimeout(toast.t);toast.t=setTimeout(()=>{el.style.opacity=0;setTimeout(()=>el.classList.add('hide'),300);},1800);}
 async function copy(t){try{await navigator.clipboard.writeText(t);toast('Address copied');}catch(e){toast('Copy failed');}}
 
