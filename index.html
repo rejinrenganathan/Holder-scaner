@@ -478,7 +478,7 @@ svg.i2{width:13px;height:13px;flex:none;fill:none;stroke:currentColor;stroke-wid
 .bl{display:flex;align-items:center;gap:5px;margin-top:8px;white-space:nowrap;overflow-x:auto;scrollbar-width:none}.bl::-webkit-scrollbar{display:none}
 .b2{display:inline-flex;align-items:center;gap:3px;flex:none;padding:2px 6px;border-radius:7px;font-size:11.5px;font-weight:800;background:var(--bg);color:var(--txt2);text-decoration:none}
 .b2.hd{border:1px solid var(--line2);background:none;color:var(--txt)}
-.b2.sec.good{background:rgba(34,197,94,.13);color:var(--good)}.b2.sec.bad{background:rgba(244,63,94,.14);color:var(--bad)}
+.b2.sf.good{background:rgba(34,197,94,.13);color:var(--good)}.b2.sf.bad{background:rgba(244,63,94,.14);color:var(--bad)}
 .b2.dx img{width:14px;height:14px;border-radius:4px;filter:grayscale(1) brightness(.8);opacity:.6}.b2.dx{border:1px solid var(--line2);background:none;color:var(--mut)}
 .b2.dx.on{background:rgba(34,197,94,.13);border-color:rgba(34,197,94,.55);color:var(--good)}.b2.dx.on img{filter:none;opacity:1}
 .b2.bo{background:rgba(245,158,11,.14);color:var(--warn)}.b2.cto{background:rgba(124,156,255,.15);color:var(--acc)}.b2.ad{background:rgba(167,139,250,.16);color:var(--smart)}
@@ -2596,7 +2596,7 @@ function badgeLine(t){
   const hm=t.hm,h=hm?.holders,sec=secTag(t),paid=dsPaid(t),pa=t.ords?.paidAt,pas=pa?(pa>1e12?pa/1000:pa):null;
   const dx=`<a class="b2 dx ${paid?'on':''}" href="https://dexscreener.com/solana/${t.pair?.pairAddress||t.mint}" target="_blank" rel="noopener" title="${paid?'DEX paid'+(pas?' '+ago(pas):''):'DEX not paid'}"><img src="${fav('dexscreener.com')}" alt="DEX">${paid&&pas?dur(Date.now()/1000-pas):''}</a>`;
   return `<div class="bl"><span class="b2 hd" title="Holders">${ic2('users')}${h?num(h.n,0)+(h.more?'+':''):hm?'—':'<i class="skl s"></i>'}</span>
-   <span class="b2 sec ${sec.cls}" title="${esc(sec.tip)}">${ic2(sec.cls==='bad'?'shx':'shield')}${sec.txt}</span>${dx}
+   <span class="b2 sf ${sec.cls}" title="${esc(sec.tip)}">${ic2(sec.cls==='bad'?'shx':'shield')}${sec.txt}</span>${dx}
    ${t.boostN?`<span class="b2 bo" title="Active DexScreener boosts">${ic2('bolt')}${t.boostN}</span>`:''}${t.ords?.cto?'<span class="b2 cto" title="Community takeover">CTO</span>':''}${t.ords?.ad?'<span class="b2 ad" title="Running a DexScreener ad">Ad</span>':''}</div>`;
 }
 function statGrid(t){
@@ -2625,7 +2625,7 @@ function posMoney(p,t){
 function walletRow(w,m,t,rank){
   const p=kolPos(w,m),pf=posPerf(p,t),mo=posMoney(p,t),ht=heldTxt(p),e=wrOf(w);
   const st=p.st==='sold'?`<span class="ws2 sold">○ sold all${ht?' · '+ht:''}</span>`:p.st==='partial'?`<span class="ws2 part">◐ sold ${p.left!=null?Math.round(100-p.left)+'%':'part'}${ht?' · '+ht:''}</span>`:/holding/.test(p.st)?`<span class="ws2 hold">● holding${ht?' '+ht:''}</span>`:'';
-  const pnl=mo?`<span class="wpn ${mo.pnl>=0?'up':'dn'}"><b>${mo.pc>=0?'+':'−'}${num(Math.abs(mo.pc),Math.abs(mo.pc)<10?1:0)}%</b><em>${mo.pnl>=0?'+':'−'}${usd(Math.abs(mo.pnl))}</em></span>`:'<span class="wpn"><b>—</b></span>';
+  const pnl=mo?`<span class="wpn ${mo.pnl>=0?'up':'dn'}"><b>${mo.pc>=0?'+':'−'}${num(Math.abs(mo.pc),Math.abs(mo.pc)<10?1:0)}%</b><em>${mo.pnl>=0?'+':'−'}${Math.abs(mo.pnl)<1000?'$'+Math.round(Math.abs(mo.pnl)):usd(Math.abs(mo.pnl))}</em></span>`:'<span class="wpn"><b>—</b></span>';
   return `<div class="wr3" data-kw="${w}"><div class="w1"><span class="wavw">${wAv(w,'wav')}<i class="wbd ${KOL[w]?'k':'s'}" title="${KOL[w]?'KOL':'Smart money'}">${ic2(KOL[w]?'kol':'sm')}</i></span><b class="wn">${esc(wName(w))}</b>${worthTag(w)}${rank?`<span class="wc">${ord(rank)} in</span>`:''}${p.nb>1?`<span class="wc">×${p.nb}</span>`:''}${pnl}</div>
    <div class="w2">${p.inSol?`<span>Buy ${num(p.inSol,p.inSol<1?2:1)} SOL${pf&&pf.entryMc?' @'+usd(pf.entryMc):''}</span>`:''}${st}${e?`<span title="Win rate over ${e.closed} closed trades">WR ${Math.round(e.wr)}%</span>`:''}</div></div>`;
 }
