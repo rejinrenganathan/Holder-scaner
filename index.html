@@ -2567,14 +2567,21 @@ const I2={
 const ic2=(k,c)=>`<svg class="i2 ${c||''}" viewBox="0 0 24 24">${I2[k]}</svg>`;
 // ---- dev history (Solana Tracker: tokens made by this dev, how many graduated) ----
 let DEVH=store.get('hs_devh',{});const DEVQ=new Set();let devhRun=false;
-function devHist(t){const w=t.dev?.w||t.creator;if(!w)return null;const d=DEVH[w];
-  if((!d||Date.now()-d.t>24*3600e3)&&STKEY&&!(d&&d.err&&Date.now()-d.t<3600e3)){DEVQ.add(w);if(!devhRun)setTimeout(devhPump,500);}
+// without a key: pump.fun keeps the creator + "migrated" flag in every bonding curve account → one on-chain lookup per dev
+const devhFree=t=>!STKEY&&t.lp==='pump';
+function devHist(t){const w=STKEY?(t.dev?.w||t.creator):(t.creator||t.dev?.w);if(!w||!(STKEY||devhFree(t)))return null;const d=DEVH[w];
+  if((!d||Date.now()-d.t>24*3600e3)&&!(d&&d.err&&Date.now()-d.t<3600e3)){DEVQ.add(w);if(!devhRun)setTimeout(devhPump,500);}
   return d&&!d.err?d:null;}
+async function devhChain(w){
+  const r=await heliusRpc('getProgramAccounts',[PUMP_PROG,{encoding:'base64',dataSlice:{offset:48,length:1},filters:[{memcmp:{offset:49,bytes:w}}]}],TH.rpc.hi);
+  const arr=Array.isArray(r)?r:(r?.value||[]);if(!Array.isArray(arr)||!arr.length)throw new Error('no curves');   // the dev made at least this token, so 0 means the lookup failed
+  return{n:arr.length,g:arr.filter(a=>{const d=a?.account?.data;const u=d?b64(Array.isArray(d)?d[0]:d):null;return u&&u[0]===1;}).length,t:Date.now(),src:'chain'};}
 async function devhPump(){if(devhRun)return;devhRun=true;
   try{const day=new Date().toISOString().slice(0,10);let c=store.get('hs_devhc',{d:day,n:0});if(c.d!==day)c={d:day,n:0};
-    while(DEVQ.size&&c.n<80){const w=[...DEVQ][0];DEVQ.delete(w);if(DEVH[w]&&!DEVH[w].err&&Date.now()-DEVH[w].t<24*3600e3)continue;
-      try{const j=await stGet('/deployer/'+w+'?limit=500');const arr=j?.data||[];
-        DEVH[w]={n:+j?.total||arr.length,g:arr.filter(x=>/graduat|migrat|complete/i.test(String(x.status||''))).length,t:Date.now()};}
+    while(DEVQ.size&&c.n<(STKEY?80:300)){const w=[...DEVQ][0];DEVQ.delete(w);if(DEVH[w]&&!DEVH[w].err&&Date.now()-DEVH[w].t<24*3600e3)continue;
+      try{if(STKEY){const j=await stGet('/deployer/'+w+'?limit=500');const arr=j?.data||[];
+          DEVH[w]={n:+j?.total||arr.length,g:arr.filter(x=>/graduat|migrat|complete/i.test(String(x.status||''))).length,t:Date.now()};}
+        else DEVH[w]=await devhChain(w);}
       catch(e){DEVH[w]={err:1,t:Date.now()};if(/limit|rejected/i.test(e.message)){DEVQ.clear();break;}}
       c.n++;store.set('hs_devhc',c);const ks=Object.keys(DEVH);if(ks.length>1500)ks.slice(0,500).forEach(k=>delete DEVH[k]);store.set('hs_devh',DEVH);renderSoft();await sleep(1200);}}
   finally{devhRun=false;}}
@@ -2612,7 +2619,7 @@ function statGrid(t){
    ${c('bun',V(hm?.bundle),L(hm?.bundle,5,15),'Bundlers hold '+pc(hm?.bundle))}
    ${c('snp',V(hm?.insider),L(hm?.insider,5,15),'Snipers (bought in the first 15s) hold '+pc(hm?.insider))}
    ${c('frs',V2(hm?.fresh),L2(hm?.fresh,5,15),'Fresh wallets (under 7 days old) hold '+pc(hm?.fresh))}
-   ${c('',dh?`${dh.g}/${dh.n}`:'—',dhc,dh?`Dev history: ${dh.n} tokens made, ${dh.g} migrated`:STKEY?'Dev history: loading…':'Dev history: add your free Solana Tracker key (Add → 🏆 Leaderboards)','DevH')}
+   ${c('',dh?`${dh.g}/${dh.n}`:'—',dhc,dh?`Dev history: ${dh.n} tokens made, ${dh.g} migrated`+(dh.src==='chain'?' (pump.fun)':''):(STKEY||devhFree(t))?'Dev history: loading…':'Dev history: available for pump.fun tokens','DevH')}
    ${c('',t.buys?`${bs}/${ss}`:'—',t.buys?(bs>=ss?'good':'bad'):'','Last 5 min: '+bs+' buys / '+ss+' sells','Txn')}
   </div>`;
 }
