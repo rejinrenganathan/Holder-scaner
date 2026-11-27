@@ -2903,7 +2903,9 @@ function manualRow(w,n,h){
 }
 function renderAdd(){
   const all=[...new Set([...Object.keys(KOL),...Object.keys(SMART)])];
-  const list=all.filter(w=>(ADDF==='all'||(ADDF==='kol'?!!KOL[w]:!KOL[w]))&&(!ADDQ||(wName(w)+' '+(KOLX[w]||'')+' '+w).toLowerCase().includes(ADDQ.toLowerCase())))
+  // 💤 inactive: last trade older than ACTIVE_DAYS, or never traded and saved longer than that (wallets added recently are never counted)
+  const now=Date.now()/1000,isIdle=w=>{const l=lastOf(w);if(l)return now-l>ACTIVE_DAYS*86400;const t=SMART[w]?.t;return!KOL[w]&&t>1e12&&Date.now()-t>ACTIVE_DAYS*864e5;},nIdle=all.filter(isIdle).length;
+  const list=all.filter(w=>(ADDF==='all'||(ADDF==='idle'?isIdle(w):ADDF==='kol'?!!KOL[w]:!KOL[w]))&&(!ADDQ||(wName(w)+' '+(KOLX[w]||'')+' '+w).toLowerCase().includes(ADDQ.toLowerCase())))
     .sort((a,b)=>(lastOf(b)-lastOf(a)));
   const mr=MAN.w?manualRow(MAN.w,MAN.n,MAN.h):null;
   $('list').innerHTML=webAddCard()+`<div class="addc"><h3 style="margin:0 0 4px">✍️ Add or edit one wallet</h3>
@@ -2923,7 +2925,8 @@ function renderAdd(){
    <textarea id="adT" rows="7" placeholder="7xKX…Q9 Ansem @blknoiz06&#10;5Q54…e4j1, Cupsey, x.com/Cupseyy&#10;9pQz…Lm3a whale from IPO"></textarea>
    <div id="adPrev"></div><button class="btn" id="adSave" disabled>Save wallets</button></div>
    <div class="addc"><div class="dch"><b>Your wallets</b><span class="note">${Object.keys(KOL).length} KOL · ${Object.keys(SMART).filter(w=>!KOL[w]).length} smart</span></div>
-   <div class="chipsel" id="adF">${[['all','All'],['kol','👑 KOL'],['sw','🧠 Smart']].map(([a,b])=>`<button data-v="${a}" class="${ADDF===a?'on':''}">${b}</button>`).join('')}</div>
+   <div class="chipsel" id="adF">${[['all','All'],['kol','👑 KOL'],['sw','🧠 Smart'],['idle','💤 Inactive '+nIdle]].map(([a,b])=>`<button data-v="${a}" class="${ADDF===a?'on':''}">${b}</button>`).join('')}</div>
+   ${ADDF==='idle'?`<div class="g2" style="margin-top:8px;align-items:center"><select id="adDays">${[3,7,14,30].map(d=>`<option value="${d}" ${ACTIVE_DAYS===d?'selected':''}>No trade in ${d} days</option>`).join('')}</select><span class="note">Select all → 🗑 Delete selected to remove them. Wallets saved less than ${ACTIVE_DAYS} days ago are never counted.</span></div>`:''}
    <input id="adQ" placeholder="Search name, @handle or address" value="${esc(ADDQ)}" style="margin-top:8px">
    <div class="selbar"><button class="pr" id="adSA">Select all (${list.length})</button><button class="pr" id="adSN">None</button><span class="note" id="adSC">${[...ASEL].filter(w=>KOL[w]||SMART[w]).length} selected</span></div>
    <div class="mbtns" style="margin-top:0"><button class="btn gh dng" id="adDS">🗑 Delete selected (${[...ASEL].filter(w=>KOL[w]||SMART[w]).length})</button><button class="btn gh dng" id="adDA">🗑 Delete all (${all.length})</button></div>
@@ -2961,6 +2964,7 @@ function renderAdd(){
       $('adT').value=txt;ADDTXT=txt;prev();toast(`Loaded ${f.name}`);};
     rd.onerror=()=>toast('Could not read that file');rd.readAsText(f);e.target.value='';};
   $('adF').querySelectorAll('button').forEach(b=>b.onclick=()=>{ADDF=b.dataset.v;renderAdd();});
+  if($('adDays'))$('adDays').onchange=e=>{ACTIVE_DAYS=+e.target.value;store.set('hs_actdays',ACTIVE_DAYS);ASEL.clear();renderAdd();};
   let qt;$('adQ').oninput=e=>{clearTimeout(qt);qt=setTimeout(()=>{ADDQ=e.target.value;renderAdd();const el=$('adQ');el.focus();el.setSelectionRange(el.value.length,el.value.length);},300);};
   $('list').querySelectorAll('[data-as]').forEach(c=>c.onchange=()=>{c.checked?ASEL.add(c.dataset.as):ASEL.delete(c.dataset.as);const n=[...ASEL].filter(w=>KOL[w]||SMART[w]).length;$('adSC').textContent=n+' selected';if(!$('adDS').dataset.arm)$('adDS').textContent=`🗑 Delete selected (${n})`;});
   $('adSA').onclick=()=>{list.forEach(w=>ASEL.add(w));renderAdd();};$('adSN').onclick=()=>{ASEL.clear();renderAdd();};
