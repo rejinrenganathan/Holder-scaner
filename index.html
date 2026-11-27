@@ -517,6 +517,14 @@ svg.i2{width:13px;height:13px;flex:none;fill:none;stroke:currentColor;stroke-wid
 .gc.v2 .cn svg.i2{width:15px;height:15px;color:var(--mut)}.gc.v2 .cn{color:var(--txt)}.gc.v2 .cn b{font-weight:800}
 .gc.v2 .wc{padding:0;background:none;font-size:11.5px;font-weight:600}
 .gc.v2 .wmore{background:none;margin-top:2px;padding:6px 0 2px;color:var(--mut)}
+
+/* final: 64px picture, 5x2 centered grid, 1h under V */
+.gc.v2 .sq{flex:0 0 64px;width:64px;height:64px}
+.gc.v2 .hr{gap:4px}.vb.ch{font-size:12px}.vb.ch.up{color:var(--good)}.vb.ch.dn{color:var(--bad)}.vb.ch em{color:var(--mut)}
+.gc.v2 .b2.sf svg.i2{width:17px;height:17px}
+.gc.v2 .sg{grid-template-columns:repeat(5,minmax(0,1fr));row-gap:4px;column-gap:2px;margin-top:8px}
+.gc.v2 .sg1{justify-content:center;height:28px;gap:4px;font-size:12.5px}
+.gc.v2 .sg1 svg.i2{width:16px;height:16px}
 </style>
 </head>
 <body>
@@ -979,7 +987,7 @@ async function das(method,params){
 // lite holder metrics: holders, top10, bundle, insiders, fresh (cheap RPC calls)
 const HM_TTL=10*60e3;
 const hmFresh=t=>t.hm&&!t.hm.lite&&Date.now()-t.hmAt<HM_TTL;          // full scan (token page)
-const cardFresh=t=>t.hm&&t.hm.v>=2&&Date.now()-t.hmAt<HM_TTL;                     // full or light scan (cards)
+const cardFresh=t=>t.hm&&t.hm.v>=3&&Date.now()-t.hmAt<HM_TTL;                     // full or light scan (cards)
 // exact on-chain launch: oldest signature of the mint (pages back up to 4k sigs), else DexScreener time
 async function launchInfo(t){
   if(t.launch!==undefined)return t.launch;
@@ -1024,7 +1032,7 @@ async function loadHM(t,o){
     let holders=null;
     try{let n=0,page=1,more=true;while(more&&page<=5){const r=await das('getTokenAccounts',{mint:t.mint,page,limit:1000});const ac=r?.token_accounts||[];n+=ac.filter(a=>+a.amount>0).length;more=ac.length===1000;page++;}holders={n,more};}catch(e){}
     t.hm={top10:people.slice(0,10).reduce((a,h)=>a+h.pct,0),bundle,insider,fresh,holders,checked:people.length,firstKnown:firstKnown.length,launchExact:!!(L&&L.exact),
-      bundleW:people.filter(h=>h.bundled).length,sniperW:people.filter(h=>h.sniper).length,freshW:people.filter(h=>h.fresh).length,kols:people.filter(h=>KOL[h.owner]).map(h=>h.owner),linked:lk.pct,linkedW:lk.n,v:2};
+      bundleW:people.filter(h=>h.bundled).length,sniperW:people.filter(h=>h.sniper).length,freshW:people.filter(h=>h.fresh).length,kols:people.filter(h=>KOL[h.owner]).map(h=>h.owner),linked:lk.pct,linkedW:lk.n,top1:people[0]?.pct??null,v:3};
     t.hmAt=Date.now();t.top10=t.hm.top10;t.hmFail=0;
   }catch(e){}
   t.hmLoading=false;
@@ -2579,7 +2587,12 @@ const I2={
  shx:'<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M12 8v5M12 16h.01"/>',
  bolt:'<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>',
  kol:'<path d="M3 10v4h3l6 4V6L6 10z"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12"/>',
- sm:'<path d="M4 7h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a1 1 0 0 1-1-1z"/><path d="M4 7l11-3v3"/><path d="M16 13.5h.01"/>'};
+ sm:'<path d="M4 7h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a1 1 0 0 1-1-1z"/><path d="M4 7l11-3v3"/><path d="M16 13.5h.01"/>',
+ crown:'<path d="M4 18h16"/><path d="M4 15L3 7l5 4 4-6 4 6 5-4-1 8z"/>',
+ drop:'<path d="M12 3c3.5 4.3 6 7.6 6 10.5a6 6 0 0 1-12 0C6 10.6 8.5 7.3 12 3z"/>',
+ hist:'<path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v4h4"/><path d="M12 8v4l3 2"/>',
+ swap:'<path d="M4 8h14l-3-3"/><path d="M20 16H6l3 3"/>',
+ shq:'<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/>'};
 const ic2=(k,c)=>`<svg class="i2 ${c||''}" viewBox="0 0 24 24">${I2[k]}</svg>`;
 // ---- dev history (Solana Tracker: tokens made by this dev, how many graduated) ----
 let DEVH=store.get('hs_devh',{});const DEVQ=new Set();let devhRun=false;
@@ -2619,7 +2632,7 @@ function badgeLine(t){
   const hm=t.hm,h=hm?.holders,sec=secTag(t),paid=dsPaid(t),pa=t.ords?.paidAt,pas=pa?(pa>1e12?pa/1000:pa):null;
   const dx=`<a class="b2 dx ${paid?'on':''}" href="https://dexscreener.com/solana/${t.pair?.pairAddress||t.mint}" target="_blank" rel="noopener" title="${paid?'DEX paid'+(pas?' '+ago(pas):''):'DEX not paid'}"><img src="${fav('dexscreener.com')}" alt="DEX">${paid&&pas?dur(Date.now()/1000-pas):''}</a>`;
   return `<div class="bl"><span class="b2 hd" title="Holders">${ic2('users')}${h?num(h.n,0)+(h.more?'+':''):hm?'—':'<i class="skl s"></i>'}</span>
-   <span class="b2 sf ${sec.cls}" title="${esc(sec.tip)}">${ic2(sec.cls==='bad'?'shx':'shield')}${sec.txt}</span>${dx}
+   <span class="b2 sf ${sec.cls}" title="${esc(sec.tip)}">${ic2(sec.cls==='bad'?'shx':sec.cls?'shield':'shq')}</span>${dx}
    ${t.boostN?`<span class="b2 bo" title="Active DexScreener boosts">${ic2('bolt')}${t.boostN}</span>`:''}${t.ords?.cto?'<span class="b2 cto" title="Community takeover">CTO</span>':''}${t.ords?.ad?'<span class="b2 ad" title="Running a DexScreener ad">Ad</span>':''}</div>`;
 }
 function statGrid(t){
@@ -2628,6 +2641,7 @@ function statGrid(t){
   const c=(ic,v,cls,tip,lab)=>`<span class="sg1 ${cls||''}" title="${tip}">${ic?ic2(ic):`<small>${lab}</small>`}<b>${v}</b></span>`;
   const L=(v,a,b)=>ld?'':lvlCls(v,a,b),V=v=>ld?sk:pc(v),p2=!!hm?.p2,V2=v=>ld||p2?sk:pc(v),L2=(v,a,b)=>ld||p2?'':lvlCls(v,a,b);
   const dhc=!dh?'':dh.n<=1||dh.g/dh.n>=0.3?'good':dh.n>=10&&dh.g/dh.n<0.1?'bad':'warn';
+  const t1=hm?.top1,lq=t.stage==='curve'&&t.curveSol!=null?{v:num(t.curveSol,t.curveSol<10?1:0),tip:num(t.curveSol,2)+' SOL in the bonding curve'}:t.liq?{v:usd(t.liq).replace('$','$'),tip:'Pool liquidity '+usd(t.liq)}:null;
   return `<div class="sg">
    ${c('top',V(hm?.top10),L(hm?.top10,30,50),'Top 10 holders own '+pc(hm?.top10))}
    ${c('dev',d===undefined?(ld?sk:'—'):d===null?'—':d.held<=0?'0%':pc(dp),d&&d.held>0?lvlCls(dp,5,15):d?'good':'','Dev holds'+(d&&d.held>0?' '+pc(dp):d?' nothing':''))}
@@ -2635,8 +2649,10 @@ function statGrid(t){
    ${c('bun',V(hm?.bundle),L(hm?.bundle,5,15),'Bundlers hold '+pc(hm?.bundle))}
    ${c('snp',V(hm?.insider),L(hm?.insider,5,15),'Snipers (bought in the first 15s) hold '+pc(hm?.insider))}
    ${c('frs',V2(hm?.fresh),L2(hm?.fresh,5,15),'Fresh wallets (under 7 days old) hold '+pc(hm?.fresh))}
-   ${c('',dh?`${dh.g}/${dh.n}`:'—',dhc,dh?`Dev history: ${dh.n} tokens made, ${dh.g} migrated`+(dh.src==='chain'?' (pump.fun)':''):(STKEY||devhFree(t))?'Dev history: loading…':'Dev history: available for pump.fun tokens','DevH')}
-   ${c('',t.buys?`${bs}/${ss}`:'—',t.buys?(bs>=ss?'good':'bad'):'','Last 5 min: '+bs+' buys / '+ss+' sells','Txn')}
+   ${c('crown',V(t1),L(t1,5,10),'Biggest single holder owns '+pc(t1))}
+   ${c('drop',lq?lq.v:'—','',lq?lq.tip:'Liquidity: loading…')}
+   ${c('hist',dh?`${dh.g}/${dh.n}`:'—',dhc,dh?`Dev history: ${dh.n} tokens made, ${dh.g} migrated`+(dh.src==='chain'?' (pump.fun)':''):(STKEY||devhFree(t))?'Dev history: loading…':'Dev history: available for pump.fun tokens')}
+   ${c('swap',t.buys?`${bs}/${ss}`:'—',t.buys?(bs>=ss?'good':'bad'):'','Last 5 min: '+bs+' buys / '+ss+' sells')}
   </div>`;
 }
 // ---- wallet rows (2 lines) ----
@@ -2664,7 +2680,7 @@ function tokGroupCard(g,kind){
   const top=ok?`<div class="tk">${sqPic(t)}<div class="tb">
       <div class="h1"><div class="gnm${NAMEFULL.has(g.m)?' full':''}" data-nm="${g.m}"><b>${esc(t.sym||'?')}</b><span>${esc(t.name&&t.name!==t.sym?t.name:'')}</span></div></div>
       <div class="h2">${age?`<span class="tage">${age}</span>`:''}<button class="si cp" data-cp="${g.m}" title="Copy CA">⧉</button>${socIcons(t)}</div></div>
-      <div class="hr"><span class="mcb"><em>MC</em>${usd(t.mc)}</span><span class="vb"><em>V</em> ${usd(t.vol.h24)}</span></div></div>${badgeLine(t)}${statGrid(t)}`
+      <div class="hr"><span class="mcb"><em>MC</em>${usd(t.mc)}</span><span class="vb"><em>V</em> ${usd(t.vol.h24)}</span>${t.chg&&t.chg.h1!=null?`<span class="vb ch ${t.chg.h1>=0?'up':'dn'}" title="Price change in the last hour"><em>1h</em> ${t.chg.h1>=0?'+':''}${num(t.chg.h1,Math.abs(t.chg.h1)<10?1:0)}%</span>`:''}</div></div>${badgeLine(t)}${statGrid(t)}`
     :`<div class="tk"><div class="sq"><div class="ini">…</div></div><div class="tb"><div class="h1"><b>${short(g.m)}</b></div><div class="h2 note">loading…</div></div></div>`;
   const cnt=(ic,cls,h,n,tip)=>`<span class="cn ${cls}" title="${tip}">${ic2(ic)}<b class="${n&&h/n<0.5?'dn':''}">${h}</b><em>/${n}</em></span>`;
   const who=(kb?cnt('kol','k',kh,kb,`${kh} of ${kb} KOLs still holding`):'')+(sb?cnt('sm','s',sh,sb,`${sh} of ${sb} smart wallets still holding`):'');
@@ -2737,7 +2753,7 @@ async function loadCardHM(t){
     let holders=t.hm?.holders||null;
     try{let n=0,page=1,more=true;while(more&&page<=3){const r=await das('getTokenAccounts',{mint:t.mint,page,limit:1000});const ac=r?.token_accounts||[];n+=ac.filter(a=>+a.amount>0).length;more=ac.length===1000;page++;}holders={n,more};}catch(e){}
     // step 1 ready → show it right away
-    t.hm={lite:true,v:2,p2:true,top10:people.slice(0,10).reduce((a,h)=>a+h.pct,0),bundle:fk.length?sumP(h=>h.bundled):null,insider:fk.length&&L0?sumP(h=>h.sniper):null,fresh:null,holders,
+    t.hm={lite:true,v:3,p2:true,top1:people[0]?.pct??null,top10:people.slice(0,10).reduce((a,h)=>a+h.pct,0),bundle:fk.length?sumP(h=>h.bundled):null,insider:fk.length&&L0?sumP(h=>h.sniper):null,fresh:null,holders,
       checked:top.length,firstKnown:fk.length,bundleW:top.filter(h=>h.bundled).length,sniperW:top.filter(h=>h.sniper).length,freshW:0,kols:people.filter(h=>KOL[h.owner]).map(h=>h.owner),linked:null,linkedW:0};
     t.hmAt=Date.now();t.top10=t.hm.top10;t.hmFail=0;renderSoft();
     // step 2: wallet age (fresh) of the 8 biggest holders + who funded the young ones (insiders)
