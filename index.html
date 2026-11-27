@@ -374,6 +374,15 @@ html{transition:background .2s}
 .lbfr{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px}.lbfi{width:92px;padding:6px 8px;text-align:center;font-size:13px}.lbfs{width:118px;padding:6px 8px;font-size:13px}
 .lbfa{display:flex;gap:8px;margin-top:10px}.lbfa .btn{flex:1;margin:0}
 .adup{width:auto;margin:0;padding:7px 12px;font-size:12.5px}
+.ywh{display:flex;align-items:center;gap:6px}.ywh .pr{padding:5px 10px}.ywdots{background:none;border:0;color:var(--mut);font-size:20px;line-height:1;padding:2px 8px;cursor:pointer}
+.ywtools{display:grid;grid-template-columns:1fr 128px;gap:6px;margin-top:8px}.ywtools select{padding:8px;font-size:13px;background:var(--bg2)}
+.wl.yw{position:relative}.ywn{display:flex;align-items:baseline;gap:2px;flex-wrap:wrap}.ywst{display:flex;gap:10px;font-size:12px;color:var(--mut);margin:1px 0}.ywst b{color:var(--txt)}.ywst b.up{color:var(--good)}.ywst b.wn{color:var(--warn)}.ywst b.dn{color:var(--bad)}
+.ywmenu{position:absolute;right:6px;top:38px;z-index:20;background:var(--card);border:1px solid var(--line2);border-radius:12px;padding:4px;min-width:180px;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+.ywmenu button,.ywmenu a{display:block;width:100%;text-align:left;background:none;border:0;color:var(--txt);font-size:13.5px;padding:9px 10px;border-radius:8px}.ywmenu .dng{color:var(--bad)}
+#ywC{position:relative}#adTopM{top:44px}
+.ywbar{position:sticky;bottom:10px;z-index:15;display:flex;align-items:center;gap:6px;margin:8px 0;padding:8px 10px;background:var(--card);border:1px solid var(--line2);border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.35)}.ywbar .note{flex:1}.ywbar .btn{width:auto;margin:0;padding:8px 12px}
+.undobar{position:fixed;left:12px;right:12px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:60;display:flex;justify-content:space-between;align-items:center;background:var(--inv);color:var(--invtxt);border-radius:12px;padding:12px 14px;font-size:14px;box-shadow:0 8px 24px rgba(0,0,0,.4)}.undobar button{background:none;border:0;color:var(--acc);font-weight:800;font-size:14px}
+input.bad{border-color:var(--bad)}
 .lbr.isbot{opacity:.55}
 .wsetup{margin-top:10px;background:var(--bg);border-radius:12px;padding:8px 10px}.wsetup summary{cursor:pointer}.wsetup ol{margin:8px 0 6px;padding-left:20px;font-size:13px;line-height:1.5}.wsetup li{margin:4px 0}.wsetup a{color:var(--acc)}
 .hsxdemo{display:inline-block;background:#6d5dfc;color:#fff;border-radius:6px;padding:0 5px}
@@ -695,7 +704,7 @@ function median(a){if(!a.length)return null;const s=[...a].sort((x,y)=>x-y),m=s.
 const STORE_FREE=[/^hslab_(c_|grad|last|f_)/,/^hs_wc$/,/^hs_img$/,/^hs_xav$/,/^hs_kev$/,/^hs_devh$/];   // all re-fetched automatically
 const STORE_MUST=/^hs_(kol|kolx|smart|key|stkey|bekey|hook|set|plan|fav)$/;                             // your own data
 let storeWarned=0;
-const APP_V=77;   // shown in the status card — bump together with sw.js
+const APP_V=78;   // shown in the status card — bump together with sw.js
 const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v);}catch(e){return d;}},
   set(k,v){let j;try{j=JSON.stringify(v);}catch(e){return false;}
     try{localStorage.setItem(k,j);return true;}catch(e){}
@@ -3023,6 +3032,27 @@ function saveWalletLines(rows){
   store.set('hs_kol',KOL);store.set('hs_kolx',KOLX);saveSmart();saveKTR();saveSTR();liveResync();
   return{nk,ns,moved,added};
 }
+let ADDSELM=false,ADDSORT=store.get('hs_adsort','last'),ADDSHOW=200;
+// SOL balance with the token-card tiers: 🐋 ≥500 · 🦈 ≥100 · 🐟 below
+const ywBal=w=>{const b=KBAL[w];if(!b||b.sol==null)return'⏳ SOL';const v=b.sol;return`${v>=500?'🐋':v>=100?'🦈':'🐟'} <b>${num(v,v<10?1:0)}</b> SOL`;};
+// delete only after a confirm; everything removed can be put back for 8 seconds
+function ywConfirm(ws,all){const n=ws.length;
+  openSheet(`<h3 style="margin:0 0 6px">🗑 Delete ${all?'all '+n.toLocaleString()+' wallets':n===1?esc(wName(ws[0])):n.toLocaleString()+' wallets'}?</h3>
+   <div class="note">${all?'This removes every wallet you track. Type <b>DELETE</b> to confirm.':'You can undo for 8 seconds after deleting.'}</div>
+   ${all?'<input id="ywTy" placeholder="DELETE" autocomplete="off" style="margin-top:8px">':''}
+   <div class="mbtns" style="margin-top:10px"><button class="btn gh" id="ywNo">Cancel</button><button class="btn dng" id="ywOk">Delete${n>1?' '+n.toLocaleString():''}</button></div>`);
+  $('ywNo').onclick=closeSheet;
+  $('ywOk').onclick=()=>{if(all&&$('ywTy').value.trim().toUpperCase()!=='DELETE'){$('ywTy').classList.add('bad');$('ywTy').focus();return;}closeSheet();ywDelete(ws);};}
+function ywDelete(ws){
+  const W=new Set(ws),bk={kol:{},kolx:{},kact:{},smart:{},sig:{},ktr:KTR.filter(x=>W.has(x.w)),str:STR.filter(x=>W.has(x.w))};
+  ws.forEach(w=>{if(w in KOL)bk.kol[w]=KOL[w];if(w in KOLX)bk.kolx[w]=KOLX[w];if(w in KACT)bk.kact[w]=KACT[w];if(w in SMART)bk.smart[w]=SMART[w];if(w in LASTSIG)bk.sig[w]=LASTSIG[w];});
+  const k=ws.filter(w=>KOL[w]),sm=ws.filter(w=>SMART[w]);if(k.length)delKols(k);if(sm.length)delSmart(sm);ws.forEach(w=>{ASEL.delete(w);delete LASTSIG[w];});store.set('hs_lastsig',LASTSIG);
+  ADDSELM=false;renderAdd();
+  const bar=document.createElement('div');bar.className='undobar';bar.innerHTML=`<span>${ws.length.toLocaleString()} wallet${ws.length>1?'s':''} deleted</span><button>Undo</button>`;
+  document.querySelectorAll('.undobar').forEach(x=>x.remove());document.body.appendChild(bar);const tm=setTimeout(()=>bar.remove(),8000);
+  bar.querySelector('button').onclick=()=>{clearTimeout(tm);bar.remove();Object.assign(KOL,bk.kol);Object.assign(KOLX,bk.kolx);Object.assign(KACT,bk.kact);Object.assign(SMART,bk.smart);Object.assign(LASTSIG,bk.sig);
+    const ks=new Set(KTR.map(x=>x.s+x.w)),ss=new Set(STR.map(x=>x.s+x.w));KTR.push(...bk.ktr.filter(x=>!ks.has(x.s+x.w)));STR.push(...bk.str.filter(x=>!ss.has(x.s+x.w)));
+    store.set('hs_kol',KOL);store.set('hs_kolx',KOLX);store.set('hs_kact',KACT);saveSmart();saveKTR();saveSTR();store.set('hs_lastsig',LASTSIG);liveResync();if(TAB==='add')renderAdd();toast('Restored '+ws.length.toLocaleString()+' wallet'+(ws.length>1?'s':''));};}
 let ADDTXT='',ADDQ='',ADDF='all',ADDM=store.get('hs_addm','auto'),MAN={w:'',n:'',h:''};const ASEL=new Set();
 // one wallet typed by hand: an X handle → 👑 KOL, none → 🧠 Smart; an address already saved is updated (name / handle / type)
 function manualRow(w,n,h){
@@ -3037,7 +3067,7 @@ function renderAdd(){
   // 💤 inactive: last trade older than ACTIVE_DAYS, or never traded and saved longer than that (wallets added recently are never counted)
   const now=Date.now()/1000,isIdle=w=>{const l=lastOf(w);if(l)return now-l>ACTIVE_DAYS*86400;const t=SMART[w]?.t;return!KOL[w]&&t>1e12&&Date.now()-t>ACTIVE_DAYS*864e5;},nIdle=all.filter(isIdle).length;
   const list=all.filter(w=>(ADDF==='all'||(ADDF==='idle'?isIdle(w):ADDF==='kol'?!!KOL[w]:!KOL[w]))&&(!ADDQ||(wName(w)+' '+(KOLX[w]||'')+' '+w).toLowerCase().includes(ADDQ.toLowerCase())))
-    .sort((a,b)=>(lastOf(b)-lastOf(a)));
+    .sort(ADDSORT==='wr'?(a,b)=>((wrOf(b)?.wr??-1)-(wrOf(a)?.wr??-1)):ADDSORT==='sol'?(a,b)=>((KBAL[b]?.sol??-1)-(KBAL[a]?.sol??-1)):ADDSORT==='name'?(a,b)=>wName(a).localeCompare(wName(b)):ADDSORT==='new'?(a,b)=>((SMART[b]?.t||0)-(SMART[a]?.t||0)):(a,b)=>(lastOf(b)-lastOf(a)));
   $('list').innerHTML=`<div class="addc"><div class="dch"><h3 style="margin:0">✍️ Add wallets</h3><label class="btn gh adup">📁 Upload file<input type="file" id="adFile" accept=".txt,.csv,.tsv,.json,text/plain,text/csv,application/json" style="display:none"></label></div>
    <div class="note">One wallet per line: <b>wallet, name, handle</b>. With a handle → 👑 <b>KOL</b> · without → 🧠 <b>Smart</b>. One line or thousands. An address you already saved is updated.</div>
    <textarea id="adT" rows="5" placeholder="7xKX…Q9, Ansem, @blknoiz06&#10;5Q54…e4j1, Cupsey, x.com/Cupseyy&#10;9pQz…Lm3a, whale from IPO" autocomplete="off" spellcheck="false" style="margin-top:8px"></textarea>
@@ -3045,17 +3075,18 @@ function renderAdd(){
    <div class="addc"><div class="dch"><h3 style="margin:0">🏆 Leaderboards</h3><button class="btn" id="adLb" style="width:auto;margin:0;padding:8px 14px">Open ›</button></div>
    <div class="note">Axiom · Solana Tracker · Pump.fun winners · Birdeye · GMGN · Kolscan — tap ＋ to add.</div>
    <button class="btn gh" id="adImp" style="margin-top:8px">Auto-import with filters (win rate, age, SOL…)</button></div>
-   <div class="addc"><div class="dch"><b>Your wallets</b><span class="note">${Object.keys(KOL).length} KOL · ${Object.keys(SMART).filter(w=>!KOL[w]).length} smart</span></div>
+   <div class="addc" id="ywC"><div class="dch"><b>Your wallets</b><span class="ywh"><span class="note">${Object.keys(KOL).length} KOL · ${Object.keys(SMART).filter(w=>!KOL[w]).length} smart</span><button class="pr" id="adSel">${ADDSELM?'Done':'Select'}</button><button class="ywdots" id="adTop" aria-label="More">⋯</button></span></div>
+   <div class="ywmenu hide" id="adTopM"><button id="adExp">📤 Export wallet list</button><button class="dng" id="adDA">🗑 Delete all wallets…</button></div>
    <div class="chipsel" id="adF">${[['all','All'],['kol','👑 KOL'],['sw','🧠 Smart'],['idle','💤 Inactive '+nIdle]].map(([a,b])=>`<button data-v="${a}" class="${ADDF===a?'on':''}">${b}</button>`).join('')}</div>
-   ${ADDF==='idle'?`<div class="g2" style="margin-top:8px;align-items:center"><select id="adDays">${[3,7,14,30].map(d=>`<option value="${d}" ${ACTIVE_DAYS===d?'selected':''}>No trade in ${d} days</option>`).join('')}</select><span class="note">Select all → 🗑 Delete selected to remove them. Wallets saved less than ${ACTIVE_DAYS} days ago are never counted.</span></div>`:''}
-   <input id="adQ" placeholder="Search name, @handle or address" value="${esc(ADDQ)}" style="margin-top:8px">
-   <div class="selbar"><button class="pr" id="adSA">Select all (${list.length})</button><button class="pr" id="adSN">None</button><span class="note" id="adSC">${[...ASEL].filter(w=>KOL[w]||SMART[w]).length} selected</span></div>
-   <div class="mbtns" style="margin-top:0"><button class="btn gh dng" id="adDS">🗑 Delete selected (${[...ASEL].filter(w=>KOL[w]||SMART[w]).length})</button><button class="btn gh dng" id="adDA">🗑 Delete all (${all.length})</button></div>
-   <div id="adL">${list.slice(0,300).map(w=>`<div class="wl"><input type="checkbox" class="msel" data-as="${w}" ${ASEL.has(w)?'checked':''}><div class="wl-l" data-kw="${w}">${wAv(w,'wav')}<div style="min-width:0"><b>${esc(wName(w))}</b> <span class="tg ${KOL[w]?'sm':'ok'}">${KOL[w]?'KOL':'SMART'}</span><div class="note">${KOLX[w]?'@'+esc(KOLX[w])+' · ':''}${short(w)}${lastOf(w)?' · last trade '+ago(lastOf(w)):''}</div></div></div><button class="swx" data-ae="${w}" title="Edit">✎</button><button class="swx" data-ar="${w}">✕</button></div>`).join('')||'<div class="note" style="padding:10px 0">No wallets.</div>'}${list.length>300?`<div class="note">Showing 300 of ${list.length} — search to find others.</div>`:''}</div></div>`;
+   ${ADDF==='idle'?`<div class="g2" style="margin-top:8px;align-items:center"><select id="adDays">${[3,7,14,30].map(d=>`<option value="${d}" ${ACTIVE_DAYS===d?'selected':''}>No trade in ${d} days</option>`).join('')}</select><span class="note">Tap Select → Select all → Delete to remove them. Wallets saved less than ${ACTIVE_DAYS} days ago are never counted.</span></div>`:''}
+   <div class="ywtools"><input id="adQ" placeholder="Search name, @handle or address" value="${esc(ADDQ)}"><select id="adSort">${[['last','Last trade'],['wr','Win rate'],['sol','SOL balance'],['name','Name A–Z'],['new','Newest added']].map(([a,b])=>`<option value="${a}" ${ADDSORT===a?'selected':''}>${b}</option>`).join('')}</select></div>
+   <div id="adL">${list.slice(0,ADDSHOW).map(w=>{const e=wrOf(w);return`<div class="wl yw">${ADDSELM?`<input type="checkbox" class="msel" data-as="${w}" ${ASEL.has(w)?'checked':''}>`:''}<div class="wl-l" data-kw="${w}">${wAv(w,'wav')}<div style="min-width:0"><div class="ywn"><b>${esc(wName(w))}</b> <span class="tg ${KOL[w]?'sm':'ok'}">${KOL[w]?'KOL':'SMART'}</span>${lastOf(w)?`<span class="note"> · ${ago(lastOf(w))}</span>`:''}</div>
+     <div class="ywst"><span data-bal="${w}">${ywBal(w)}</span>${e?`<span>WR <b class="${e.wr>=55?'up':e.wr>=40?'wn':'dn'}">${num(e.wr,0)}%</b> · ${e.closed} trades</span>`:'<span>WR –</span>'}</div>
+     <div class="note mono">${KOLX[w]?'@'+esc(KOLX[w])+' · ':''}${short(w)}</div></div></div>${ADDSELM?'':`<button class="ywdots" data-am="${w}" aria-label="Wallet menu">⋯</button>`}</div>`;}).join('')||'<div class="note" style="padding:10px 0">No wallets.</div>'}
+   ${list.length>ADDSHOW?`<button class="btn gh" id="adMore" style="margin-top:8px">Show 200 more · ${list.length-ADDSHOW} left</button>`:''}</div></div>
+   ${ADDSELM?`<div class="ywbar"><span class="note"><b id="adSC">${[...ASEL].filter(w=>KOL[w]||SMART[w]).length}</b> selected</span><button class="pr" id="adSA">Select all ${list.length}</button><button class="pr" id="adSN">None</button><button class="btn dng" id="adDS">🗑 Delete</button></div>`:''}`;
+
   $('adImp').onclick=()=>importLeaderSheet();$('adLb').onclick=()=>lbBrowse();
-  // ✎ puts that wallet's line in the box: change the name / handle there and Save
-  $('list').querySelectorAll('[data-ae]').forEach(b=>b.onclick=e=>{e.stopPropagation();const w=b.dataset.ae,n=KOL[w]?(KOL[w]!==KOLX[w]?KOL[w]:''):SMART[w]?.n||'',h=KOLX[w]?'@'+KOLX[w]:'';
-    const line=[w,n,h].filter(Boolean).join(', ');ADDTXT=(ADDTXT.trim()?ADDTXT.replace(/\s*$/,'\n'):'')+line;renderAdd();window.scrollTo({top:0,behavior:'smooth'});const t=$('adT');t.focus();t.setSelectionRange(t.value.length,t.value.length);});
   let rows=[];
   const prev=()=>{rows=parseWalletLines($('adT').value,'auto');const ok=rows.filter(r=>!r.err),kept=rows.filter(r=>r.keep).length,bad=rows.filter(r=>r.err&&!r.keep),k=ok.filter(r=>r.type==='kol').length,sm=ok.length-k,upd=ok.filter(r=>r.was).length,mv=ok.filter(r=>r.was&&r.was!==r.type).length;
     $('adPrev').innerHTML=rows.length?`<div class="adsum"><span class="tg sm">👑 ${k} KOL</span><span class="tg ok">🧠 ${sm} smart</span>${upd?`<span class="tg">${upd} already saved → updated${mv?` (${mv} switch type)`:''}</span>`:''}${kept?`<span class="tg">${kept} already KOL → kept</span>`:''}${bad.length?`<span class="tg bad">${bad.length} skipped</span>`:''}</div>
@@ -3076,12 +3107,28 @@ function renderAdd(){
   $('adF').querySelectorAll('button').forEach(b=>b.onclick=()=>{ADDF=b.dataset.v;renderAdd();});
   if($('adDays'))$('adDays').onchange=e=>{ACTIVE_DAYS=+e.target.value;store.set('hs_actdays',ACTIVE_DAYS);ASEL.clear();renderAdd();};
   let qt;$('adQ').oninput=e=>{clearTimeout(qt);qt=setTimeout(()=>{ADDQ=e.target.value;renderAdd();const el=$('adQ');el.focus();el.setSelectionRange(el.value.length,el.value.length);},300);};
-  $('list').querySelectorAll('[data-as]').forEach(c=>c.onchange=()=>{c.checked?ASEL.add(c.dataset.as):ASEL.delete(c.dataset.as);const n=[...ASEL].filter(w=>KOL[w]||SMART[w]).length;$('adSC').textContent=n+' selected';if(!$('adDS').dataset.arm)$('adDS').textContent=`🗑 Delete selected (${n})`;});
-  $('adSA').onclick=()=>{list.forEach(w=>ASEL.add(w));renderAdd();};$('adSN').onclick=()=>{ASEL.clear();renderAdd();};
-  const del=ws=>{const k=ws.filter(w=>KOL[w]),sm=ws.filter(w=>SMART[w]);if(k.length)delKols(k);if(sm.length)delSmart(sm);ws.forEach(w=>{ASEL.delete(w);delete LASTSIG[w];});store.set('hs_lastsig',LASTSIG);};
-  armBtn($('adDS'),()=>{const ws=[...ASEL].filter(w=>KOL[w]||SMART[w]);if(!ws.length){toast('Nothing selected');return;}del(ws);toast(ws.length+' wallets deleted');renderAdd();});
-  armBtn($('adDA'),()=>{const n=all.length;del(all);toast(n+' wallets deleted');renderAdd();});
-  $('list').querySelectorAll('[data-ar]').forEach(b=>b.onclick=e=>{e.stopPropagation();del([b.dataset.ar]);renderAdd();});
+  $('list').querySelectorAll('[data-as]').forEach(c=>c.onchange=()=>{c.checked?ASEL.add(c.dataset.as):ASEL.delete(c.dataset.as);$('adSC').textContent=[...ASEL].filter(w=>KOL[w]||SMART[w]).length;});
+  $('adSel').onclick=()=>{ADDSELM=!ADDSELM;ASEL.clear();renderAdd();};
+  if($('adSA'))$('adSA').onclick=()=>{list.forEach(w=>ASEL.add(w));renderAdd();};if($('adSN'))$('adSN').onclick=()=>{ASEL.clear();renderAdd();};
+  if($('adDS'))$('adDS').onclick=()=>{const ws=[...ASEL].filter(w=>KOL[w]||SMART[w]);if(!ws.length){toast('Nothing selected');return;}ywConfirm(ws);};
+  $('adTop').onclick=e=>{e.stopPropagation();$('adTopM').classList.toggle('hide');};
+  $('adDA').onclick=()=>{$('adTopM').classList.add('hide');ywConfirm(all,true);};
+  $('adExp').onclick=()=>{$('adTopM').classList.add('hide');const txt=all.map(w=>[w,wName(w)!==short(w)?wName(w):'',KOLX[w]?'@'+KOLX[w]:''].filter(Boolean).join(', ')).join('\n')+'\n';
+    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:'text/plain'}));a.download=`holder-scan-wallets-${new Date().toISOString().slice(0,10)}-${all.length}.txt`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},2000);};
+  $('adSort').onchange=e=>{ADDSORT=e.target.value;store.set('hs_adsort',ADDSORT);if(ADDSORT==='sol'&&KEY){toast('Loading SOL balances…');loadKolBal(all).then(()=>{if(TAB==='add'&&$('adL'))renderAdd();});}renderAdd();};
+  if($('adMore'))$('adMore').onclick=()=>{ADDSHOW+=200;renderAdd();};
+  // ⋯ on a wallet: Edit · Copy · Open in GMGN · Delete (asks first)
+  $('list').querySelectorAll('[data-am]').forEach(b=>b.onclick=e=>{e.stopPropagation();const w=b.dataset.am,old=$('ywRowM');if(old){const same=old.dataset.w===w;old.remove();if(same)return;}
+    const m=document.createElement('div');m.className='ywmenu';m.id='ywRowM';m.dataset.w=w;
+    m.innerHTML=`<button data-x="e">✎ Edit name / handle</button><button data-x="c">📋 Copy address</button><a href="https://gmgn.ai/sol/address/${w}" target="_blank" rel="noopener">↗ Open in GMGN</a><button data-x="d" class="dng">🗑 Delete…</button>`;
+    b.parentElement.appendChild(m);
+    m.querySelector('[data-x="e"]').onclick=()=>{const n=KOL[w]?(KOL[w]!==KOLX[w]?KOL[w]:''):SMART[w]?.n||'',h=KOLX[w]?'@'+KOLX[w]:'';ADDTXT=(ADDTXT.trim()?ADDTXT.replace(/\s*$/,'\n'):'')+[w,n,h].filter(Boolean).join(', ');renderAdd();window.scrollTo({top:0,behavior:'smooth'});const t=$('adT');t.focus();t.setSelectionRange(t.value.length,t.value.length);};
+    m.querySelector('[data-x="c"]').onclick=()=>{copy(w);m.remove();};
+    m.querySelector('[data-x="d"]').onclick=()=>{m.remove();ywConfirm([w]);};});
+  // SOL balances for the wallets on screen (100 per request, refreshed every 10 min)
+  const need=list.slice(0,ADDSHOW).filter(w=>!KBAL[w]||Date.now()-KBAL[w].t>10*60e3);
+  if(need.length&&KEY)loadKolBal(need).then(()=>{document.querySelectorAll('#adL [data-bal]').forEach(el=>{el.innerHTML=ywBal(el.dataset.bal);});});
+
 }
 
 
@@ -3174,6 +3221,7 @@ function openSheet(html){$('sheet').innerHTML='<div class="grab"></div>'+html;$(
 function closeSheet(){$('sheet').classList.add('hide');$('ov').classList.add('hide');if(TAB==='add'&&LBADD_DIRTY){LBADD_DIRTY=false;renderAdd();}}
 let LBADD_DIRTY=false;
 $('ov').onclick=closeSheet;
+document.addEventListener('click',e=>{if(!e.target.closest('.ywmenu,.ywdots')){const m=$('ywRowM');if(m)m.remove();const t=$('adTopM');if(t)t.classList.add('hide');}});
 
 let FTAB='lp',DRAFT=null;
 function filterSheet(){DRAFT=JSON.parse(JSON.stringify(FILT[TAB]));FTAB='basic';drawFilter();}
