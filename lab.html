@@ -110,7 +110,8 @@ input[type=text],input[type=password]{width:100%;background:var(--bg2);color:var
 // 3) keep real trades: profit, ROI, buy size, hold time; drop bots, devs, pools, exchanges
 // 4) wallets that are top earners in several different winners AND profitable over their whole history = smart
 // 5) Helius finds who funded them (same funder = maybe one person)
-const LAB_V=9;   // bump on every Lab change: old saved results are cleared and phones reload the new page
+const LAB_V=10;
+const AUTO=/[?&]auto=1/.test(location.search);   // opened from Holder Scan's leaderboard: run at once, then go back   // bump on every Lab change: old saved results are cleared and phones reload the new page
 const $=id=>document.getElementById(id);
 const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v);}catch(e){return d;}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true;}catch(e){return false;}}};
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -380,7 +381,8 @@ async function run(){
     }
     Object.assign(R,{v:LAB_V,cfg:{...CFG},at:Date.now(),total:G.total,checked,failed:wins.filter(x=>!x.top).length});
     RES=R;if(!await IDB.set('last',R))log('This browser can\'t keep results (private tab?) — download your wallets before closing the Lab');
-    prog(1,STOP?'Stopped — showing what was finished':'Done');TAB='wallets';show();setTimeout(()=>$('results').scrollIntoView({behavior:'smooth'}),200);
+    prog(1,STOP?'Stopped — showing what was finished':'Done');TAB='wallets';show();
+    if(AUTO&&!STOP)backToApp();setTimeout(()=>$('results').scrollIntoView({behavior:'smooth'}),200);
   }catch(e){prog(1,'⚠ '+e.message);log('⚠ '+e.message);}
   try{lock&&lock.release();}catch(e){}
   RUNNING=false;$('runBtn').disabled=!!cfgError();$('stopBtn').classList.add('hide');$('stopBtn').textContent='Stop';
@@ -502,10 +504,15 @@ $('runBtn').onclick=run;
 $('stopBtn').onclick=()=>{STOP=true;$('stopBtn').textContent='Stopping…';};
 IDB.get('last').then(r=>{if(r&&r.v===LAB_V&&!RES){RES=r;show();}});   // last run, from IndexedDB
 drawKeys();drawCfg();drawCount();show();
+function backToApp(){const n=$('progTxt');let t=3;const tick=()=>{if(!AUTO_GO)return;n.innerHTML=`Done ✓ — back to Holder Scan in ${t}s · <a href="#" id="stay">stay here</a>`;const s=$('stay');if(s)s.onclick=e=>{e.preventDefault();AUTO_GO=false;n.textContent='Done';};
+  if(t--<=0){location.href='./';return;}setTimeout(tick,1000);};tick();}
+let AUTO_GO=true;
+if(AUTO){try{history.replaceState(null,'','./lab.html');}catch(e){}
+  setTimeout(()=>{if(cfgError()){prog(1,'⚠ '+cfgError());return;}if(!KEYS.st){prog(1,'⚠ Add your Solana Tracker key, then tap Run');return;}run();},400);}
 $('labV').textContent='v'+LAB_V;
 // phones keep an old copy of this page for a while: check the live page and reload once if it's newer
 (async()=>{try{const t=await (await fetch('./lab.html?check='+Date.now(),{cache:'no-store'})).text();const m=t.match(/const LAB_V=(\d+)/);
-  if(m&&+m[1]>LAB_V&&sessionStorage.getItem('hslab_rl')!==m[1]){sessionStorage.setItem('hslab_rl',m[1]);location.replace('./lab.html?v='+m[1]);}}catch(e){}})();
+  if(m&&+m[1]>LAB_V&&sessionStorage.getItem('hslab_rl')!==m[1]){sessionStorage.setItem('hslab_rl',m[1]);location.replace('./lab.html?v='+m[1]+(AUTO?'&auto=1':''));}}catch(e){}})();
 </script>
 </body>
 </html>

@@ -366,6 +366,13 @@ html{transition:background .2s}
 .lbn{width:22px;text-align:right;font-size:11px;color:var(--mut);font-weight:700}.lbm{flex:1;min-width:0}.lbm b{font-size:13.5px}.lbm .note a{color:var(--mut);text-decoration:none}
 .lbs{display:flex;flex-wrap:wrap;gap:8px;font-size:11.5px;font-weight:700;color:var(--txt2);margin-top:2px}
 .lbadd{flex:0 0 auto;background:var(--acc);color:#fff;border:0;border-radius:10px;padding:7px 10px;font-weight:800;font-size:12px}.lbok{flex:0 0 auto;font-size:12px;font-weight:800;color:var(--good)}
+.lbl2{font-size:11.5px;color:var(--mut);margin:0 0 3px 2px}.lbg2{display:grid;grid-template-columns:1fr 1fr;gap:6px}.lbg2 select,#lbSrcSel{padding:8px;font-size:13px;background:var(--bg2)}
+.lbscan{margin-top:8px;background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:10px}.lbsh{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
+.lbfb{display:flex;justify-content:space-between;align-items:center;width:100%;margin-top:8px;background:var(--chip);color:var(--txt);border:1px solid var(--line2);border-radius:10px;padding:9px 12px;font-size:13.5px;font-weight:600}
+.lbchips{display:flex;flex-wrap:wrap;gap:4px;margin:6px 0 2px}.lbchips span{font-size:11px;padding:2px 7px;border-radius:6px;background:rgba(124,156,255,.13);color:var(--acc)}
+.lbfp{margin-top:6px;background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:4px 10px 10px}.lbgh{display:flex;justify-content:space-between;padding:9px 0;font-size:12.5px;color:var(--mut);font-weight:600;border-bottom:1px solid var(--line)}
+.lbfr{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px}.lbfi{width:92px;padding:6px 8px;text-align:center;font-size:13px}.lbfs{width:118px;padding:6px 8px;font-size:13px}
+.lbfa{display:flex;gap:8px;margin-top:10px}.lbfa .btn{flex:1;margin:0}
 .lbr.isbot{opacity:.55}
 .wsetup{margin-top:10px;background:var(--bg);border-radius:12px;padding:8px 10px}.wsetup summary{cursor:pointer}.wsetup ol{margin:8px 0 6px;padding-left:20px;font-size:13px;line-height:1.5}.wsetup li{margin:4px 0}.wsetup a{color:var(--acc)}
 .hsxdemo{display:inline-block;background:#6d5dfc;color:#fff;border-radius:6px;padding:0 5px}
@@ -687,7 +694,7 @@ function median(a){if(!a.length)return null;const s=[...a].sort((x,y)=>x-y),m=s.
 const STORE_FREE=[/^hslab_(c_|grad|last|f_)/,/^hs_wc$/,/^hs_img$/,/^hs_xav$/,/^hs_kev$/,/^hs_devh$/];   // all re-fetched automatically
 const STORE_MUST=/^hs_(kol|kolx|smart|key|stkey|bekey|hook|set|plan|fav)$/;                             // your own data
 let storeWarned=0;
-const APP_V=75;   // shown in the status card — bump together with sw.js
+const APP_V=76;   // shown in the status card — bump together with sw.js
 const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v);}catch(e){return d;}},
   set(k,v){let j;try{j=JSON.stringify(v);}catch(e){return false;}
     try{localStorage.setItem(k,j);return true;}catch(e){}
@@ -1826,102 +1833,224 @@ function importLeaderSheet(){
 
 // ================= 🏆 Leaderboard browser: see the top traders, tap ＋ to add =================
 let STKEY=store.get('hs_stkey','');
-const LBS=[['axiom','⚡ Axiom traders','Solana Tracker · live · free key'],['st','🌐 All Solana traders','Solana Tracker · live · free key'],['birdeye','🦅 Birdeye top','Birdeye · live · your key'],['gmgn','🟢 GMGN','GMGN snapshot · free'],['kolscan','👑 Kolscan KOLs','Kolscan snapshot · free']];
-let LBB={src:'axiom',per:'7d',sort:'pnl',hideBots:true,as:'auto',...store.get('hs_lbb',{})};LBB.rows=[];LBB.more=null;LBB.err='';LBB.asOf=0;LBB.loading=false;
-const saveLBB=()=>{const{src,per,sort,hideBots,as}=LBB;store.set('hs_lbb',{src,per,sort,hideBots,as});};
+const LBS=[['axiom','⚡ Axiom traders','Solana Tracker'],['st','🌐 All Solana traders','Solana Tracker'],['pf','🟢 Pump.fun winners','Winner Lab'],['birdeye','🦅 Birdeye top','your key'],['gmgn','🟢 GMGN','snapshot'],['kolscan','👑 Kolscan KOLs','snapshot']];
+// ---- filters: each source shows only what its data supports. 0 / empty = off ----
+const lbGrp=s=>s==='axiom'||s==='st'?'st':s==='pf'?'pf':s==='birdeye'?'be':s==='gmgn'?'gm':'ks';
+const LB_PRE={
+  st:{consistent:['🎯 Consistent',{wr:55,roi:20,days:10,closed:20,one:40,inv:500,buyMin:50,buyMax:2000,tpd:100,last:3,pdays:50,xOnly:0,bots:1,tracked:1}],
+      copy:['🐟 Copyable size',{wr:0,roi:0,days:3,closed:0,one:0,inv:0,buyMin:50,buyMax:1000,tpd:50,last:3,pdays:0,xOnly:0,bots:1,tracked:1}],
+      hot:['🔥 Hot this week',{wr:0,roi:0,days:0,closed:0,one:0,inv:0,buyMin:0,buyMax:0,tpd:100,last:1,pdays:0,xOnly:0,bots:1,tracked:1},{per:'7d',sort:'roi'}],
+      whales:['🐋 Whales',{wr:0,roi:0,days:0,closed:0,one:0,inv:0,buyMin:5000,buyMax:0,tpd:0,last:7,pdays:0,xOnly:0,bots:1,tracked:1},{sort:'pnl'}]},
+  pf:{repeat:['🧠 Repeat winners',{minWin:2,pnl:1000,roi:3,life:0,buyMin:50,buyMax:5000,hold:10,style:'all',pre:'any',fresh:1,tracked:1},{sort:'wins'}],
+      curve:['📈 Curve buyers',{minWin:1,pnl:500,roi:2,life:0,buyMin:50,buyMax:5000,hold:10,style:'curve',pre:'yes',fresh:1,tracked:1},{sort:'pnl'}],
+      momentum:['🚀 Momentum',{minWin:1,pnl:500,roi:2,life:0,buyMin:50,buyMax:0,hold:60,style:'momentum',pre:'any',fresh:1,tracked:1},{sort:'pnl'}],
+      big:['💰 Big single hits',{minWin:1,pnl:20000,roi:2,life:0,buyMin:0,buyMax:0,hold:0,style:'all',pre:'any',fresh:1,tracked:1},{sort:'pnl'}]},
+  be:{},gm:{},ks:{}};
+const LB_DEF={be:{pnl:10000,tMin:10,tMax:2000,tracked:1},gm:{pnl:5000,wr:50,tMin:10,tMax:1500,last:3,tpd:100,xOnly:0,bots:1,tracked:1},ks:{pnl:50,wr:50,tMin:10,tMax:1000,xOnly:1,tracked:1}};
+// field: [label, kind, group]  kind: n = number box, $ = money box, % , x = multiple, d = days, sel:a,b,c , tog
+const LB_F={
+  st:[['wr','Win rate at least','%','Performance (Solana Tracker)'],['roi','ROI at least','%','Performance (Solana Tracker)'],['days','Active days at least','n','Performance (Solana Tracker)'],['closed','Closed coins at least','n','Performance (Solana Tracker)'],['one','Max profit from one coin','%','Performance (Solana Tracker)'],['inv','Invested at least','$','Performance (Solana Tracker)'],
+      ['buyMin','Average buy from','$','Trading style'],['buyMax','Average buy up to','$','Trading style'],['tpd','Trades per day at most','n','Trading style'],['pdays','Profitable days at least','%','Trading style'],
+      ['last','Last trade within (days)','sel:0,1,3,7','Activity and type'],['xOnly','Only with X handle','tog','Activity and type'],['bots','Hide bots','tog','Activity and type'],['tracked','Hide already tracked','tog','Activity and type']],
+  pf:[['minWin','Top earner in at least (winners)','sel:1,2,3,4','Results'],['pnl','Profit on winners at least','$','Results'],['roi','ROI at least','x','Results'],['life','Lifetime profit at least','$','Results'],
+      ['buyMin','Buy per coin from','$','Trading style'],['buyMax','Buy per coin up to','$','Trading style'],['hold','Held at least (min)','n','Trading style'],['style','Style','sel:all,sniper,curve,momentum','Trading style'],['pre','Bought before migration','sel:any,yes','Trading style'],
+      ['fresh','Hide fresh wallets (1–3 coins ever)','tog','Type'],['tracked','Hide already tracked','tog','Type']],
+  be:[['pnl','Profit at least','$','Filters'],['tMin','Trades from','n','Filters'],['tMax','Trades up to','n','Filters'],['tracked','Hide already tracked','tog','Filters']],
+  gm:[['pnl','Profit at least','$','Performance'],['wr','Win rate at least','%','Performance'],['tMin','Trades from','n','Performance'],['tMax','Trades up to','n','Performance'],
+      ['last','Last trade within (days)','sel:0,1,3,7','Activity and type'],['tpd','Trades per day at most','n','Activity and type'],['xOnly','Only with X handle','tog','Activity and type'],['bots','Hide bots','tog','Activity and type'],['tracked','Hide already tracked','tog','Activity and type']],
+  ks:[['pnl','Profit at least (SOL)','n','Filters'],['wr','Win rate at least','%','Filters'],['tMin','Trades from','n','Filters'],['tMax','Trades up to','n','Filters'],['xOnly','Only with X handle','tog','Filters'],['tracked','Hide already tracked','tog','Filters']]};
+const LB_SRVF=['wr','roi','days','closed','one','inv'];   // Solana Tracker applies these itself (changing them reloads)
+let LBB={src:'axiom',per:'7d',sort:'pnl',as:'auto',pre:{st:'consistent',pf:'repeat'},f:{},...store.get('hs_lbb',{})};
+if(!LBB.pre)LBB.pre={st:'consistent',pf:'repeat'};if(!LBB.f)LBB.f={};
+['st','pf'].forEach(g=>{if(!LBB.f[g])LBB.f[g]={...LB_PRE[g][LBB.pre[g]||Object.keys(LB_PRE[g])[0]][1]};});
+['be','gm','ks'].forEach(g=>{if(!LBB.f[g])LBB.f[g]={...LB_DEF[g]};});
+if(LBB.hideBots===false){LBB.f.st.bots=0;LBB.f.gm.bots=0;}delete LBB.hideBots;
+LBB.rows=[];LBB.more=null;LBB.err='';LBB.asOf=0;LBB.loading=false;
+const saveLBB=()=>{const{src,per,sort,as,pre,f}=LBB;store.set('hs_lbb',{src,per,sort,as,pre,f});};
+const lbF=()=>LBB.f[lbGrp(LBB.src)];
 const xHandle=v=>typeof v==='string'?v.replace(/^https?:\/\/(www\.)?(x|twitter)\.com\//i,'').replace(/^@+/,'').split(/[/?#]/)[0].replace(/[^A-Za-z0-9_]/g,'').slice(0,15):'';
 const lbBot=(tags,extra)=>!!extra||(tags||[]).some(t=>BOT_RX.test(String(t)));
 async function stGet(path){
   let r;try{r=await fetch('https://data.solanatracker.io'+path,{headers:{'x-api-key':STKEY,accept:'application/json'}});}catch(e){throw new Error('Solana Tracker could not be reached from the browser');}
   if(r.status===401||r.status===403)throw new Error('Solana Tracker rejected the key');if(r.status===429)throw new Error('Solana Tracker limit reached (free plan: 2,500 calls a month, 3 per second)');if(!r.ok)throw new Error('Solana Tracker HTTP '+r.status);return r.json();
 }
+// Winner Lab results live in IndexedDB on this same site (written by lab.html)
+function labRead(){return new Promise(res=>{try{const q=indexedDB.open('hslab',1);q.onupgradeneeded=()=>{try{q.result.createObjectStore('kv');}catch(e){}};
+  q.onsuccess=()=>{try{const g=q.result.transaction('kv').objectStore('kv').get('last');g.onsuccess=()=>res(g.result||null);g.onerror=()=>res(null);}catch(e){res(null);}};q.onerror=()=>res(null);}catch(e){res(null);}});}
 async function lbLoad(more){
   if(LBB.loading)return;LBB.loading=true;LBB.err='';if(!more){LBB.rows=[];LBB.more=null;LBB.asOf=0;}lbDraw();
-  const days={'1d':1,'7d':7,'30d':30}[LBB.per]||7,have=new Set(LBB.rows.map(r=>r.w));
+  const days={'1d':1,'7d':7,'30d':30,'90d':90}[LBB.per]||7,have=new Set(LBB.rows.map(r=>r.w));
   try{
     if(LBB.src==='axiom'||LBB.src==='st'){
-      if(!STKEY)throw new Error('Paste your free Solana Tracker key below to load this list');
-      const sort={pnl:'realized',wr:'win_percentage',roi:'roi',trades:'trades'}[LBB.sort]||'realized';
-      const j=await stGet(`/v2/pnl/leaderboard/top?limit=100&days=${days}&sort=${sort}&direction=desc&excludeArbitrage=true&minTrades=10${LBB.src==='axiom'?'&platform=axiom,axiom-flash':''}${more&&LBB.more?'&cursor='+encodeURIComponent(LBB.more):''}`);
+      if(!STKEY)throw new Error('Paste your free Solana Tracker key above to load this list');
+      const sort={pnl:'realized',wr:'win_percentage',roi:'roi',trades:'trades',vol:'volume',days:'days',coins:'tokens'}[LBB.sort]||'realized',f=LBB.f.st;
+      const q=[['minWinRate',f.wr],['minRoi',f.roi],['minDays',f.days],['minClosedTokens',f.closed],['maxSingleTokenPct',f.one],['minInvested',f.inv]].filter(([,v])=>+v>0).map(([k,v])=>`&${k}=${+v}`).join('');
+      const j=await stGet(`/v2/pnl/leaderboard/top?limit=100&days=${days}&sort=${sort}&direction=desc&excludeArbitrage=true&minTrades=10${q}${LBB.src==='axiom'?'&platform=axiom,axiom-flash':''}${more&&LBB.more?'&cursor='+encodeURIComponent(LBB.more):''}`);
       (j?.traders||[]).forEach(t=>{const id=t.identity||{},w=t.wallet;if(!w||!B58.test(w)||have.has(w))return;have.add(w);let last=t.timing?.lastTrade||null;if(last&&last>1e12)last/=1000;
         let wr=t.winRate??t.period?.days?.winRate??null;if(wr!=null&&wr<=1.0001)wr*=100;let roi=t.period?.roi??null;
-        LBB.rows.push({w,src:LBB.src,name:String(id.name||'').slice(0,40),x:xHandle(id.twitter),av:id.avatar||'',pnl:t.period?.realized??t.ending?.pnl?.realized??null,cur:'$',wr,roi,trades:t.counts?.trades??null,last,
+        const p=t.period||{},pd=p.days||{},td=p.tradingDays??null,real=p.realized??t.ending?.pnl?.realized??null,trades=t.counts?.trades??null;
+        LBB.rows.push({w,src:LBB.src,name:String(id.name||'').slice(0,40),x:xHandle(id.twitter),av:id.avatar||'',pnl:real,cur:'$',wr,roi,trades,last,
+          days:td,avgBuy:t.averages?.buy??null,one:real>0&&pd.maxSinglePnl!=null?pd.maxSinglePnl/real*100:null,closed:t.tokens?.closed??null,
+          pdays:(pd.profitable||0)+(pd.losing||0)?pd.profitable/(pd.profitable+pd.losing)*100:null,tpd:td&&trades!=null?trades/td:null,
           tags:[...(id.tags||[]),id.type||''],bot:lbBot(id.tags,id.bot?.name||id.exchange?.name||id.pool?.program||id.hacker?.label||id.spamDusting?.label||/bot|mev|arb/i.test(id.type||''))});});
       LBB.more=j?.pagination?.hasMore?j.pagination.nextCursor:null;
+    }else if(LBB.src==='pf'){
+      const R=await labRead();LBB.lab=R?{at:R.at,coins:(R.coins||[]).length,wallets:(R.wallets||[]).length,cfg:R.cfg||null}:null;
+      if(!R||!Array.isArray(R.wallets))throw new Error('No Winner Lab results yet — tap ↻ Scan to find top earners on recent pump.fun winners.');
+      LBB.rows=R.wallets.map(o=>({w:o.w,src:'pf',name:String(o.name||'').slice(0,40),x:xHandle(o.tw||''),av:'',pnl:o.pnl,cur:'$',wr:null,roi:o.roi,trades:null,last:null,
+        wins:o.n,coins:o.coins||[],life:o.lt,style:o.style||'',medMc:o.medMc,hold:o.medHold,pre:o.pre||0,preK:o.preK||0,tt:o.tt,avgBuy:o.n?o.inv/o.n:null,tags:[],bot:false}));
     }else if(LBB.src==='birdeye'){
-      if(!BEKEY)throw new Error('Paste your Birdeye key below to load this list');
-      const off=more?LBB.rows.length:0,type={'1d':'today','7d':'1W','30d':'30d'}[LBB.per];
+      if(!BEKEY)throw new Error('Paste your Birdeye key above to load this list');
+      const off=more?LBB.rows.length:0,type={'1d':'today','7d':'1W','30d':'30d'}[LBB.per]||'1W';
       const j=await beGet(`/trader/gainers-losers?type=${type}&sort_by=${LBB.sort==='rpnl'?'realized_pnl':'PnL'}&sort_type=desc&offset=${off}&limit=100`);
       const it=j?.data?.items||[];it.forEach(t=>{if(!t.address||!B58.test(t.address)||have.has(t.address))return;have.add(t.address);LBB.rows.push({w:t.address,src:'birdeye',name:'',x:'',av:'',pnl:pick(t,'pnl','realized_pnl'),cur:'$',wr:null,roi:null,trades:pick(t,'trade_count'),last:null,tags:[],bot:false});});
       LBB.more=it.length>=100&&off<900?1:null;
     }else{
       if(!LBB.all){
-        if(LBB.src==='gmgn'){const per=LBB.per;LBB.all=collectWallets(await lbFetch(LB_GMGN)).map(o=>{const r=lbRow(o,'gmgn',per);return{w:r.w,src:'gmgn',name:r.name,x:r.x,av:r.av,pnl:r.profit,cur:'$',wr:r.wr,roi:null,trades:r.trades,last:r.last,tags:[...r.cats,...r.tags],bot:lbBot([...r.cats,...r.tags],r.tpd!=null&&r.tpd>300||r.hold!=null&&r.hold<60)};});}
+        const per=LBB.per==='90d'?'30d':LBB.per;
+        if(LBB.src==='gmgn'){LBB.all=collectWallets(await lbFetch(LB_GMGN)).map(o=>{const r=lbRow(o,'gmgn',per);return{w:r.w,src:'gmgn',name:r.name,x:r.x,av:r.av,pnl:r.profit,cur:'$',wr:r.wr,roi:null,trades:r.trades,last:r.last,tpd:r.tpd,tags:[...r.cats,...r.tags],bot:lbBot([...r.cats,...r.tags],r.tpd!=null&&r.tpd>300||r.hold!=null&&r.hold<60)};});}
         else{const j=await lbFetch(LB_KOLSCAN),arr=Array.isArray(j)?j:collectWallets(j).map(o=>o.raw),tf=days,has=arr.some(e=>+e.timeframe===tf);
           const by={};arr.filter(e=>!has||+e.timeframe===tf).forEach(e=>{const w=e.wallet_address||e.address||e.wallet;if(!w||!B58.test(w))return;const wn=+e.wins||0,ls=+e.losses||0;
             by[w]={w,src:'kolscan',name:String(e.name||'').slice(0,40),x:xHandle(e.twitter),av:'',pnl:e.profit!=null?+e.profit:null,cur:'SOL',wr:wn+ls?wn/(wn+ls)*100:null,roi:null,trades:wn+ls||null,last:null,tags:[],bot:false};});
           LBB.all=Object.values(by);}
         LBB.asOf=Math.max(0,...LBB.all.map(r=>r.last||0));
       }
-      const k={pnl:'pnl',wr:'wr',roi:'pnl',trades:'trades'}[LBB.sort]||'pnl';
-      LBB.rows=LBB.all.slice().sort((a,b)=>(b[k]??-1e18)-(a[k]??-1e18));LBB.more=null;
+      LBB.rows=LBB.all.slice();LBB.more=null;
     }
   }catch(e){LBB.err=e.message;}
   LBB.loading=false;lbDraw();
 }
+// ---- app-side filters (what the source didn't filter itself) + sort ----
+function lbPass(r){
+  const g=lbGrp(r.src),f=LBB.f[g],now=Date.now()/1000,tr=!!(KOL[r.w]||SMART[r.w]);
+  if(f.tracked&&tr&&!LBADD_SEEN.has(r.w))return false;
+  if(f.bots&&r.bot)return false;if(f.xOnly&&!r.x)return false;
+  if(+f.last>0&&r.last&&now-r.last>f.last*86400)return false;if(+f.last>0&&!r.last&&g==='gm')return false;
+  if(+f.tpd>0&&r.tpd!=null&&r.tpd>f.tpd)return false;
+  if(g==='st'){if(+f.buyMin>0&&(r.avgBuy==null||r.avgBuy<f.buyMin))return false;if(+f.buyMax>0&&r.avgBuy!=null&&r.avgBuy>f.buyMax)return false;if(+f.pdays>0&&r.pdays!=null&&r.pdays<f.pdays)return false;return true;}
+  if(g==='pf'){if((r.wins||0)<(+f.minWin||1))return false;if(+f.pnl>0&&(r.pnl||0)<f.pnl)return false;if(+f.roi>0&&(r.roi==null||r.roi<f.roi))return false;
+    if(f.life!==''&&f.life!=null&&r.life!=null&&r.life<+f.life)return false;if(+f.buyMin>0&&(r.avgBuy||0)<f.buyMin)return false;if(+f.buyMax>0&&(r.avgBuy||0)>f.buyMax)return false;
+    if(+f.hold>0&&r.hold!=null&&r.hold<f.hold*60)return false;if(f.style&&f.style!=='all'&&r.style!==f.style)return false;if(f.pre==='yes'&&!r.pre)return false;if(f.fresh&&r.tt!=null&&r.tt<=3)return false;return true;}
+  if(+f.pnl>0&&(r.pnl==null||r.pnl<f.pnl))return false;if(+f.wr>0&&(r.wr==null||r.wr<f.wr))return false;
+  if(+f.tMin>0&&(r.trades==null||r.trades<f.tMin))return false;if(+f.tMax>0&&r.trades!=null&&r.trades>f.tMax)return false;
+  return true;
+}
+const LBADD_SEEN=new Set();   // added during this visit: stay visible (with ✓) even with "Hide already tracked"
+function lbShown(){
+  const rows=LBB.rows.filter(lbPass),k=LBB.sort;
+  if(LBB.src==='pf'){const v={wins:r=>(r.wins||0)*1e9+(r.pnl||0),pnl:r=>r.pnl||0,roi:r=>r.roi||0,life:r=>r.life??-1e15,early:r=>-(r.medMc??1e15)}[k]||(r=>r.pnl||0);return rows.sort((a,b)=>v(b)-v(a));}
+  if(LBB.src==='gmgn'||LBB.src==='kolscan'){const key={pnl:'pnl',wr:'wr',trades:'trades'}[k]||'pnl';return rows.sort((a,b)=>(b[key]??-1e18)-(a[key]??-1e18));}
+  return rows;
+}
 function lbAdd(r){
-  if(KOL[r.w]||SMART[r.w])return false;const asK=LBB.as!=='smart'&&!!r.x,lbl=LBS.find(x=>x[0]===r.src)?.[1].replace(/^\S+\s/,'')||r.src;
+  if(KOL[r.w]||SMART[r.w])return false;const asK=LBB.as!=='smart'&&!!r.x;
   if(asK){KOL[r.w]=r.name||r.x;KOLX[r.w]=r.x;KACT[r.w]={t:0,last:r.last||0};}
   else{SMART[r.w]={t:Date.now(),src:r.src,...(r.name?{n:r.name}:{}),...(r.x?{x:r.x}:{}),lb:{src:r.src,per:LBB.per,wr:r.wr,profit:r.pnl,trades:r.trades,t:Date.now()}};}
   if(r.x&&r.av&&typeof XAVH[xavKey(r.x)]!=='string'){XAVH[xavKey(r.x)]=r.av;avSave();}
-  LBADD.add(r.w);clearTimeout(lbAddT);lbAddT=setTimeout(lbFlush,900);return asK?'kol':'smart';
+  LBADD_SEEN.add(r.w);LBADD.add(r.w);clearTimeout(lbAddT);lbAddT=setTimeout(lbFlush,900);return asK?'kol':'smart';
 }
 const LBADD=new Set();let lbAddT=null;
 function lbFlush(){LBADD_DIRTY=true;store.set('hs_kol',KOL);store.set('hs_kolx',KOLX);store.set('hs_kact',KACT);saveSmart();liveResync();const ws=[...LBADD];LBADD.clear();
   if(ws.length)trackPoll(ws.length<=150?{list:ws,user:true}:{});$('c-kol').textContent=Object.keys(KOL).length||'';$('c-sw').textContent=Object.keys(SMART).filter(w=>!KOL[w]).length||'';$('c-al').textContent=(Object.keys(KOL).length+Object.keys(SMART).filter(w=>!KOL[w]).length)||'';}
-const lbShown=()=>LBB.rows.filter(r=>!(LBB.hideBots&&r.bot));
+const STY_LB={sniper:'🎯 Sniper',curve:'📈 Curve buyer',momentum:'🚀 Momentum'};
 function lbRowHTML(r,i){
   const added=KOL[r.w]?'kol':SMART[r.w]?'smart':null,ini=esc((r.name||r.x||r.w).replace(/[^A-Za-z0-9]/g,'').slice(0,2).toUpperCase()||'?');
   const pic=r.av?`<img src="${esc(r.av)}" loading="lazy" alt="" onerror="this.outerHTML='${ini}'">`:xImg(r.x,ini);
-  const pn=r.pnl==null?'':r.cur==='SOL'?`${SOLI}${num(r.pnl,1)}`:usd(r.pnl);
+  const pn=r.pnl==null?'':r.cur==='SOL'?`${SOLI}${num(r.pnl,1)}`:usd(Math.abs(r.pnl));
+  let st;
+  if(r.src==='pf')st=`<div class="lbs"><span><b class="up">${r.wins}</b> winner${r.wins>1?'s':''}</span>${pn?`<span class="${r.pnl>=0?'up':'dn'}">${r.pnl>=0?'+':'-'}${pn}</span>`:''}${r.roi!=null?`<span>${num(r.roi,1)}×</span>`:''}${r.medMc!=null?`<span>entry ${usd(r.medMc)}</span>`:''}${r.hold!=null?`<span>held ${r.hold<3600?Math.round(r.hold/60)+'m':(r.hold/3600).toFixed(1)+'h'}</span>`:''}${r.life!=null?`<span class="${r.life>=0?'up':'dn'}">life ${r.life>=0?'+':'-'}${usd(Math.abs(r.life))}</span>`:''}</div>
+     <div class="note">${(r.coins||[]).slice(0,3).map(c=>esc(c.sym?'$'+c.sym:short(c.m))+' '+(c.pnl>=0?'+':'-')+usd(Math.abs(c.pnl))).join(' · ')}${r.coins&&r.coins.length>3?' · +'+(r.coins.length-3):''}</div>`;
+  else st=`<div class="lbs">${pn?`<span class="${r.pnl>=0?'up':'dn'}">${r.pnl>=0?'+':'-'}${pn}</span>`:''}${r.wr!=null?`<span>WR ${num(r.wr,0)}%</span>`:''}${r.roi!=null?`<span>ROI ${num(r.roi,0)}%</span>`:''}${r.days!=null?`<span>${r.days} days</span>`:''}${r.trades!=null?`<span>${num(r.trades,0)} trades</span>`:''}</div>
+     ${r.avgBuy!=null||r.one!=null||r.last?`<div class="note">${r.avgBuy!=null?'avg buy '+usd(r.avgBuy):''}${r.one!=null?' · '+Math.round(r.one)+'% from one coin':''}${r.last?' · last trade '+ago(r.last):''}</div>`:''}`;
   return `<div class="lbr ${r.bot?'isbot':''}"><span class="lbn">${i+1}</span><div class="wav">${pic}</div>
-   <div class="lbm"><b>${esc(r.name||(r.x?'@'+r.x:short(r.w)))}</b>${r.bot?' <span class="tg bad">BOT</span>':''}<div class="note">${r.x?'@'+esc(r.x)+' · ':''}<a href="https://gmgn.ai/sol/address/${r.w}" target="_blank" rel="noopener">${short(r.w)} ↗</a></div>
-   <div class="lbs">${pn?`<span class="${r.pnl>=0?'up':'dn'}">${r.pnl>=0?'+':''}${pn}</span>`:''}${r.wr!=null?`<span>WR ${num(r.wr,0)}%</span>`:''}${r.roi!=null?`<span>ROI ${num(r.roi,0)}%</span>`:''}${r.trades!=null?`<span>${num(r.trades,0)} trades</span>`:''}</div></div>
+   <div class="lbm"><b>${esc(r.name||(r.x?'@'+r.x:short(r.w)))}</b>${r.bot?' <span class="tg bad">BOT</span>':''}${r.style?` <span class="tg">${STY_LB[r.style]||r.style}</span>`:''}${r.tt!=null&&r.tt<=3?' <span class="tg wn">🆕 fresh</span>':''}<div class="note">${r.x?'@'+esc(r.x)+' · ':''}<a href="https://gmgn.ai/sol/address/${r.w}" target="_blank" rel="noopener">${short(r.w)} ↗</a></div>
+   ${st}</div>
    ${added?`<span class="lbok">✓ ${added==='kol'?'KOL':'Smart'}</span>`:`<button class="lbadd" data-la="${r.w}">＋ ${LBB.as!=='smart'&&r.x?'KOL':'Smart'}</button>`}</div>`;
 }
 function lbDraw(){
   const el=$('lbList');if(!el)return;const rows=lbShown(),nNew=rows.filter(r=>!KOL[r.w]&&!SMART[r.w]).length,src=LBS.find(x=>x[0]===LBB.src);
   const snap=LBB.src==='gmgn'||LBB.src==='kolscan';
-  el.innerHTML=`${LBB.err?`<div class="note bad" style="margin:8px 0">⚠ ${esc(LBB.err)}</div>`:''}
-   ${snap&&LBB.rows.length?`<div class="note" style="margin:6px 0">📦 Saved snapshot of the ${src[1].replace(/^\S+\s/,'')} leaderboard${LBB.asOf?' · data up to '+new Date(LBB.asOf*1000).toLocaleDateString():''} — not live. For live rankings use Axiom / Solana Tracker or Birdeye.</div>`:''}
-   ${rows.length?`<div class="selbar"><span class="note">${rows.length} shown${LBB.rows.length-rows.length?` · ${LBB.rows.length-rows.length} bots hidden`:''}</span><button class="pr" id="lbAll" ${nNew?'':'disabled'}>＋ Add all ${nNew} shown</button></div>`:''}
-   ${rows.slice(0,400).map(lbRowHTML).join('')}
-   ${LBB.loading?'<div class="skel"></div><div class="skel"></div>':(!rows.length&&!LBB.err?'<div class="note" style="padding:12px 0">No wallets.</div>':'')}
+  el.innerHTML=`${LBB.err?`<div class="note ${LBB.src==='pf'&&!LBB.lab?'':'bad'}" style="margin:8px 0">${LBB.src==='pf'&&!LBB.lab?'':'⚠ '}${esc(LBB.err)}</div>`:''}
+   ${snap&&LBB.rows.length?`<div class="note" style="margin:6px 0">📦 Saved snapshot of the ${src[1].replace(/^\S+\s/,'')} leaderboard${LBB.asOf?' · data up to '+new Date(LBB.asOf*1000).toLocaleDateString():''} — not live.</div>`:''}
+   ${LBB.rows.length?`<div class="selbar"><span class="note"><b>${rows.length}</b> of ${LBB.rows.length.toLocaleString()} match</span><button class="pr" id="lbAll" ${nNew?'':'disabled'}>＋ Add all ${nNew}</button></div>`:''}
+   ${rows.slice(0,LBB.show||200).map(lbRowHTML).join('')}
+   ${rows.length>(LBB.show||200)?`<button class="btn gh" id="lbShowMore" style="margin-top:8px">Show 200 more · ${rows.length-(LBB.show||200)} left</button>`:''}
+   ${LBB.loading?'<div class="skel"></div><div class="skel"></div>':(LBB.rows.length&&!rows.length?'<div class="note" style="padding:12px 0">No wallet matches these filters — loosen them in ⚙ Filters.</div>':(!LBB.rows.length&&!LBB.err?'<div class="note" style="padding:12px 0">No wallets.</div>':''))}
    ${LBB.more&&!LBB.loading?'<button class="btn gh" id="lbMore" style="margin-top:8px">Load 100 more</button>':''}`;
   el.querySelectorAll('[data-la]').forEach(b=>b.onclick=()=>{const r=LBB.rows.find(x=>x.w===b.dataset.la);if(!r)return;const t=lbAdd(r);if(t)b.outerHTML=`<span class="lbok">✓ ${t==='kol'?'KOL':'Smart'}</span>`;});
   armBtn($('lbAll'),()=>{let k=0,sm=0;lbShown().forEach(r=>{const t=lbAdd(r);if(t==='kol')k++;else if(t)sm++;});toast(`Added 👑 ${k} KOL · 🧠 ${sm} smart`);lbDraw();});
   if($('lbMore'))$('lbMore').onclick=()=>lbLoad(true);
+  if($('lbShowMore'))$('lbShowMore').onclick=()=>{LBB.show=(LBB.show||200)+200;lbDraw();};
+  const sc=$('lbScanInfo');if(sc)sc.innerHTML=lbScanInfo();
+}
+// ---- settings: compact dropdowns + one folding Filters panel ----
+const lbNum=v=>{const m=String(v??'').trim().toLowerCase().replace(/[$,%×x\s]|sol/g,'').match(/^(-?\d*\.?\d+)([kmb]?)$/);return m?+m[1]*({k:1e3,m:1e6,b:1e9}[m[2]]||1):0;};
+const lbFmt=(v,k)=>!+v?'':k==='$'?(v>=1e6?+(v/1e6).toFixed(2)+'M':v>=1e3?+(v/1e3).toFixed(1)+'K':String(v)):String(v);
+function lbChips(){
+  const g=lbGrp(LBB.src),f=LBB.f[g],o=[],$k=v=>'$'+lbFmt(v,'$'),on=k=>+f[k]>0;
+  if(on('wr'))o.push('WR ≥'+f.wr+'%');if(g==='st'&&on('roi'))o.push('ROI ≥'+f.roi+'%');if(g==='pf'&&on('roi'))o.push('≥'+f.roi+'×');
+  if(on('days'))o.push(f.days+'+ days');if(on('closed'))o.push(f.closed+'+ coins');if(on('one'))o.push('≤'+f.one+'% one coin');if(on('inv'))o.push('inv ≥'+$k(f.inv));
+  if(on('buyMin')||on('buyMax'))o.push('buy '+(on('buyMin')?$k(f.buyMin):'$0')+'–'+(on('buyMax')?$k(f.buyMax):'any'));
+  if(on('tpd'))o.push('≤'+f.tpd+' trades/day');if(on('pdays'))o.push('≥'+f.pdays+'% green days');if(on('last'))o.push('active '+f.last+'d');
+  if(+f.minWin>1)o.push(f.minWin+'+ winners');if(g!=='st'&&on('pnl'))o.push('≥'+(g==='ks'?f.pnl+' SOL':$k(f.pnl)));
+  if(g==='pf'&&f.life!==''&&f.life!=null)o.push('lifetime ≥'+(+f.life<0?'-':'')+$k(Math.abs(+f.life)||0).replace('$','$')+(+f.life===0?'0':''));
+  if(on('hold'))o.push('held '+f.hold+'m+');if(f.style&&f.style!=='all')o.push((STY_LB[f.style]||f.style).replace(/^\S+\s/,'').toLowerCase());if(f.pre==='yes')o.push('pre-migration');
+  if(on('tMin')||on('tMax'))o.push('trades '+(+f.tMin||0)+'–'+(on('tMax')?f.tMax:'any'));
+  if(f.xOnly)o.push('X handle only');if(f.bots)o.push('no bots');if(f.fresh)o.push('no fresh');if(f.tracked)o.push('hide tracked');
+  return o;
+}
+function lbScanInfo(){
+  const L=LBB.lab;if(!L)return'<span class="note">No scan yet</span>';
+  return`<b>Last scan ${ago(L.at/1000)}</b><div class="note">${L.coins} winners · ${L.wallets.toLocaleString()} top earners${L.cfg?` · launched ${L.cfg.d1}–${L.cfg.d2}d · ATH ${usd(L.cfg.wMin)}–${usd(L.cfg.wMax)}`:''}</div>`;
 }
 function lbBrowse(){
-  const chips=(id,cur,opts)=>`<div class="chipsel" id="${id}">${opts.map(([a,b])=>`<button data-v="${a}" class="${cur===a?'on':''}">${b}</button>`).join('')}</div>`;
-  const live=LBB.src==='axiom'||LBB.src==='st';
-  openSheet(`<h3 style="margin:0 0 4px">🏆 Leaderboards</h3>
-   <div class="note">Tap <b>＋</b> to add a wallet straight away. With an X handle → 👑 KOL, without → 🧠 Smart (or add everything as Smart).</div>
-   <div class="lbsrc" id="lbSrc">${LBS.map(([k,l,d])=>`<button data-v="${k}" class="${LBB.src===k?'on':''}"><b>${l}</b><span>${d}</span></button>`).join('')}</div>
+  const g=lbGrp(LBB.src),f=LBB.f[g],pres=LB_PRE[g]||{},live=g==='st',pf=g==='pf';
+  const dd=(id,label,cur,opts)=>`<div><div class="lbl2">${label}</div><select id="${id}">${opts.map(([a,b])=>`<option value="${a}" ${String(cur)===String(a)?'selected':''}>${b}</option>`).join('')}</select></div>`;
+  const pers=LBB.src==='birdeye'||LBB.src==='gmgn'||LBB.src==='kolscan'?[['1d','1 day'],['7d','7 days'],['30d','30 days']]:[['1d','1 day'],['7d','7 days'],['30d','30 days'],['90d','90 days']];
+  const ranks=pf?[['wins','Winners'],['pnl','Profit'],['roi','ROI'],['life','Lifetime'],['early','Earliest entry']]:LBB.src==='birdeye'?[['pnl','Total profit'],['rpnl','Realized profit']]:live?[['pnl','Profit'],['wr','Win rate'],['roi','ROI'],['trades','Trades'],['vol','Volume'],['days','Active days'],['coins','Coins']]:[['pnl','Profit'],['wr','Win rate'],['trades','Trades']];
+  if(!ranks.some(x=>x[0]===LBB.sort))LBB.sort=ranks[0][0];if(!pf&&!pers.some(x=>x[0]===LBB.per))LBB.per='7d';
+  const lc=store.get('hslab_cfg5',{d1:1,d2:15,wMin:3e5,wMax:1e7,n:25,lp:['pump','launchlab','dbc','boop','moon']});
+  const groups=[];LB_F[g].forEach(fd=>{let x=groups.find(y=>y[0]===fd[3]);if(!x)groups.push(x=[fd[3],[]]);x[1].push(fd);});
+  const fld=([k,l,kind])=>kind==='tog'?`<div class="sw"><span>${l}</span><input type="checkbox" data-lf="${k}" ${f[k]?'checked':''}></div>`
+    :kind.startsWith('sel:')?`<div class="lbfr"><span>${l}</span><select data-lf="${k}" class="lbfs">${kind.slice(4).split(',').map(o=>`<option value="${o}" ${String(f[k])===o?'selected':''}>${o==='0'?'any':o==='all'?'all':o==='any'?'any':k==='last'?o+' day'+(o==='1'?'':'s'):k==='style'?STY_LB[o]:k==='minWin'?o+(o==='4'?'+':''):o}</option>`).join('')}</select></div>`
+    :`<div class="lbfr"><span>${l}${live&&LB_SRVF.includes(k)?'':''}</span><input data-lf="${k}" class="lbfi" inputmode="decimal" value="${k==='life'?(f.life===''||f.life==null?'':String(+f.life===0?0:lbFmt(Math.abs(+f.life),'$')).replace(/^/,+f.life<0?'-':'')):kind==='$'?lbFmt(f[k],'$'):(+f[k]?f[k]:'')}" placeholder="off"></div>`;
+  openSheet(`<h3 style="margin:0 0 6px">🏆 Leaderboards</h3>
+   <div class="lbl2">Source</div><select id="lbSrcSel">${LBS.map(([k,l,d])=>`<option value="${k}" ${LBB.src===k?'selected':''}>${l} · ${d}</option>`).join('')}</select>
    ${live?`<input id="lbStKey" type="password" value="${esc(STKEY)}" placeholder="Solana Tracker API key — free at solanatracker.io/data-api" style="margin-top:6px">`:''}
    ${LBB.src==='birdeye'?`<input id="lbBeKey" type="password" value="${esc(BEKEY)}" placeholder="Birdeye API key" style="margin-top:6px">`:''}
-   <div class="rl" style="margin-top:10px">Period</div>${chips('lbP',LBB.per,[['1d','1 day'],['7d','7 days'],['30d','30 days']])}
-   <div class="rl" style="margin-top:10px">Rank by</div>${chips('lbS',LBB.sort,LBB.src==='birdeye'?[['pnl','Total PnL'],['rpnl','Realized PnL']]:[['pnl','Profit'],['wr','Win rate'],...(live?[['roi','ROI']]:[]),['trades','Trades']])}
-   <div class="rl" style="margin-top:10px">Add as</div>${chips('lbAs',LBB.as,[['auto','Auto (handle → KOL)'],['smart','🧠 All as Smart']])}
-   <div class="sw"><span>🤖 Hide bots</span><input type="checkbox" id="lbHb" ${LBB.hideBots?'checked':''}></div>
-   <div class="note">Pump.fun has no public trader leaderboard. Axiom's own site has no public API, so Axiom traders come from Solana Tracker's leaderboard filtered to wallets that trade on Axiom.</div>
+   ${pf?`<div class="lbscan"><div class="lbsh"><div id="lbScanInfo">${lbScanInfo()}</div><button class="pr" id="lbScan">↻ Scan</button></div>
+     <div class="lbg2">${dd('lbsD','Launched',lc.d1+'-'+lc.d2,[['1-7','1–7 days ago'],['1-15','1–15 days ago'],['1-30','1–30 days ago']])}${dd('lbsA','Winner ATH',lc.wMin+'-'+lc.wMax,[['100000-5000000','100K–5M'],['300000-10000000','300K–10M'],['1000000-50000000','1M–50M']])}
+     ${dd('lbsN','Winners to scan',lc.n,[['10','10'],['25','25'],['50','50']])}${dd('lbsL','Launchpads',(lc.lp||[]).length>=4?'all':(lc.lp||[]).join(','),[['pump,launchlab','Pump.fun + Bonk'],['pump','Pump.fun'],['all','All launchpads']])}</div>
+     <div class="note">A scan opens the Winner Lab page, runs there (≈ 80 Solana Tracker calls, cached coins free) and the results show here.</div></div>`:''}
+   <div class="lbg2" style="margin-top:8px">
+     ${Object.keys(pres).length?dd('lbPre','Preset',LBB.pre[g]||'custom',[...Object.entries(pres).map(([k,v])=>[k,v[0]]),['custom','Custom']]):''}
+     ${pf?'':dd('lbPer','Period',LBB.per,pers)}
+     ${dd('lbSort','Rank by',LBB.sort,ranks)}
+     ${dd('lbAs','Add as',LBB.as,[['auto','Auto (handle → KOL)'],['smart','🧠 All as Smart']])}
+   </div>
+   <button class="lbfb" id="lbFb"><span>⚙ Filters · ${lbChips().length} on</span><span id="lbFc">▾</span></button>
+   <div class="lbchips" id="lbChips">${lbChips().map(c=>`<span>${esc(c)}</span>`).join('')}</div>
+   <div class="lbfp hide" id="lbFp">${groups.map(([name,fs],i)=>`<div class="lbgh" data-g="${i}"><span>${name}</span><span>${i===0?'▾':'▸'}</span></div><div class="lbgb ${i===0?'':'hide'}" data-gb="${i}">${fs.map(fld).join('')}</div>`).join('')}
+     <div class="lbfa"><button class="btn gh" id="lbFr">${Object.keys(pres).length?'Reset to preset':'Reset'}</button><button class="btn" id="lbFa">Apply</button></div></div>
    <div id="lbList"></div>`);
-  const on=(id,k,reload)=>$(id).querySelectorAll('button').forEach(b=>b.onclick=()=>{LBB[k]=b.dataset.v;if(k==='src'||k==='per')LBB.all=null;saveLBB();if(k==='src'){lbBrowse();return;}$(id).querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));reload?lbLoad():lbDraw();});
-  on('lbSrc','src',1);on('lbP','per',1);on('lbS','sort',1);on('lbAs','as',0);
-  $('lbHb').onchange=e=>{LBB.hideBots=e.target.checked;saveLBB();lbDraw();};
+  const reopen=()=>{saveLBB();lbBrowse();};
+  $('lbSrcSel').onchange=e=>{LBB.src=e.target.value;LBB.all=null;LBB.show=200;if(LBB.src==='pf')LBB.as='smart';saveLBB();lbBrowse();};
+  if($('lbPer'))$('lbPer').onchange=e=>{LBB.per=e.target.value;LBB.all=null;saveLBB();lbLoad();};
+  $('lbSort').onchange=e=>{LBB.sort=e.target.value;saveLBB();if(live||LBB.src==='birdeye')lbLoad();else lbDraw();};
+  $('lbAs').onchange=e=>{LBB.as=e.target.value;saveLBB();lbDraw();};
+  if($('lbPre'))$('lbPre').onchange=e=>{const k=e.target.value;LBB.pre[g]=k;if(pres[k]){LBB.f[g]={...pres[k][1]};if(pres[k][2])Object.assign(LBB,pres[k][2]);}LBB.all=null;saveLBB();lbBrowse();if(live)lbLoad();else lbDraw();};
+  $('lbFb').onclick=()=>{const p=$('lbFp'),o=p.classList.contains('hide');p.classList.toggle('hide',!o);$('lbFc').textContent=o?'▴':'▾';};
+  $('lbFp').querySelectorAll('[data-g]').forEach(h=>h.onclick=()=>{const b=$('lbFp').querySelector(`[data-gb="${h.dataset.g}"]`),o=b.classList.contains('hide');b.classList.toggle('hide',!o);h.lastElementChild.textContent=o?'▾':'▸';});
+  $('lbFr').onclick=()=>{const k=LBB.pre[g];LBB.f[g]=pres[k]?{...pres[k][1]}:{...(LB_DEF[g]||LB_PRE[g][Object.keys(LB_PRE[g])[0]][1])};if(!pres[k]&&Object.keys(pres).length)LBB.pre[g]=Object.keys(pres)[0];reopen();lbLoad();};
+  $('lbFa').onclick=()=>{const before=JSON.stringify(LB_SRVF.map(k=>f[k])),nf={...f};
+    $('lbFp').querySelectorAll('[data-lf]').forEach(el=>{const k=el.dataset.lf,kind=LB_F[g].find(x=>x[0]===k)[2];nf[k]=kind==='tog'?(el.checked?1:0):kind.startsWith('sel:')?(/^\d+$/.test(el.value)?+el.value:el.value):(el.value.trim()===''?(k==='life'?'':0):lbNum(el.value));});
+    const changed=JSON.stringify(nf)!==JSON.stringify(f);LBB.f[g]=nf;if(changed&&Object.keys(pres).length)LBB.pre[g]='custom';
+    const reload=live&&JSON.stringify(LB_SRVF.map(k=>nf[k]))!==before;saveLBB();lbBrowse();if(reload)lbLoad();else lbDraw();};
+  if(pf)$('lbScan').onclick=()=>{const [d1,d2]=$('lbsD').value.split('-').map(Number),[wMin,wMax]=$('lbsA').value.split('-').map(Number),lp=$('lbsL').value==='all'?['pump','launchlab','dbc','boop','moon']:$('lbsL').value.split(',');
+    store.set('hslab_cfg5',{...store.get('hslab_cfg5',{}),d1,d2,wMin,wMax,n:+$('lbsN').value,lp});store.set('hs_lbret',1);location.href='./lab.html?auto=1';};
   if($('lbStKey'))$('lbStKey').onchange=e=>{const v=e.target.value.trim();if(v===STKEY&&LBB.rows.length)return;STKEY=v;store.set('hs_stkey',STKEY);lbLoad();};
   if($('lbBeKey'))$('lbBeKey').onchange=e=>{const v=e.target.value.trim();if(v===BEKEY&&LBB.rows.length)return;BEKEY=v;store.set('hs_bekey',BEKEY);lbLoad();};
-  lbLoad();
+  if(LBB.rows.length&&LBB.rows[0].src===LBB.src&&!LBB.loading)lbDraw();else lbLoad();
 }
 const importSheet=()=>importLeaderSheet('kol'),smartImportSheet=()=>importLeaderSheet('smart');
 
@@ -3780,6 +3909,7 @@ function start(){REFRESH_MS=PLAN==='paid'?35e3:60e3;$('vSetup').classList.add('h
   if(hookOn()){hookPoll();setTimeout(()=>{if(hookWorking())hookVerify();if(Date.now()-store.get('hs_sweep',0)>(liveList().length>1500?12:2)*3600e3)setTimeout(hookCatchUp,15e3);hookFetch('/ping').then(p=>{HK.wv=p.v||1;}).catch(()=>{});},6000);if(!lastTrack)lastTrack=Date.now()-4*60e3;}   // webhook keeps everything while the app is closed: first safety check after ~1 min
   setTimeout(()=>{if(SET.live!==false)liveStart();},4000);
   {const p=readAddHash()||store.get('hs_pendadd',null);if(p){store.set('hs_pendadd',null);setTimeout(()=>applyAdd(p),600);}}
+  if(store.get('hs_lbret',0)){store.set('hs_lbret',0);setTimeout(()=>{TAB='add';store.set('hs_tab',TAB);renderControls();renderList();LBB.src='pf';LBB.rows=[];saveLBB();lbBrowse();},900);}
   const cached=loadTokCache();if(cached){renderList();setLive('busy','updating…');}else renderList(true);
   // quick first paint: market data for cached tokens straight away (DexScreener, no Helius), then the full refresh
   if(cached)loadMarket().then(()=>{lastFast=Date.now();renderList();});
