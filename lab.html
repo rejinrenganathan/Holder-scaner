@@ -514,5 +514,6 @@ $('labV').textContent='v'+LAB_V;
 (async()=>{try{const t=await (await fetch('./lab.html?check='+Date.now(),{cache:'no-store'})).text();const m=t.match(/const LAB_V=(\d+)/);
   if(m&&+m[1]>LAB_V&&sessionStorage.getItem('hslab_rl')!==m[1]){sessionStorage.setItem('hslab_rl',m[1]);location.replace('./lab.html?v='+m[1]+(AUTO?'&auto=1':''));}}catch(e){}})();
 </script>
+<script src="hit.js" defer></script>
 </body>
 </html>

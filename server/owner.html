@@ -1,0 +1,561 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#0b0b0c">
+<title>Owner · Holder Scan</title>
+<style>
+:root{--bg:#f6f6f4;--card:#fff;--line:#e7e6e1;--line2:#d4d3cc;--tx:#1a1a19;--tx2:#6b6a64;--tx3:#9a9992;--soft:#efeee9;
+--acc:#2f6fdf;--accbg:#e8f0fd;--ok:#1f8a4c;--okbg:#e5f4ea;--wa:#a8660a;--wabg:#fbf0dc;--er:#c93a3a;--erbg:#fbe9e9;--pr:#6d4fd8;--prbg:#efeafd;--pri:#1a1a19;--onpri:#fff}
+@media (prefers-color-scheme:dark){:root{--bg:#0b0b0c;--card:#161617;--line:#262628;--line2:#38383b;--tx:#ededec;--tx2:#a2a19c;--tx3:#6e6d69;--soft:#1f1f21;
+--acc:#6ea0ff;--accbg:#16233d;--ok:#4cc580;--okbg:#12291b;--wa:#e5a647;--wabg:#2e230f;--er:#f07a7a;--erbg:#331616;--pr:#a993ff;--prbg:#241d3d;--pri:#ededec;--onpri:#111}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+button,input,select,textarea{font:inherit;color:inherit}
+.wrap{max-width:560px;margin:0 auto;padding:12px 12px 96px}
+.top{display:flex;justify-content:space-between;align-items:center;padding:6px 2px 12px}
+.top h1{font-size:17px;font-weight:600;margin:0}.mu{color:var(--tx2);font-size:12px}.mu3{color:var(--tx3);font-size:12px}
+.cd{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px}
+.hd{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}.ht{font-weight:600;font-size:15px}
+.g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.kp{background:var(--soft);border-radius:10px;padding:9px 10px}.kn{font-size:21px;font-weight:600;margin-top:1px}
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px;border-top:1px solid var(--line);padding:9px 0}
+.row:first-child{border-top:0}.rl{min-width:0;flex:1}.rl>div{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pl{font-size:11px;font-weight:500;border-radius:6px;padding:2px 7px;white-space:nowrap;display:inline-block}
+.ok{background:var(--okbg);color:var(--ok)}.wa{background:var(--wabg);color:var(--wa)}.er{background:var(--erbg);color:var(--er)}.ac{background:var(--accbg);color:var(--acc)}.pr{background:var(--prbg);color:var(--pr)}.ne{background:var(--soft);color:var(--tx2)}
+.bt{border:1px solid var(--line2);background:var(--card);border-radius:10px;padding:8px 12px;font-size:13px;cursor:pointer;text-align:center}
+a.bt{color:inherit}a.bt.bp{color:var(--onpri)}.bt:active{transform:scale(.98)}.bp{background:var(--pri);color:var(--onpri);border-color:var(--pri)}.bd{color:var(--er);border-color:var(--er)}
+.bt[disabled]{opacity:.5}.wide{width:100%;display:block}
+.lk{color:var(--acc);font-size:13px;cursor:pointer;background:none;border:0;padding:4px 0;text-decoration:none}
+.chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;margin-bottom:8px;scrollbar-width:none}.chips::-webkit-scrollbar{display:none}
+.ch{border:1px solid var(--line2);border-radius:16px;padding:4px 11px;font-size:12px;white-space:nowrap;background:var(--card);cursor:pointer}
+.ch.on{background:var(--pri);color:var(--onpri);border-color:var(--pri)}
+input[type=text],input[type=number],input:not([type]),select,textarea{width:100%;border:1px solid var(--line2);background:var(--card);border-radius:10px;padding:9px 10px;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--acc)}
+textarea{font-family:ui-monospace,Menlo,monospace;font-size:12px;min-height:96px;resize:vertical}
+.tg{width:42px;height:24px;border-radius:12px;background:var(--line2);position:relative;border:0;flex:none;cursor:pointer;transition:background .15s}
+.tg::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:left .15s}
+.tg.on{background:var(--ok)}.tg.on::after{left:21px}
+.nav{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(5,1fr);padding:6px 0 calc(6px + env(safe-area-inset-bottom));z-index:5}
+.nav button{background:none;border:0;font-size:11px;color:var(--tx2);display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer}
+.nav button.on{color:var(--acc)}.nav svg{width:22px;height:22px}
+.issue{background:var(--erbg);border:1px solid var(--er);border-radius:14px;padding:10px 12px;margin-bottom:10px;display:flex;gap:10px;align-items:center;color:var(--er)}
+.issue.w{background:var(--wabg);border-color:var(--wa);color:var(--wa)}
+.bars{display:flex;align-items:flex-end;gap:4px;height:70px;margin-top:6px}.bars div{flex:1;background:var(--acc);border-radius:3px 3px 0 0;min-height:2px}
+.bl{display:flex;gap:4px;font-size:10px;color:var(--tx3)}.bl span{flex:1;text-align:center;overflow:hidden}
+.meter{height:6px;background:var(--soft);border-radius:4px;margin-top:5px;overflow:hidden}.meter div{height:6px;border-radius:4px}
+.sheetbg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:20;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--card);width:100%;max-width:560px;border-radius:18px 18px 0 0;padding:16px 14px calc(16px + env(safe-area-inset-bottom));max-height:88vh;overflow:auto}
+.sheet h3{margin:0 0 10px;font-size:16px}.field{margin-bottom:10px}.field label{display:block;font-size:12px;color:var(--tx2);margin-bottom:4px}
+.toast{position:fixed;left:50%;bottom:86px;transform:translateX(-50%);background:var(--pri);color:var(--onpri);padding:9px 14px;border-radius:10px;font-size:13px;z-index:30;max-width:90%;display:flex;gap:12px;align-items:center}
+.toast button{background:none;border:0;color:var(--onpri);font-weight:600;text-decoration:underline}
+.menu{position:absolute;right:0;top:28px;background:var(--card);border:1px solid var(--line2);border-radius:12px;min-width:170px;z-index:10;box-shadow:0 8px 24px rgba(0,0,0,.15)}
+.menu button{display:block;width:100%;text-align:left;background:none;border:0;padding:10px 14px;font-size:13px;cursor:pointer}.menu button+button{border-top:1px solid var(--line)}
+.dots{background:none;border:0;padding:4px 6px;cursor:pointer;color:var(--tx2);font-size:18px;line-height:1}
+.selbar{position:sticky;top:0;background:var(--card);border:1px solid var(--line2);border-radius:12px;padding:8px 10px;display:flex;gap:8px;align-items:center;margin-bottom:8px;z-index:4}
+.ck{width:20px;height:20px;flex:none;accent-color:var(--acc)}
+.center{text-align:center}.mt{margin-top:8px}.mb0{margin-bottom:0}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--line2);border-top-color:var(--acc);border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.err{color:var(--er);font-size:12px;margin-top:4px}
+.addr{font-family:ui-monospace,Menlo,monospace;font-size:12px;word-break:break-all}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"><div class="center mu" style="padding:60px 0"><span class="spin"></span> Loading…</div></div>
+<nav class="nav" id="nav" style="display:none"></nav>
+<script>
+'use strict';
+const API = /github\.io$/.test(location.hostname) ? '' : location.origin;
+const TK = 'hso_token';
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const short = w => w ? w.slice(0, 4) + '…' + w.slice(-4) : '';
+const fmt = n => Number(n || 0).toLocaleString('en-IN');
+const ago = ts => { if (!ts) return '—'; const d = Math.floor(Date.now() / 1000) - ts; return d < 60 ? 'now' : d < 3600 ? Math.floor(d / 60) + 'm ago' : d < 86400 ? Math.floor(d / 3600) + 'h ago' : Math.floor(d / 86400) + 'd ago'; };
+const clock = ts => new Date(ts * 1000).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false });
+const dateS = ts => new Date(ts * 1000).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+const PLAN = { m1: '1 month', m3: '3 months', m6: '6 months', m12: '12 months', lifetime: 'Founder lifetime', free: 'Free' };
+const PLANS_ORDER = ['m1', 'm3', 'm6', 'm12', 'lifetime'];
+let token = localStorage.getItem(TK) || '', me = null, tab = 'home', sub = '';
+const ICON = {
+  home: '<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
+  money: '<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M16 15h2"/>',
+  wallets: '<path d="M4 6h16M4 12h16M4 18h10"/>',
+  users: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5M16 4.5a3.5 3.5 0 0 1 0 7M18 14.8c1.9.7 3.1 2.5 3.5 5.2"/>',
+  more: '<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>'
+};
+const svg = k => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICON[k]}</svg>`;
+
+async function api(path, opt = {}) {
+  const r = await fetch(API + path, { method: opt.body ? 'POST' : 'GET', headers: { 'content-type': 'application/json', ...(token ? { authorization: 'Bearer ' + token } : {}) },
+    body: opt.body ? JSON.stringify(opt.body) : undefined });
+  let j = null; try { j = await r.json(); } catch (e) { }
+  if (r.status === 401 && token && path !== '/api/auth/logout') { token = ''; localStorage.removeItem(TK); signInScreen('Your sign-in expired. Sign in again.'); throw new Error('signed out'); }
+  if (!j || !j.ok) throw new Error((j && j.error) || ('The server answered ' + r.status));
+  return j;
+}
+function toast(msg, undo) {
+  document.querySelectorAll('.toast').forEach(t => t.remove());
+  const t = document.createElement('div'); t.className = 'toast';
+  t.innerHTML = `<span>${esc(msg)}</span>` + (undo ? '<button>Undo</button>' : '');
+  if (undo) t.querySelector('button').onclick = () => { t.remove(); undo(); };
+  document.body.appendChild(t); setTimeout(() => t.remove(), undo ? 8000 : 3000);
+}
+function sheet(html, bind) {
+  closeSheet();
+  const bg = document.createElement('div'); bg.className = 'sheetbg'; bg.id = 'sheet';
+  bg.innerHTML = `<div class="sheet">${html}</div>`;
+  bg.onclick = e => { if (e.target === bg) closeSheet(); };
+  document.body.appendChild(bg); if (bind) bind(bg);
+}
+function closeSheet() { const s = $('#sheet'); if (s) s.remove(); }
+function busy(btn, on) { if (!btn) return; if (on) { btn.dataset.t = btn.innerHTML; btn.innerHTML = '<span class="spin"></span>'; btn.disabled = true; } else { btn.innerHTML = btn.dataset.t || btn.innerHTML; btn.disabled = false; } }
+async function act(btn, fn) { busy(btn, true); try { await fn(); } catch (e) { if (e.message !== 'signed out') toast(e.message); } finally { busy(btn, false); } }
+function copy(text, label) { (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject()).then(() => toast((label || 'Copied'))).catch(() => { const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); toast(label || 'Copied'); }); }
+document.addEventListener('click', e => { if (!e.target.closest('.menu') && !e.target.closest('.dots')) document.querySelectorAll('.menu').forEach(m => m.remove()); });
+function menu(anchor, items) {
+  document.querySelectorAll('.menu').forEach(m => m.remove());
+  const m = document.createElement('div'); m.className = 'menu';
+  items.forEach(([label, fn, danger]) => { const b = document.createElement('button'); b.textContent = label; if (danger) b.style.color = 'var(--er)'; b.onclick = () => { m.remove(); fn(); }; m.appendChild(b); });
+  anchor.parentElement.style.position = 'relative'; anchor.parentElement.appendChild(m);
+}
+
+// ---------- sign-in ----------
+function provider() { const w = window; return (w.phantom && w.phantom.solana) || w.solflare || (w.backpack && w.backpack.solana) || (w.solana && w.solana.isPhantom ? w.solana : null) || w.solana || null; }
+function signInScreen(msg) {
+  $('#nav').style.display = 'none';
+  if (!API) { $('#app').innerHTML = `<div class="cd center" style="margin-top:40px;padding:22px"><div class="ht">Open this page from your server</div><p class="mu">The owner dashboard runs on your Cloudflare server address. Open<br><b>your-worker-address/owner</b><br>(see the setup page, step 6).</p></div>`; return; }
+  const p = provider();
+  const here = location.href.split('#')[0];
+  $('#app').innerHTML = `<div class="cd center" style="margin-top:40px;padding:24px 16px">
+    <div style="font-size:30px">🔒</div><div class="ht" style="font-size:17px;margin:6px 0 2px">Holder Scan owner</div>
+    <div class="mu" style="margin-bottom:16px">Only the owner can open this page</div>
+    ${msg ? `<div class="err" style="margin-bottom:12px">${esc(msg)}</div>` : ''}
+    <div id="gbtn" style="display:flex;justify-content:center;margin-bottom:8px"></div>
+    ${p ? `<button class="bt bp wide" id="sol">Sign in with ${p.isSolflare ? 'Solflare' : p.isBackpack ? 'Backpack' : 'Phantom'}</button>`
+        : `<a class="bt bp wide" style="text-decoration:none" href="https://phantom.app/ul/browse/${encodeURIComponent(here)}?ref=${encodeURIComponent(location.origin)}">Open in Phantom</a>
+           <a class="bt wide mt" style="text-decoration:none" href="https://solflare.com/ul/v1/browse/${encodeURIComponent(here)}?ref=${encodeURIComponent(location.origin)}">Open in Solflare</a>
+           <div class="mu3 mt">Wallet sign-in works inside the wallet app's browser.</div>`}
+  </div>`;
+  if (p) $('#sol').onclick = e => act(e.target, () => solanaSignIn(p));
+  api('/api/auth/config').then(c => { if (c.googleClientId) googleButton(c.googleClientId); }).catch(() => { });
+}
+async function solanaSignIn(p) {
+  let res; try { res = await p.connect(); } catch (e) { throw new Error('You cancelled in the wallet — nothing was signed.'); }
+  const pk = (res && res.publicKey) || p.publicKey; const wallet = pk.toString();
+  const n = await api('/api/auth/nonce', { body: { wallet } });
+  let sig; try { sig = await p.signMessage(new TextEncoder().encode(n.message), 'utf8'); } catch (e) { throw new Error(/reject|cancel|denied/i.test(e.message || '') ? 'You cancelled in the wallet — nothing was signed.' : 'The wallet could not sign: ' + (e.message || e)); }
+  const bytes = sig.signature || sig; let bin = ''; new Uint8Array(bytes).forEach(b => bin += String.fromCharCode(b));
+  const r = await api('/api/auth/solana', { body: { wallet, nonce: n.nonce, signature: btoa(bin) } });
+  token = r.token; localStorage.setItem(TK, token); start();
+}
+function googleButton(clientId) {
+  const s = document.createElement('script'); s.src = 'https://accounts.google.com/gsi/client'; s.async = true;
+  s.onload = () => {
+    google.accounts.id.initialize({ client_id: clientId, callback: async resp => {
+      try { const r = await api('/api/auth/google', { body: { credential: resp.credential } }); token = r.token; localStorage.setItem(TK, token); start(); } catch (e) { toast(e.message); }
+    } });
+    const el = $('#gbtn'); if (el) google.accounts.id.renderButton(el, { theme: 'outline', size: 'large', text: 'continue_with', shape: 'pill', width: 280 });
+  };
+  document.head.appendChild(s);
+}
+async function signOut() { try { await api('/api/auth/logout', { body: {} }); } catch (e) { } token = ''; localStorage.removeItem(TK); signInScreen(); }
+
+async function start() {
+  if (!API || !token) return signInScreen();
+  try { me = (await api('/api/me')).user; } catch (e) { if (e.message !== 'signed out') signInScreen(e.message); return; }
+  if (!me.isAdmin) { $('#app').innerHTML = `<div class="cd center" style="margin-top:40px;padding:22px"><div class="ht">This account isn't allowed here</div><p class="mu">${esc(me.email || short(me.wallet))} is not an owner account.</p><button class="bt" id="so">Sign out</button></div>`; $('#so').onclick = signOut; return; }
+  $('#nav').style.display = '';
+  go(location.hash.slice(1) || 'home');
+}
+window.addEventListener('hashchange', () => { if (me && me.isAdmin) go(location.hash.slice(1) || 'home', true); });
+
+// ---------- shell ----------
+const TABS = [['home', 'Home'], ['money', 'Money'], ['wallets', 'Wallets'], ['users', 'Users'], ['more', 'More']];
+const SUBS = { traffic: 'Traffic', site: 'Site control', keys: 'API keys', health: 'Health and logs' };
+function go(where, fromHash) {
+  const [t, s] = where.split('/');
+  tab = TABS.some(x => x[0] === t) ? t : 'home'; sub = tab === 'more' && SUBS[s] ? s : '';
+  const h = tab + (sub ? '/' + sub : '');
+  if (!fromHash && location.hash.slice(1) !== h) history.replaceState(null, '', '#' + h);
+  $('#nav').innerHTML = TABS.map(([k, l]) => `<button class="${k === tab ? 'on' : ''}" data-t="${k}">${svg(k)}${l}</button>`).join('');
+  $('#nav').querySelectorAll('button').forEach(b => b.onclick = () => { location.hash = b.dataset.t; });
+  window.scrollTo(0, 0);
+  render();
+}
+function header(title, extra) {
+  return `<div class="top"><div>${sub ? `<button class="lk" onclick="location.hash='more'">‹ More</button>` : ''}<h1>${esc(title)}</h1>${extra ? `<div class="mu">${extra}</div>` : ''}</div>
+    <button class="dots" title="Refresh" onclick="render()">↻</button></div>`;
+}
+function render() {
+  const f = { home: Home, money: Money, wallets: Wallets, users: Users, more: () => (sub ? { traffic: Traffic, site: Site, keys: Keys, health: Health }[sub]() : More()) }[tab];
+  f();
+}
+const loading = title => { $('#app').innerHTML = header(title) + '<div class="center mu" style="padding:40px 0"><span class="spin"></span></div>'; };
+const errBox = (title, e) => { $('#app').innerHTML = header(title) + `<div class="cd"><div class="err">${esc(e.message)}</div><button class="bt mt" onclick="render()">Try again</button></div>`; };
+
+// ---------- Home ----------
+async function Home() {
+  loading('Home');
+  let h; try { h = (await api('/api/owner/home')).home; } catch (e) { return e.message === 'signed out' || errBox('Home', e); }
+  const hr = new Date().getHours(), greet = hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening';
+  const diff = (a, b) => { const d = a - b; return d === 0 ? '<span class="mu3">same as yesterday</span>' : `<span style="color:var(--${d > 0 ? 'ok' : 'er'})">${d > 0 ? '+' : ''}${d} vs yesterday</span>`; };
+  const issues = (h.issues || []).map(i => `<div class="issue"><span style="font-size:18px">⚠</span><div style="flex:1"><div style="font-weight:600">${esc(i.msg)}</div><div style="font-size:12px">${clock(i.ts)}${i.fix ? ' · ' + esc(i.fix) : ''}</div></div></div>`).join('');
+  const att = [];
+  if (h.keysMissing) att.push([`${h.keysMissing} API key${h.keysMissing > 1 ? 's' : ''} not added`, 'more/keys', 'Add']);
+  if (h.keysBad) att.push([`${h.keysBad} API key${h.keysBad > 1 ? 's' : ''} not working`, 'more/keys', 'Check']);
+  if (h.expiring) att.push([`${h.expiring} plan${h.expiring > 1 ? 's' : ''} expire this week`, 'users', 'See']);
+  if (h.warns) att.push([`${h.warns} warning${h.warns > 1 ? 's' : ''} in the last 24h`, 'more/health', 'See']);
+  if (h.settings.site_live !== '1') att.push(['Site is switched off', 'more/site', 'Open']);
+  if (h.settings.signups !== '1') att.push(['New sign-ups are paused', 'more/site', 'Open']);
+  $('#app').innerHTML = header(`${greet}${me.name ? ', ' + me.name.split(' ')[0] : ''}`, new Date().toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' }) + ' · times in your phone\'s time zone') + issues + `
+  <div class="cd"><div class="hd"><span class="ht">Today</span><span class="mu3">since midnight UTC</span></div>
+   <div class="g2">
+    <div class="kp"><div class="mu">Unique visitors</div><div class="kn">${fmt(h.visitors)}</div><div style="font-size:11px">${diff(h.visitors, h.visitorsY)}</div></div>
+    <div class="kp"><div class="mu">Sign-ups</div><div class="kn">${fmt(h.signups)}</div><div style="font-size:11px">${diff(h.signups, h.signupsY)}</div></div>
+    <div class="kp"><div class="mu">Online now</div><div class="kn" style="color:var(--ok)">${fmt(h.online)}</div><div class="mu3">${fmt(h.active)} active in 24h</div></div>
+    <div class="kp"><div class="mu">Users</div><div class="kn">${fmt(h.users)}</div><div class="mu3">${fmt(h.paid)} paid</div></div>
+   </div></div>
+  <div class="cd"><div class="hd"><span class="ht">Needs your attention</span></div>
+   ${att.length ? att.map(a => `<div class="row"><span>${esc(a[0])}</span><button class="lk" onclick="location.hash='${a[1]}'">${a[2]} ›</button></div>`).join('') : '<div class="mu">All clear ✓</div>'}</div>
+  <div class="cd"><div class="hd"><span class="ht">At a glance</span></div>
+   <div class="row"><span>Site wallets</span><span>${fmt(h.wallets)}</span></div>
+   <div class="row"><span>Server requests today</span><span>${fmt(h.requests)}</span></div>
+   <div class="row"><span>Site</span><span class="pl ${h.settings.site_live === '1' ? 'ok' : 'er'}">${h.settings.site_live === '1' ? 'Live' : 'Off'}</span></div></div>
+  <div class="cd"><div class="hd"><span class="ht">Recent activity</span><button class="lk" onclick="location.hash='more/health'">All ›</button></div>
+   ${(h.activity || []).length ? h.activity.map(a => `<div class="row"><span class="rl"><div style="color:${a.level === 'error' ? 'var(--er)' : a.level === 'warn' ? 'var(--wa)' : 'inherit'}">${esc(a.msg)}</div></span><span class="mu3">${ago(a.ts)}</span></div>`).join('') : '<div class="mu">Nothing yet</div>'}</div>`;
+}
+
+// ---------- Money ----------
+async function Money() {
+  loading('Money');
+  let w, st; try { [w, st] = await Promise.all([api('/api/owner/wallet'), api('/api/owner/settings')]); w = w.wallet; st = st.settings; } catch (e) { return e.message === 'signed out' || errBox('Money', e); }
+  $('#app').innerHTML = header('Money') + `
+  <div class="cd"><div class="hd"><span class="ht">Main wallet</span><span class="pl ${st.payments === '1' ? 'ok' : 'ne'}">${st.payments === '1' ? 'Receiving' : 'Payments off'}</span></div>
+   <div style="font-size:28px;font-weight:600">${w.sol == null ? '—' : w.sol.toLocaleString('en-IN', { maximumFractionDigits: 3 })} <span style="font-size:16px">SOL</span></div>
+   ${w.error ? `<div class="mu" style="color:var(--wa)">${esc(w.error)}</div>` : '<div class="mu">Live balance from Helius</div>'}
+   <div class="addr mt">${esc(w.address)}</div>
+   <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:10px">
+    <button class="bt" id="cp">Copy</button><a class="bt" style="text-decoration:none" target="_blank" rel="noopener" href="https://solscan.io/account/${esc(w.address)}">Solscan ↗</a><button class="bt" id="chg">Change</button></div></div>
+  <div class="cd"><div class="g2">
+    <div class="kp"><div class="mu">Founder spots sold</div><div class="kn">${w.founderSold} / ${w.founderMax}</div></div>
+    <div class="kp"><div class="mu">Prices</div><div style="font-weight:600;margin-top:4px">${PLANS_ORDER.map(k => st.prices[k]).join(' · ')} SOL</div></div></div></div>
+  <div class="cd"><div class="ht">Payments</div><p class="mu mb0">Payments made through the site will be listed here with their plan and user, once SOL payments are built (next step). Wrong amounts will be flagged for review.</p></div>`;
+  $('#cp').onclick = () => copy(w.address, 'Address copied');
+  $('#chg').onclick = () => editSetting('pay_wallet', 'Payment wallet', w.address, 'Only paste a wallet you control. For safety this needs a sign-in from the last 15 minutes.');
+}
+
+// ---------- Wallets ----------
+const WS = { kind: 'all', sort: 'new', q: '', shown: 10, sel: null, rows: [], total: 0, summary: {}, bal: {} };
+async function Wallets() {
+  $('#app').innerHTML = header('Wallets', 'The KOL and smart wallets that power the site') + `
+  <div class="cd" id="wsum"><span class="spin"></span></div>
+  <div class="cd"><div class="hd"><span class="ht">Add wallets</span><label class="lk">⬆ Upload .txt / .csv<input type="file" id="wf" accept=".txt,.csv,text/plain" hidden></label></div>
+   <textarea id="wt" placeholder="7xKp…3fQa Ansem @blknoiz06&#10;Hq2m…9LwE Cupsey&#10;9fRt…kL2p"></textarea>
+   <div class="mu mt">One per line: wallet, name, @handle. With @handle = KOL, without = smart. Add the word kol or smart to force it.</div>
+   <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;gap:8px"><span class="mu" id="wp">Paste wallets to see a preview</span><button class="bt bp" id="ws" disabled>Save</button></div></div>
+  <div class="cd"><div class="hd"><span class="ht">Find wallets</span></div>
+   <div class="row"><div class="rl"><div>Leaderboards</div><div class="mu">Kolscan · GMGN · Birdeye · ST · Pump.fun</div></div><a class="lk" href="https://rejinrenganathan.github.io/Holder-scaner/" target="_blank" rel="noopener">Open app ›</a></div>
+   <div class="row"><div class="rl"><div>Winner Lab</div><div class="mu">Profit overlap on winning coins</div></div><a class="lk" href="https://rejinrenganathan.github.io/Holder-scaner/lab.html" target="_blank" rel="noopener">Run ›</a></div>
+   <div class="mu3">Download the .txt there, then upload it above.</div></div>
+  <div class="cd"><div class="hd"><span class="ht">All wallets</span><div style="display:flex;gap:10px;align-items:center"><button class="lk" id="wsel">Select</button><span><button class="dots" id="wtop">⋮</button></span></div></div>
+   <input id="wq" placeholder="Search wallet, name, @handle" value="${esc(WS.q)}">
+   <div class="chips mt" id="wk"></div>
+   <select id="wso" style="margin-bottom:6px"><option value="new">Sort: newest first</option><option value="old">Sort: oldest first</option><option value="name">Sort: name A–Z</option><option value="kind">Sort: KOL first</option></select>
+   <div id="wl"><span class="spin"></span></div></div>`;
+  $('#wso').value = WS.sort;
+  $('#wso').onchange = e => { WS.sort = e.target.value; WS.shown = 10; loadW(); };
+  let qt; $('#wq').oninput = e => { clearTimeout(qt); qt = setTimeout(() => { WS.q = e.target.value.trim(); WS.shown = 10; loadW(); }, 300); };
+  let pt; const prev = () => { clearTimeout(pt); pt = setTimeout(previewAdd, 350); };
+  $('#wt').oninput = prev;
+  $('#wf').onchange = e => { const f = e.target.files[0]; if (!f) return; if (f.size > 3e6) return toast('File too big (max 3 MB)'); const r = new FileReader(); r.onload = () => { $('#wt').value = r.result; $('#wt').dataset.src = 'upload'; previewAdd(); }; r.readAsText(f); e.target.value = ''; };
+  $('#ws').onclick = e => act(e.target, saveAdd);
+  $('#wsel').onclick = () => { WS.sel = WS.sel ? null : new Set(); drawW(); };
+  $('#wtop').onclick = e => menu(e.target, [['Export all (.txt)', exportW], ['Delete hidden wallets', () => delW({ hidden: true }, 'all hidden wallets')], ['Delete all…', delAll, true]]);
+  loadW();
+}
+async function previewAdd() {
+  const text = $('#wt').value, wp = $('#wp'), ws = $('#ws');
+  if (!text.trim()) { wp.textContent = 'Paste wallets to see a preview'; ws.disabled = true; return; }
+  try {
+    const p = (await api('/api/owner/wallets/add', { body: { text, dry: true } })).preview;
+    wp.innerHTML = `<span style="color:var(--ok)">${fmt(p.add)} new</span> · ${p.kol} KOL · ${p.smart} smart` + (p.dup ? ` · <span style="color:var(--wa)">${p.dup} already there</span>` : '') + (p.bad ? ` · <span style="color:var(--er)">${p.bad} not valid</span>` : '');
+    ws.disabled = !p.add; ws.textContent = p.add ? `Save ${fmt(p.add)}` : 'Save';
+  } catch (e) { wp.textContent = e.message; }
+}
+async function saveAdd() {
+  const r = (await api('/api/owner/wallets/add', { body: { text: $('#wt').value, source: $('#wt').dataset.src || 'manual' } })).result;
+  $('#wt').value = ''; delete $('#wt').dataset.src; $('#wp').textContent = 'Paste wallets to see a preview'; $('#ws').disabled = true; $('#ws').dataset.t = 'Save';
+  toast(`${fmt(r.add)} wallet${r.add === 1 ? '' : 's'} added`); WS.shown = 10; loadW();
+}
+async function loadW() {
+  const p = new URLSearchParams({ kind: WS.kind, sort: WS.sort, q: WS.q, limit: WS.shown });
+  try { const j = await api('/api/owner/wallets?' + p); WS.rows = j.rows; WS.total = j.total; WS.summary = j.summary; } catch (e) { if ($('#wl')) $('#wl').innerHTML = `<div class="err">${esc(e.message)}</div>`; return; }
+  drawW(); loadBal();
+}
+async function loadBal() {
+  const need = WS.rows.map(r => r.wallet).filter(w => !(w in WS.bal));
+  if (!need.length) return;
+  try { const j = await api('/api/owner/wallets/balances', { body: { wallets: need.slice(0, 100) } }); Object.assign(WS.bal, j.balances); if (j.error) WS.balErr = j.error; drawW(); } catch (e) { }
+}
+const tier = s => s == null ? '' : s >= 500 ? '🐋 ' : s >= 100 ? '🦈 ' : '🐟 ';
+function drawW() {
+  const s = WS.summary; if (!$('#wl')) return;
+  $('#wsum').innerHTML = `<div class="hd"><span class="ht">Site wallets · ${fmt(s.total)}</span><span class="pl ne">Live alerts: step 3</span></div>
+   <div class="g2"><div class="kp"><div class="mu">KOL</div><div class="kn">${fmt(s.kol)}</div></div><div class="kp"><div class="mu">Smart</div><div class="kn">${fmt(s.smart)}</div></div></div>
+   ${s.hidden ? `<div class="mu mt">${fmt(s.hidden)} hidden from users</div>` : ''}`;
+  $('#wk').innerHTML = [['all', 'All'], ['kol', 'KOL'], ['smart', 'Smart'], ['hidden', 'Hidden']].map(([k, l]) => `<span class="ch ${WS.kind === k ? 'on' : ''}" data-k="${k}">${l}</span>`).join('');
+  $('#wk').querySelectorAll('.ch').forEach(c => c.onclick = () => { WS.kind = c.dataset.k; WS.shown = 10; loadW(); });
+  $('#wsel').textContent = WS.sel ? 'Done' : 'Select';
+  const sel = WS.sel;
+  let html = sel ? `<div class="selbar"><input type="checkbox" class="ck" id="wsa" ${WS.rows.length && WS.rows.every(r => sel.has(r.wallet)) ? 'checked' : ''}><span style="flex:1">${sel.size} selected</span>
+     <button class="bt" id="wsh" ${sel.size ? '' : 'disabled'}>Hide</button><button class="bt bd" id="wsd" ${sel.size ? '' : 'disabled'}>Delete</button></div>` : '';
+  if (!WS.rows.length) html += `<div class="mu center" style="padding:16px 0">${WS.q || WS.kind !== 'all' ? 'No wallets match' : 'No site wallets yet. Paste or upload them above.'}</div>`;
+  html += WS.rows.map(r => {
+    const b = WS.bal[r.wallet];
+    return `<div class="row">${sel ? `<input type="checkbox" class="ck" data-s="${r.wallet}" ${sel.has(r.wallet) ? 'checked' : ''}>` : ''}
+     <div class="rl"><div>${esc(r.name || short(r.wallet))} ${r.handle ? `<span class="mu">@${esc(r.handle)}</span>` : ''}</div>
+      <div class="mu">${r.name ? short(r.wallet) + ' · ' : ''}${b == null ? '' : tier(b) + b.toLocaleString('en-IN', { maximumFractionDigits: 1 }) + ' SOL · '}added ${ago(r.added)}</div></div>
+     <span class="pl ${r.hidden ? 'wa' : r.kind === 'kol' ? 'ac' : 'ne'}">${r.hidden ? 'Hidden' : r.kind === 'kol' ? 'KOL' : 'Smart'}</span>
+     ${sel ? '' : `<span><button class="dots" data-m="${r.wallet}">⋮</button></span>`}</div>`;
+  }).join('');
+  if (WS.balErr) html += `<div class="mu3">${esc(WS.balErr)}</div>`;
+  if (WS.total > WS.rows.length) html += `<button class="bt wide mt" id="wmore">Show ${Math.min(20, WS.total - WS.rows.length)} more · ${fmt(WS.total - WS.rows.length)} left</button>`;
+  if (WS.shown > 10 && WS.rows.length > 10) html += `<button class="lk wide center" id="wless">Show less</button>`;
+  $('#wl').innerHTML = html;
+  const more = $('#wmore'); if (more) more.onclick = () => { WS.shown += 20; loadW(); };
+  const less = $('#wless'); if (less) less.onclick = () => { WS.shown = 10; loadW(); };
+  $('#wl').querySelectorAll('[data-m]').forEach(b => b.onclick = () => { const r = WS.rows.find(x => x.wallet === b.dataset.m); menu(b, [
+    ['Edit', () => editW(r)], ['Copy address', () => copy(r.wallet, 'Address copied')], ['Open in GMGN', () => window.open('https://gmgn.ai/sol/address/' + r.wallet, '_blank')],
+    [r.hidden ? 'Show to users' : 'Hide from users', () => saveW({ ...r, hidden: !r.hidden })], ['Delete', () => delW({ wallets: [r.wallet] }, r.name || short(r.wallet)), true]]); });
+  if (sel) {
+    $('#wl').querySelectorAll('[data-s]').forEach(c => c.onchange = () => { c.checked ? sel.add(c.dataset.s) : sel.delete(c.dataset.s); drawW(); });
+    $('#wsa').onchange = e => { WS.rows.forEach(r => e.target.checked ? sel.add(r.wallet) : sel.delete(r.wallet)); drawW(); };
+    $('#wsd').onclick = () => delW({ wallets: [...sel] }, `${sel.size} wallet${sel.size > 1 ? 's' : ''}`);
+    $('#wsh').onclick = async () => { for (const w of sel) { const r = WS.rows.find(x => x.wallet === w); if (r) await api('/api/owner/wallets/edit', { body: { ...r, hidden: true } }); } toast(`${sel.size} hidden`); WS.sel = new Set(); loadW(); };
+  }
+}
+function editW(r) {
+  sheet(`<h3>Edit wallet</h3><div class="addr mu" style="margin-bottom:10px">${esc(r.wallet)}</div>
+   <div class="field"><label>Name</label><input id="en" value="${esc(r.name)}" maxlength="40"></div>
+   <div class="field"><label>X handle (without @)</label><input id="eh" value="${esc(r.handle)}" maxlength="30"></div>
+   <div class="field"><label>Type</label><select id="ek"><option value="kol">KOL</option><option value="smart">Smart</option></select></div>
+   <div class="row"><span>Hidden from users</span><button class="tg ${r.hidden ? 'on' : ''}" id="eH"></button></div>
+   <div class="g2 mt"><button class="bt" onclick="closeSheet()">Cancel</button><button class="bt bp" id="es">Save</button></div>`, bg => {
+    bg.querySelector('#ek').value = r.kind;
+    bg.querySelector('#eH').onclick = e => e.target.classList.toggle('on');
+    bg.querySelector('#es').onclick = e => act(e.target, async () => { await saveW({ wallet: r.wallet, name: $('#en').value.trim(), handle: $('#eh').value.trim(), kind: $('#ek').value, hidden: $('#eH').classList.contains('on') }); closeSheet(); });
+  });
+}
+async function saveW(r) { await api('/api/owner/wallets/edit', { body: r }); toast('Saved'); loadW(); }
+async function delW(what, label) {
+  const backup = what.wallets ? WS.rows.filter(r => what.wallets.includes(r.wallet)) : null;
+  sheet(`<h3>Delete ${esc(label)}?</h3><p class="mu">They stop powering the site right away.${backup ? ' You can undo for 8 seconds.' : ''}</p>
+   <div class="g2"><button class="bt" onclick="closeSheet()">Cancel</button><button class="bt bd" id="dd">Delete</button></div>`, bg => {
+    bg.querySelector('#dd').onclick = e => act(e.target, async () => {
+      const j = await api('/api/owner/wallets/delete', { body: what }); closeSheet(); if (WS.sel) WS.sel = new Set(); loadW();
+      toast(`${fmt(j.deleted)} deleted`, backup && backup.length <= 5000 ? async () => { await api('/api/owner/wallets/restore', { body: { rows: backup } }); toast('Restored'); loadW(); } : null);
+    });
+  });
+}
+function delAll() {
+  sheet(`<h3>Delete all site wallets?</h3><p class="mu">This removes every site wallet (${fmt(WS.summary.total)}). Export first if you might want them back. Type <b>DELETE</b> to confirm.</p>
+   <input id="dc" autocomplete="off"><div class="g2 mt"><button class="bt" onclick="closeSheet()">Cancel</button><button class="bt bd" id="dd" disabled>Delete all</button></div>`, bg => {
+    bg.querySelector('#dc').oninput = e => bg.querySelector('#dd').disabled = e.target.value !== 'DELETE';
+    bg.querySelector('#dd').onclick = e => act(e.target, async () => { const j = await api('/api/owner/wallets/delete', { body: { all: true, confirm: 'DELETE' } }); closeSheet(); toast(`${fmt(j.deleted)} deleted`); loadW(); });
+  });
+}
+async function exportW() {
+  try {
+    const j = await api('/api/owner/wallets/export');
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([j.text], { type: 'text/plain' }));
+    a.download = 'site-wallets-' + new Date().toISOString().slice(0, 10) + '.txt'; document.body.appendChild(a); a.click(); a.remove();
+    toast(`${fmt(j.count)} wallets exported`);
+  } catch (e) { toast(e.message); }
+}
+
+// ---------- Users ----------
+const US = { filter: 'all', q: '', shown: 20, users: [], total: 0, counts: {} };
+async function Users() {
+  $('#app').innerHTML = header('Users') + `<div class="cd"><input id="uq" placeholder="Search wallet, email, name" value="${esc(US.q)}"><div class="chips mt" id="uf"></div><div id="ul"><span class="spin"></span></div></div>`;
+  let qt; $('#uq').oninput = e => { clearTimeout(qt); qt = setTimeout(() => { US.q = e.target.value.trim(); US.shown = 20; loadU(); }, 300); };
+  loadU();
+}
+async function loadU() {
+  try { const j = await api('/api/owner/users?' + new URLSearchParams({ filter: US.filter, q: US.q, limit: US.shown })); US.users = j.users; US.total = j.total; US.counts = j.counts; } catch (e) { if ($('#ul')) $('#ul').innerHTML = `<div class="err">${esc(e.message)}</div>`; return; }
+  const c = US.counts;
+  $('#uf').innerHTML = [['all', `All · ${fmt(c.total)}`], ['paid', `Paid · ${fmt(c.paid || 0)}`], ['free', 'Free'], ['expiring', `Expiring · ${fmt(c.expiring || 0)}`], ['blocked', `Blocked · ${fmt(c.blocked || 0)}`]]
+    .map(([k, l]) => `<span class="ch ${US.filter === k ? 'on' : ''}" data-k="${k}">${l}</span>`).join('');
+  $('#uf').querySelectorAll('.ch').forEach(x => x.onclick = () => { US.filter = x.dataset.k; US.shown = 20; loadU(); });
+  $('#ul').innerHTML = (US.users.length ? US.users.map((u, i) => `<div class="row" data-i="${i}" style="cursor:pointer"><div class="rl"><div>${esc(u.email || u.name || short(u.wallet))}</div>
+     <div class="mu">${u.via === 'google' ? 'Google' : 'Wallet'} · last seen ${ago(u.lastSeen)}${u.isAdmin ? ' · owner' : ''}</div></div>${planPill(u)}</div>`).join('') : '<div class="mu center" style="padding:16px 0">No users here yet</div>')
+    + (US.total > US.users.length ? `<button class="bt wide mt" id="umore">Show more · ${fmt(US.total - US.users.length)} left</button>` : '');
+  $('#ul').querySelectorAll('[data-i]').forEach(r => r.onclick = () => userSheet(US.users[r.dataset.i]));
+  const m = $('#umore'); if (m) m.onclick = () => { US.shown += 20; loadU(); };
+}
+function planPill(u) {
+  if (u.blocked) return '<span class="pl er">Blocked</span>';
+  if (u.plan === 'lifetime') return '<span class="pl pr">Founder</span>';
+  if (u.plan !== 'free') { const d = Math.ceil((u.planUntil - Date.now() / 1000) / 86400); return `<span class="pl ${d <= 7 ? 'wa' : 'ac'}">${u.plan.toUpperCase().replace('M', '') + 'M'} · ${d}d</span>`; }
+  return '<span class="pl ne">Free</span>';
+}
+function userSheet(u) {
+  const left = u.plan !== 'free' && u.plan !== 'lifetime' ? Math.ceil((u.planUntil - Date.now() / 1000) / 86400) : null;
+  sheet(`<h3>${esc(u.email || u.name || short(u.wallet))}</h3>
+   <div class="row"><span class="mu">Plan</span><span>${esc(PLAN[u.plan])}${left != null ? ` · ${left} days left (until ${dateS(u.planUntil)})` : ''}</span></div>
+   ${u.wallet ? `<div class="row"><span class="mu">Wallet</span><span class="addr" style="text-align:right">${esc(u.wallet)}</span></div>` : ''}
+   ${u.email ? `<div class="row"><span class="mu">Email</span><span>${esc(u.email)}</span></div>` : ''}
+   <div class="row"><span class="mu">Signed in with</span><span>${u.via === 'google' ? 'Google' : 'Wallet'}</span></div>
+   <div class="row"><span class="mu">Joined</span><span>${dateS(u.created)}</span></div>
+   <div class="row"><span class="mu">Last seen</span><span>${ago(u.lastSeen)}</span></div>
+   ${u.blocked ? '' : `<div class="field mt"><label>Give a plan</label><div style="display:flex;gap:6px"><select id="gp">${PLANS_ORDER.map(k => `<option value="${k}">${PLAN[k]}</option>`).join('')}</select><button class="bt bp" id="gpb">Give</button></div></div>
+   <div class="field"><label>Add days to the current plan</label><div style="display:flex;gap:6px"><input type="number" id="xd" value="30" min="1" max="3650"><button class="bt" id="xdb">Extend</button></div></div>`}
+   <div class="g2 mt">${u.plan !== 'free' && !u.blocked ? '<button class="bt" id="mf">Move to Free</button>' : '<span></span>'}
+     ${u.isAdmin ? '<span class="mu3 center">Owner account</span>' : `<button class="bt ${u.blocked ? '' : 'bd'}" id="bl">${u.blocked ? 'Unblock' : 'Block'}</button>`}</div>`, bg => {
+    const run = (btn, body, msg) => act(btn, async () => { await api('/api/owner/users/action', { body: { id: u.id, ...body } }); closeSheet(); toast(msg); loadU(); });
+    const q = s => bg.querySelector(s);
+    if (q('#gpb')) q('#gpb').onclick = e => run(e.target, { action: 'give', plan: q('#gp').value }, 'Plan given');
+    if (q('#xdb')) q('#xdb').onclick = e => run(e.target, { action: 'extend', days: Number(q('#xd').value) }, 'Plan extended');
+    if (q('#mf')) q('#mf').onclick = e => run(e.target, { action: 'free' }, 'Moved to Free');
+    if (q('#bl')) q('#bl').onclick = e => { if (u.blocked || confirm('Block this user? They are signed out everywhere and cannot sign in.')) run(e.target, { action: u.blocked ? 'unblock' : 'block' }, u.blocked ? 'Unblocked' : 'Blocked'); };
+  });
+}
+
+// ---------- More ----------
+function More() {
+  $('#app').innerHTML = header('More') + `<div class="cd">
+   ${Object.entries(SUBS).map(([k, l]) => `<div class="row" style="cursor:pointer" onclick="location.hash='more/${k}'"><span>${l}</span><span class="mu3">›</span></div>`).join('')}</div>
+   <div class="cd"><div class="row"><div class="rl"><div>Signed in as</div><div class="mu">${esc(me.email || short(me.wallet))}</div></div><button class="bt" id="so">Sign out</button></div></div>
+   <div class="mu3 center">Owner dashboard · server v${'2'}</div>`;
+  $('#so').onclick = signOut;
+}
+
+// ---------- Traffic ----------
+let TD = 7;
+async function Traffic() {
+  loading('Traffic');
+  let t; try { t = (await api('/api/owner/traffic?days=' + TD)).traffic; } catch (e) { return e.message === 'signed out' || errBox('Traffic', e); }
+  const ch = t.uniqPrev ? Math.round(100 * (t.uniq - t.uniqPrev) / t.uniqPrev) : null;
+  const days = []; for (let i = t.days - 1; i >= 0; i--) days.push(new Date(Date.now() - i * 86400000).toISOString().slice(0, 10));
+  const by = Object.fromEntries(t.perDay.map(d => [d.day, d.u])); const mx = Math.max(1, ...days.map(d => by[d] || 0));
+  const showBars = t.days > 1 && t.days <= 31;
+  const list = (title, arr, fmtK) => `<div class="hd mt"><span style="font-weight:600;font-size:13px">${title}</span></div>${arr.length ? arr.map(x => `<div class="row"><span>${esc(fmtK ? fmtK(x.k) : x.k)}</span><span class="mu">${t.uniq ? Math.round(100 * x.n / t.uniq) : 0}% · ${fmt(x.n)}</span></div>`).join('') : '<div class="mu3">No data yet</div>'}`;
+  const f = t.funnel, pct = (a, b) => b ? Math.round(100 * a / b) + '%' : '—';
+  const flag = c => c && c.length === 2 && c !== '??' ? String.fromCodePoint(...[...c.toUpperCase()].map(x => 127397 + x.charCodeAt(0))) + ' ' + c : 'Unknown';
+  $('#app').innerHTML = header('Traffic', 'No cookies · visitor IDs change every day') + `
+  <div class="chips">${[[1, 'Today'], [7, '7 days'], [30, '30 days'], [90, '90 days']].map(([d, l]) => `<span class="ch ${TD === d ? 'on' : ''}" data-d="${d}">${l}</span>`).join('')}<span class="pl ok" style="align-self:center">● ${t.live} live</span></div>
+  <div class="cd"><div class="g2">
+    <div class="kp"><div class="mu">Unique visitors</div><div class="kn">${fmt(t.uniq)}</div><div style="font-size:11px">${ch == null ? '<span class="mu3">no earlier data</span>' : `<span style="color:var(--${ch >= 0 ? 'ok' : 'er'})">${ch >= 0 ? '+' : ''}${ch}% vs before</span>`}</div></div>
+    <div class="kp"><div class="mu">Page views</div><div class="kn">${fmt(t.views)}</div><div class="mu3">${t.uniq ? (t.views / t.uniq).toFixed(1) : 0} per visitor</div></div>
+    <div class="kp"><div class="mu">Bounce rate</div><div class="kn">${t.bounce}%</div><div class="mu3">left after 1 page</div></div>
+    <div class="kp"><div class="mu">Visit time</div><div class="kn">${Math.floor(t.time / 60)}m ${t.time % 60}s</div><div class="mu3">average</div></div></div>
+   ${showBars ? `<div class="bars">${days.map(d => `<div style="height:${Math.round(100 * (by[d] || 0) / mx)}%" title="${d}: ${by[d] || 0}"></div>`).join('')}</div>
+   <div class="bl">${days.map((d, i) => `<span>${t.days <= 7 ? new Date(d).toLocaleDateString('en-IN', { weekday: 'narrow', timeZone: 'UTC' }) : (i % 5 === 0 ? d.slice(8) : '')}</span>`).join('')}</div>` : ''}</div>
+  <div class="cd">${list('Came from', t.sources)}${list('Countries', t.countries, flag)}${list('Devices', t.devices)}
+   <div class="row"><span>Opened as installed app</span><span class="mu">${t.installed}%</span></div>${list('Top pages', t.pages, p => p.replace('/Holder-scaner', '') || '/')}</div>
+  <div class="cd"><div class="hd"><span class="ht">Funnel</span><span class="mu3">${t.days === 1 ? 'today' : t.days + ' days'}</span></div>
+   ${[['Visited', f.visited, 1], ['Signed up', f.signedUp, f.visited], ['Paid (active now)', f.paid, f.signedUp]].map(([l, n, base], i) => `<div class="row"><span>${l}</span><span>${fmt(n)}${i ? ` · ${pct(n, base)}` : ''}</span></div>
+   <div class="meter" style="margin-top:-4px;margin-bottom:6px"><div style="width:${f.visited ? Math.max(2, Math.round(100 * n / f.visited)) : 0}%;background:var(--${i === 2 ? 'ok' : 'acc'})"></div></div>`).join('')}
+   <div class="mu3">Visitors are counted once the site pages send visits to this server (see setup page, step 7).</div></div>`;
+  document.querySelectorAll('[data-d]').forEach(c => c.onclick = () => { TD = Number(c.dataset.d); Traffic(); });
+}
+
+// ---------- Site control ----------
+const SW = [['site_live', 'Site live', 'Off shows a “back soon” page'], ['signups', 'New sign-ups', 'Off stops new accounts (owners can still sign in)'],
+  ['payments', 'Payments', 'Turn on once SOL payments are built'], ['founder', 'Founder offer', 'Lifetime plan for the first buyers'], ['alerts', 'Live alerts', 'Wallet alerts for users']];
+async function Site() {
+  loading('Site control');
+  let s; try { s = (await api('/api/owner/settings')).settings; } catch (e) { return e.message === 'signed out' || errBox('Site control', e); }
+  const fresh = s.signedInAgo < 15 * 60;
+  $('#app').innerHTML = header('Site control') + `
+  <div class="cd"><div class="hd"><span class="ht">Switches</span></div>
+   ${SW.map(([k, l, d]) => `<div class="row"><div class="rl"><div>${l}</div><div class="mu">${d}</div></div><button class="tg ${s[k] === '1' ? 'on' : ''}" data-k="${k}"></button></div>`).join('')}</div>
+  <div class="cd"><div class="hd"><span class="ht">Content and limits</span></div>
+   <div class="row"><div class="rl"><div>Announcement bar</div><div class="mu">${s.announce ? '“' + esc(s.announce) + '”' : 'Not shown'}</div></div><button class="lk" id="e_an">Edit</button></div>
+   <div class="row"><div class="rl"><div>Prices (SOL)</div><div class="mu">${PLANS_ORDER.map(k => s.prices[k]).join(' · ')} — 1m · 3m · 6m · 12m · lifetime</div></div><button class="lk" id="e_pr">Edit</button></div>
+   <div class="row"><div class="rl"><div>Founder spots</div><div class="mu">${s.founder_max} lifetime plans</div></div><button class="lk" id="e_fm">Edit</button></div>
+   <div class="row"><div class="rl"><div>Free plan</div><div class="mu">${s.free_tokens} tokens per section · ${s.free_wallets} wallets</div></div><button class="lk" id="e_fr">Edit</button></div>
+   <div class="row"><div class="rl"><div>Paid plan</div><div class="mu">${fmt(s.paid_wallets)} wallets · all filters</div></div><button class="lk" id="e_pw">Edit</button></div></div>
+  <div class="cd"><div class="hd"><span class="ht">Owner access</span><span class="pl ${fresh ? 'ok' : 'ne'}">${fresh ? 'Can change now' : 'Needs fresh sign-in'}</span></div>
+   <div class="row"><div class="rl"><div>Owner wallets</div><div class="mu">${esc(s.owner_wallets.split(/[\s,]+/).filter(Boolean).map(short).join(', '))}</div></div><button class="lk" id="e_ow">Edit</button></div>
+   <div class="row"><div class="rl"><div>Owner Gmail</div><div class="mu">${esc(s.owner_emails || 'Not set')}</div></div><button class="lk" id="e_oe">Edit</button></div>
+   <div class="row"><div class="rl"><div>Google sign-in ID</div><div class="mu">${s.google_client_id ? esc(s.google_client_id.slice(0, 14)) + '…' : 'Not set — Google button hidden'}</div></div><button class="lk" id="e_gc">Edit</button></div>
+   <div class="row"><div class="rl"><div>Payment wallet</div><div class="mu">${short(s.pay_wallet)}</div></div><button class="lk" id="e_pa">Edit</button></div>
+   ${fresh ? '' : '<div class="mu3">For safety, these four need a sign-in from the last 15 minutes. Sign out (More) and sign in again first.</div>'}</div>`;
+  document.querySelectorAll('.tg[data-k]').forEach(b => b.onclick = async () => {
+    const on = !b.classList.contains('on'); b.classList.toggle('on', on);
+    try { await api('/api/owner/settings', { body: { changes: { [b.dataset.k]: on } } }); toast(`${SW.find(x => x[0] === b.dataset.k)[1]}: ${on ? 'on' : 'off'}`); } catch (e) { b.classList.toggle('on', !on); toast(e.message); }
+  });
+  $('#e_an').onclick = () => editSetting('announce', 'Announcement bar', s.announce, 'Shown at the top of the site. Leave empty to hide. Max 140 characters.');
+  $('#e_fm').onclick = () => editSetting('founder_max', 'Founder spots', s.founder_max, 'How many lifetime plans can be sold.', 'number');
+  $('#e_pw').onclick = () => editSetting('paid_wallets', 'Paid plan wallet limit', s.paid_wallets, 'Most wallets a paid user can track.', 'number');
+  $('#e_ow').onclick = () => editSetting('owner_wallets', 'Owner wallets', s.owner_wallets, 'Comma-separated. Your main wallet in the server code always stays an owner.');
+  $('#e_oe').onclick = () => editSetting('owner_emails', 'Owner Gmail', s.owner_emails, 'The Google account(s) allowed in. Comma-separated.');
+  $('#e_gc').onclick = () => editSetting('google_client_id', 'Google sign-in ID', s.google_client_id, 'From Google Cloud → Credentials → OAuth client ID (Web). Ends with .apps.googleusercontent.com. Add this page\'s address as an authorised JavaScript origin.');
+  $('#e_pa').onclick = () => editSetting('pay_wallet', 'Payment wallet', s.pay_wallet, 'Only paste a wallet you control. Never an exchange deposit address.');
+  $('#e_fr').onclick = () => sheet(`<h3>Free plan</h3><div class="field"><label>Tokens shown per section</label><input type="number" id="ft" value="${s.free_tokens}"></div>
+    <div class="field"><label>Wallets a free user can add</label><input type="number" id="fw" value="${s.free_wallets}"></div>
+    <div class="g2"><button class="bt" onclick="closeSheet()">Cancel</button><button class="bt bp" id="fs">Save</button></div>`, bg => bg.querySelector('#fs').onclick = e => act(e.target, async () => {
+      await api('/api/owner/settings', { body: { changes: { free_tokens: $('#ft').value, free_wallets: $('#fw').value } } }); closeSheet(); toast('Saved'); Site(); }));
+  $('#e_pr').onclick = () => sheet(`<h3>Prices in SOL</h3>${PLANS_ORDER.map(k => `<div class="field"><label>${PLAN[k]}</label><input type="number" step="0.1" id="p_${k}" value="${s.prices[k]}"></div>`).join('')}
+    <div class="g2"><button class="bt" onclick="closeSheet()">Cancel</button><button class="bt bp" id="ps">Save</button></div>`, bg => bg.querySelector('#ps').onclick = e => act(e.target, async () => {
+      await api('/api/owner/settings', { body: { changes: { prices: Object.fromEntries(PLANS_ORDER.map(k => [k, Number($('#p_' + k).value)])) } } }); closeSheet(); toast('Prices saved'); Site(); }));
+}
+function editSetting(k, title, val, help, type) {
+  sheet(`<h3>${esc(title)}</h3><div class="field">${type === 'number' ? `<input type="number" id="sv" value="${esc(val)}">` : `<textarea id="sv" style="min-height:70px;font-family:inherit;font-size:14px">${esc(val)}</textarea>`}
+   <div class="mu mt">${esc(help)}</div></div><div class="g2"><button class="bt" onclick="closeSheet()">Cancel</button><button class="bt bp" id="ss">Save</button></div>`, bg => {
+    bg.querySelector('#ss').onclick = e => act(e.target, async () => { await api('/api/owner/settings', { body: { changes: { [k]: $('#sv').value.trim() } } }); closeSheet(); toast('Saved'); render(); });
+  });
+}
+
+// ---------- Keys ----------
+async function Keys() {
+  loading('API keys');
+  let j; try { j = await api('/api/owner/keys'); } catch (e) { return e.message === 'signed out' || errBox('API keys', e); }
+  const pill = k => k.status === 'ok' ? '<span class="pl ok">Working</span>' : k.status === 'warn' ? '<span class="pl wa">Limit</span>' : k.status === 'error' ? '<span class="pl er">Not working</span>' : k.status === 'missing' ? '<span class="pl ne">Not added</span>' : '<span class="pl ne">Not tested</span>';
+  $('#app').innerHTML = header('API keys', 'Keys stay on your server. The page only ever shows the last 4 characters.') + j.keys.map(k => `
+  <div class="cd"><div class="hd"><span class="ht">${esc(k.label)}</span>${pill(k)}</div>
+   <div class="row"><span class="mu">Key</span><span class="addr">${k.set ? esc(k.masked) : '—'}</span></div>
+   ${k.note && k.status !== 'ok' ? `<div class="row"><span class="mu">Last result</span><span style="color:var(--${k.status === 'warn' ? 'wa' : 'er'})">${esc(k.note)}</span></div>` : ''}
+   <div class="row"><span class="mu">Last checked</span><span>${k.checked ? ago(k.checked) : '—'}</span></div>
+   <div class="row"><span class="mu">Calls from the server today</span><span>${fmt(k.callsToday)}</span></div>
+   <div class="g2 mt">${k.set ? `<button class="bt" data-test="${k.name}">Test</button>` : '<span></span>'}<button class="bt ${k.set ? '' : 'bp'}" data-set="${k.name}">${k.set ? 'Change' : 'Add key'}</button></div>
+   ${k.set ? `<button class="lk wide center mt" style="color:var(--er)" data-rm="${k.name}">Remove key</button>` : ''}</div>`).join('') + `
+  <div class="cd"><div class="hd"><span class="ht">Cloudflare</span></div>
+   <div class="row"><span>Requests to this server today</span><span>${fmt(j.requestsToday)}</span></div>
+   <div class="mu">The free plan allows 100,000 requests a day for your whole account (this server and the webhook server together). Workers Paid ($5/month) raises it to 10 million a month.</div></div>`;
+  const lab = n => j.keys.find(k => k.name === n).label;
+  document.querySelectorAll('[data-test]').forEach(b => b.onclick = () => act(b, async () => { const r = (await api('/api/owner/keys', { body: { name: b.dataset.test } })).result; toast(`${lab(b.dataset.test)}: ${r.note}`); Keys(); }));
+  document.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { if (confirm(`Remove the ${lab(b.dataset.rm)} key?`)) act(b, async () => { await api('/api/owner/keys', { body: { name: b.dataset.rm, remove: true } }); toast('Key removed'); Keys(); }); });
+  document.querySelectorAll('[data-set]').forEach(b => b.onclick = () => sheet(`<h3>${esc(lab(b.dataset.set))} key</h3>
+   <div class="field"><input id="kv" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Paste the key"><div class="mu mt">It's tested right away, then saved on your server.</div></div>
+   <div class="g2"><button class="bt" onclick="closeSheet()">Cancel</button><button class="bt bp" id="ks">Test and save</button></div>`, bg => {
+    bg.querySelector('#ks').onclick = e => act(e.target, async () => { const r = (await api('/api/owner/keys', { body: { name: b.dataset.set, value: $('#kv').value } })).result; closeSheet(); toast(`Saved · ${r.note}`); Keys(); });
+  }));
+}
+
+// ---------- Health ----------
+async function Health(run) {
+  loading('Health and logs');
+  let h; try { h = (await api('/api/owner/health' + (run ? '?run=1' : ''))).health; } catch (e) { return e.message === 'signed out' || errBox('Health and logs', e); }
+  const tile = (l, st, note) => `<div class="kp" style="background:var(--${st === 'ok' ? 'okbg' : st === 'warn' ? 'wabg' : st === 'missing' ? 'soft' : 'erbg'});color:var(--${st === 'ok' ? 'ok' : st === 'warn' ? 'wa' : st === 'missing' ? 'tx2' : 'er'})"><div style="font-weight:600">${esc(l)}</div><div style="font-size:12px">${esc(note)}</div></div>`;
+  $('#app').innerHTML = header('Health and logs', run ? 'Full check just ran' : 'Last saved results · run a check for fresh ones') + `
+  <div class="cd"><div class="g2">${tile('Server', 'ok', 'Running')}${tile('Database', h.db, h.db === 'ok' ? 'Connected' : 'Error')}
+   ${h.keys.map(k => tile(k.label, k.status === 'untested' ? 'missing' : k.status, k.status === 'untested' ? 'Not tested' : k.note)).join('')}
+   ${tile('Live alerts', 'missing', 'Comes with step 3')}</div>
+   <div class="row mt"><span>Server requests today</span><span>${fmt(h.requestsToday)}</span></div>
+   <button class="bt bp wide mt" id="run">Run full check</button></div>
+  <div class="cd"><div class="hd"><span class="ht">Errors and warnings</span>${h.events.length ? '<button class="lk" id="clr">Clear</button>' : ''}</div>
+   ${h.events.length ? h.events.map(e => `<div class="row"><div class="rl"><div style="color:var(--${e.level === 'error' ? 'er' : 'wa'});white-space:normal">${esc(e.msg)}</div>
+     <div class="mu" style="white-space:normal">${new Date(e.ts * 1000).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false })}${e.fix ? ' · Fix: ' + esc(e.fix) : ''}</div></div></div>`).join('') : '<div class="mu">No errors ✓</div>'}</div>`;
+  $('#run').onclick = e => { busy(e.target, true); Health(true); };
+  const c = $('#clr'); if (c) c.onclick = () => act(c, async () => { await api('/api/owner/events/clear', { body: {} }); toast('Cleared'); Health(); });
+}
+
+start();
+</script>
+</body>
+</html>

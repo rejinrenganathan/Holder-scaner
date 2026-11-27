@@ -705,7 +705,7 @@ function median(a){if(!a.length)return null;const s=[...a].sort((x,y)=>x-y),m=s.
 const STORE_FREE=[/^hslab_(c_|grad|last|f_)/,/^hs_wc$/,/^hs_img$/,/^hs_xav$/,/^hs_kev$/,/^hs_devh$/];   // all re-fetched automatically
 const STORE_MUST=/^hs_(kol|kolx|smart|key|stkey|bekey|hook|set|plan|fav)$/;                             // your own data
 let storeWarned=0;
-const APP_V=79;   // shown in the status card — bump together with sw.js
+const APP_V=80;   // shown in the status card — bump together with sw.js
 const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v);}catch(e){return d;}},
   set(k,v){let j;try{j=JSON.stringify(v);}catch(e){return false;}
     try{localStorage.setItem(k,j);return true;}catch(e){}
@@ -3948,5 +3948,6 @@ function start(){REFRESH_MS=PLAN==='paid'?35e3:60e3;$('vSetup').classList.add('h
   refresh(true);schedule();}
 if(KEY)start();else{$('vSetup').classList.remove('hide');const p=readAddHash();if(p&&!p.err){store.set('hs_pendadd',p);}}
 </script>
+<script src="hit.js" defer></script>
 </body>
 </html>

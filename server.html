@@ -42,7 +42,10 @@ ol{padding-left:20px;margin:8px 0}li{margin:4px 0}
 
 <div class="card"><div><span class="n">4</span><b>Paste the server code</b></div>
 <ol><li>Tap <b>Copy server code</b> below.</li>
-<li>In the Worker, tap <b>Edit code</b>, select all the old code, delete it, paste, then <b>Deploy</b>.</li></ol>
+<li>In the Worker, tap <b>Edit code</b>. Long-press in the code → <b>Select all</b> → delete, until only line 1 is left and it's empty.</li>
+<li>Long-press → <b>Paste</b>. Check the last line number matches the number shown below, and the bottom bar shows <b>0</b> errors.</li>
+<li>Tap <b>Deploy</b>.</li></ol>
+<div class="note">Updating the server later? Do this same step again with the new code.</div>
 <button class="btn" id="copy">📋 Copy server code</button>
 <div class="note" id="cnote" style="margin-top:6px">Loading the code…</div>
 <textarea id="code" readonly spellcheck="false"></textarea></div>
@@ -51,6 +54,15 @@ ol{padding-left:20px;margin:8px 0}li{margin:4px 0}
 <ol><li>Copy the Worker's address — it looks like <code>https://holder-scan-api.yourname.workers.dev</code>.</li>
 <li>Open the Account page, paste it, tap <b>Connect</b>.</li></ol>
 <a class="btn" href="account.html">Go to Account</a></div>
+
+<div class="card"><div><span class="n">6</span><b>Open your owner dashboard</b></div>
+<ol><li>Your dashboard lives on the server's own address: add <code>/owner</code> to the end, e.g. <code>https://holder-scan-api.yourname.workers.dev/owner</code>.</li>
+<li>Open it inside <b>Phantom's browser</b> (or tap <b>Open in Phantom</b> on that page) and sign in with your owner wallet.</li>
+<li>Bookmark it. It's not linked from the public site.</li></ol>
+<div class="note">Google sign-in: once you've created a Google sign-in ID, paste it in Site control → Owner access, together with your Gmail.</div></div>
+
+<div class="card"><div><span class="n">7</span><b>Turn on visitor counting</b></div>
+<div class="note">Send your server address to Claude. It gets added to the site pages so every visit is counted for Traffic (no cookies, IDs change daily).</div></div>
 </div>
 <script>
 'use strict';
