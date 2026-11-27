@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#090b10">
+<title>Account · Holder Scan</title>
+<style>
+:root{--bg:#090b10;--bg2:#10131a;--card:#141822;--line:#212634;--line2:#2d3344;--txt:#eef1f7;--txt2:#c9d1de;--mut:#8590a6;--good:#22c55e;--bad:#f43f5e;--warn:#f59e0b;--acc:#7c9cff;--chip:#1c2130;--chip2:#262c3d}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.45 -apple-system,system-ui,Segoe UI,Roboto,sans-serif;padding:0 0 40px}
+a{color:var(--acc);text-decoration:none}
+.top{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.top h1{font-size:17px;margin:0;flex:1}
+.wrap{padding:14px;max-width:520px;margin:0 auto}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px}
+.hero{text-align:center;padding:26px 8px 14px}
+.hero h2{font-size:24px;margin:0 0 6px}
+.note{font-size:12.5px;color:var(--mut)}
+.btn{display:block;width:100%;text-align:center;background:var(--acc);color:#0b0d12;border:0;border-radius:12px;padding:13px;font-weight:700;font-size:15px;margin-top:10px;cursor:pointer}
+.btn2{display:block;width:100%;text-align:center;background:var(--chip2);color:var(--txt);border:1px solid var(--line2);border-radius:12px;padding:12px;font-size:15px;margin-top:10px;cursor:pointer}
+.btn:disabled,.btn2:disabled{opacity:.5}
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px}
+.row:last-child{border-bottom:0}
+.mono{font-family:ui-monospace,Menlo,monospace;font-size:12.5px}
+.tag{font-size:11px;padding:2px 8px;border-radius:7px;background:var(--chip2);color:var(--txt2)}
+.tag.ok{background:rgba(34,197,94,.15);color:var(--good)}.tag.acc{background:rgba(124,156,255,.16);color:var(--acc)}
+.err{color:var(--bad);font-size:13px;margin-top:8px}
+input{width:100%;background:var(--bg2);color:var(--txt);border:1px solid var(--line2);border-radius:10px;padding:10px;font-size:14px}
+.hide{display:none!important}
+.wl{display:flex;gap:8px;flex-direction:column}
+</style>
+</head>
+<body>
+<div class="top"><a href="./" class="btn2" style="width:auto;margin:0;padding:6px 12px;font-size:13px">← App</a><h1>Account</h1></div>
+<div class="wrap" id="root"></div>
+<script>
+'use strict';
+// ============ Holder Scan account (public version, step 1): sign in with a Solana wallet ============
+// The wallet signs a one-time message (no transaction, no fee); the server checks it and returns a session.
+const $=id=>document.getElementById(id);
+const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v);}catch(e){return d;}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}},del(k){try{localStorage.removeItem(k);}catch(e){}}};
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const short=w=>w?w.slice(0,4)+'…'+w.slice(-4):'';
+let API=store.get('hs_api','').replace(/\/+$/,''),TOKEN=store.get('hs_token',''),USER=null,BUSY=false,ERR='';
+
+async function api(path,opt={}){
+  if(!API)throw new Error('Server address not set');
+  let r;try{r=await fetch(API+path,{method:opt.method||'GET',headers:{'content-type':'application/json',...(TOKEN?{authorization:'Bearer '+TOKEN}:{})},body:opt.body?JSON.stringify(opt.body):undefined});}
+  catch(e){throw new Error('Could not reach the server — check the address and your connection');}
+  const j=await r.json().catch(()=>({}));if(!r.ok||!j.ok){const e=new Error(j.error||('Server error '+r.status));e.status=r.status;throw e;}return j;
+}
+// wallets inject themselves when this page is opened inside their app (Phantom / Solflare / Backpack browser)
+function provider(){
+  const w=window;
+  if(w.phantom?.solana?.isPhantom)return{p:w.phantom.solana,name:'Phantom'};
+  if(w.solflare?.isSolflare)return{p:w.solflare,name:'Solflare'};
+  if(w.backpack?.solana)return{p:w.backpack.solana,name:'Backpack'};
+  if(w.solana)return{p:w.solana,name:'your wallet'};
+  return null;
+}
+const here=()=>location.href.split('#')[0];
+const openIn={phantom:()=>`https://phantom.app/ul/browse/${encodeURIComponent(here())}?ref=${encodeURIComponent(location.origin)}`,
+  solflare:()=>`https://solflare.com/ul/v1/browse/${encodeURIComponent(here())}?ref=${encodeURIComponent(location.origin)}`};
+const b64=u=>{let s='';u.forEach(b=>s+=String.fromCharCode(b));return btoa(s);};
+
+async function signIn(){
+  const pr=provider();if(!pr)return;
+  BUSY=true;ERR='';draw();
+  try{
+    const res=await pr.p.connect();const wallet=(res?.publicKey||pr.p.publicKey).toString();
+    const n=await api('/api/auth/nonce',{method:'POST',body:{wallet}});
+    const signed=await pr.p.signMessage(new TextEncoder().encode(n.message),'utf8');
+    const sig=signed?.signature||signed;   // Phantom/Backpack return {signature}, some wallets the bytes
+    if(!(sig instanceof Uint8Array)&&!Array.isArray(sig))throw new Error('Your wallet did not return a signature');
+    const s=await api('/api/auth/solana',{method:'POST',body:{wallet,nonce:n.nonce,signature:b64(Uint8Array.from(sig))}});
+    TOKEN=s.token;store.set('hs_token',TOKEN);USER=s.user;USER._new=s.isNew;
+  }catch(e){ERR=/reject|denied|cancel/i.test(e.message||'')?'You cancelled in the wallet — nothing was signed.':(e.message||String(e));}
+  BUSY=false;draw();
+}
+async function logout(){try{await api('/api/auth/logout',{method:'POST'});}catch(e){}TOKEN='';USER=null;store.del('hs_token');draw();}
+async function loadMe(){
+  if(!TOKEN||!API){draw();return;}
+  BUSY=true;draw();
+  try{USER=(await api('/api/me')).user;}catch(e){if(e.status===401){TOKEN='';store.del('hs_token');}else ERR=e.message;}
+  BUSY=false;draw();
+}
+async function saveServer(){
+  const v=$('srv').value.trim().replace(/\/+$/,'');
+  if(!/^https:\/\/[^\s]+$/.test(v)){ERR='Paste the full address, starting with https://';draw();return;}
+  BUSY=true;ERR='';draw();
+  try{const r=await fetch(v+'/api/health');const j=await r.json();if(!j.ok||j.app!=='holder-scan-api')throw new Error();API=v;store.set('hs_api',API);}
+  catch(e){ERR='That address did not answer like the Holder Scan server — check server setup.';}
+  BUSY=false;draw();
+}
+
+function draw(){
+  const r=$('root'),err=ERR?`<div class="err">⚠ ${esc(ERR)}</div>`:'';
+  if(!API){r.innerHTML=`<div class="card"><b>Connect the server</b><div class="note" style="margin-top:4px">One-time setup: create the Holder Scan server on Cloudflare, then paste its address here.</div>
+    <input id="srv" placeholder="https://holder-scan-api.yourname.workers.dev" style="margin-top:10px" autocomplete="off" spellcheck="false">
+    <button class="btn" id="srvGo" ${BUSY?'disabled':''}>${BUSY?'Checking…':'Connect'}</button>${err}
+    <a class="btn2" href="server.html">Server setup steps</a></div>`;
+    $('srvGo').onclick=saveServer;return;}
+  if(BUSY&&!USER){r.innerHTML=`<div class="hero"><h2>Holder Scan</h2><div class="note">Working… check your wallet if it asks you to sign.</div></div>`;return;}
+  if(!USER){const pr=provider();
+    r.innerHTML=`<div class="hero"><h2>Holder Scan</h2><div class="note">Track Solana KOL and smart-money wallets in real time.</div></div>
+    <div class="card">${pr?`<button class="btn" id="go">👻 Sign in with ${esc(pr.name)}</button><div class="note" style="text-align:center;margin-top:8px">You sign a message — no transaction, no fee.</div>`
+      :`<div class="note">To sign in with a Solana wallet, open this page inside your wallet app:</div>
+        <a class="btn" href="${openIn.phantom()}">👻 Open in Phantom</a><a class="btn2" href="${openIn.solflare()}">☀️ Open in Solflare</a>
+        <div class="note" style="margin-top:10px">Using Backpack or another wallet? Open its built-in browser and go to this page.</div>`}
+      <button class="btn2" disabled>🟢 Continue with Google — coming soon</button>${err}</div>
+    <div class="note" style="text-align:center">Free: 4 tokens per section · basic filters · 10 wallets<br>Not financial advice · we never ask for your seed phrase</div>`;
+    if(pr)$('go').onclick=signIn;return;}
+  const u=USER,paid=u.plan!=='free';
+  r.innerHTML=`${u._new?`<div class="card"><b>Welcome 👋</b><div class="note" style="margin-top:4px">Your account is ready. Next update: your wallet lists and settings move into this account, so they follow you to any phone.</div></div>`:''}
+    <div class="card"><div class="row"><span>Signed in</span><span class="mono">${esc(short(u.wallet))} ${u.isAdmin?'<span class="tag acc">owner</span>':''}</span></div>
+      <div class="row"><span>Plan</span><span>${paid?`<span class="tag ok">${esc(u.plan)}</span> until ${new Date(u.planUntil*1000).toLocaleDateString()}`:'<span class="tag">Free</span>'}</span></div>
+      <div class="row"><span>Member since</span><span class="note">${new Date(u.created*1000).toLocaleDateString()}</span></div>
+      <div class="row"><span>Also link Google</span><span class="note">coming soon</span></div></div>
+    ${paid?'':`<div class="card"><b>Free plan</b><div class="note" style="margin-top:4px">4 tokens per section · basic filters · 10 wallets. Paid plans (from 2 SOL) arrive in a later update.</div></div>`}
+    <div class="card"><div class="row"><span>Server</span><span class="note mono">${esc(API.replace(/^https:\/\//,''))}</span></div>
+      <div class="row"><span>Terms · Privacy · Not financial advice</span><span class="note">soon</span></div></div>
+    <button class="btn2" id="out">Log out</button>${err}`;
+  $('out').onclick=logout;
+}
+loadMe();
+</script>
+</body>
+</html>
