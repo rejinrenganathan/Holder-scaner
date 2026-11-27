@@ -687,6 +687,7 @@ function median(a){if(!a.length)return null;const s=[...a].sort((x,y)=>x-y),m=s.
 const STORE_FREE=[/^hslab_(c_|grad|last|f_)/,/^hs_wc$/,/^hs_img$/,/^hs_xav$/,/^hs_kev$/,/^hs_devh$/];   // all re-fetched automatically
 const STORE_MUST=/^hs_(kol|kolx|smart|key|stkey|bekey|hook|set|plan|fav)$/;                             // your own data
 let storeWarned=0;
+const APP_V=75;   // shown in the status card — bump together with sw.js
 const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v);}catch(e){return d;}},
   set(k,v){let j;try{j=JSON.stringify(v);}catch(e){return false;}
     try{localStorage.setItem(k,j);return true;}catch(e){}
@@ -1451,7 +1452,7 @@ async function trackTick(){if(!visible()||!KEY||!$('vDetail').classList.contains
 function trkHTML(){
   const xs=XR.map(x=>`${esc(new URL(x.u).hostname.split('.').slice(-2,-1)[0]||'rpc')} ${Date.now()>x.until?'✅':'⏸'}`).join(' · ');
   const ago_=TRK.t?Math.round((Date.now()-TRK.t)/1000)+'s ago':'starting…';
-  return `<div class="trk ${TRK.err?'bad':''}" id="trk">${TRK.prog?`⏳ ${esc(TRK.prog)}`:`⏱ Tracking ${TRK.total||'…'} wallets · last round ${ago_} · checked ${TRK.checked} · <b>${TRK.added}</b> new trade${TRK.added===1?'':'s'}`}${hookOn()?`<br><span class="note">🪝 Webhook 24/7: ${hookOK()?'<b class="up">on</b>':'connecting…'} · ${liveList().length} wallets${HK.hel?(HK.hel.n>=Math.min(liveList().length,100000)?` · Helius ✓ ${HK.hel.n}`:` · <b class="dn">Helius ⚠ ${HK.hel.n}/${liveList().length}</b> fixing…`):''}${HK.ev?` · ${HK.ev} new trades since open`:''}${HK.t?` · checked ${Math.round((Date.now()-HK.t)/1000)}s ago`:''}</span>`:''}${HK.err?`<br><span class="note bad">${esc(HK.err)}</span>`:''}${hookOn()&&HK.wv&&HK.wv<WORKER_V?'<br><span class="note bad">⚠ Update your Worker code: ⚙ Settings → 🪝 24/7 webhook</span>':''}${LIVE.on?`<br><span class="note">⚡ Live: <b>${LIVE.subs}</b>/${LIVE.want} wallets streaming${LIVE.trades?` · ${LIVE.trades} live trades`:''}${LIVE.t?` · last event ${Math.round((Date.now()-LIVE.t)/1000)}s ago`:''}</span>`:''}${LIVE.err?`<br><span class="note">${esc(LIVE.err)}</span>`:''}${xs?`<br><span class="note">RPCs: Helius ✅ · ${xs}</span>`:''}${TRK.err?`<br>⚠ ${esc(TRK.err)}`:''}</div>`;
+  return `<div class="trk ${TRK.err?'bad':''}" id="trk">${TRK.prog?`⏳ ${esc(TRK.prog)}`:`⏱ Tracking ${TRK.total||'…'} wallets · last round ${ago_} · checked ${TRK.checked} · <b>${TRK.added}</b> new trade${TRK.added===1?'':'s'}`}${hookOn()?`<br><span class="note">🪝 Webhook 24/7: ${hookOK()?'<b class="up">on</b>':'connecting…'} · ${liveList().length} wallets${HK.hel?(HK.hel.n>=Math.min(liveList().length,100000)?` · Helius ✓ ${HK.hel.n}`:` · <b class="dn">Helius ⚠ ${HK.hel.n}/${liveList().length}</b> fixing…`):''}${HK.ev?` · ${HK.ev} new trades since open`:''}${HK.t?` · app v${APP_V} · checked ${Math.round((Date.now()-HK.t)/1000)}s ago`:''}</span>`:''}${HK.err?`<br><span class="note bad">${esc(HK.err)}</span>`:''}${hookOn()&&HK.wv&&HK.wv<WORKER_V?'<br><span class="note bad">⚠ Update your Worker code: ⚙ Settings → 🪝 24/7 webhook</span>':''}${LIVE.on?`<br><span class="note">⚡ Live: <b>${LIVE.subs}</b>/${LIVE.want} wallets streaming${LIVE.trades?` · ${LIVE.trades} live trades`:''}${LIVE.t?` · last event ${Math.round((Date.now()-LIVE.t)/1000)}s ago`:''}</span>`:''}${LIVE.err?`<br><span class="note">${esc(LIVE.err)}</span>`:''}${xs?`<br><span class="note">RPCs: Helius ✅ · ${xs}</span>`:''}${TRK.err?`<br>⚠ ${esc(TRK.err)}`:''}</div>`;
 }
 function showTrk(){const el=$('trk');if(el)el.outerHTML=trkHTML();}
 setInterval(()=>{if(visible()&&!TRK.prog)showTrk();},5000);
@@ -3768,7 +3769,12 @@ $('kGo').onclick=async()=>{const k=$('kIn').value.trim();if(k.length<20){$('kErr
   $('kGo').textContent='Start scanning';};
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;$('instBtn').classList.remove('hide');});
 $('instBtn').onclick=async()=>{if(!deferredPrompt)return;deferredPrompt.prompt();await deferredPrompt.userChoice;deferredPrompt=null;$('instBtn').classList.add('hide');};
-if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
+if('serviceWorker' in navigator&&location.protocol==='https:'){
+  const hadSW=!!navigator.serviceWorker.controller;let swReloaded=false;
+  navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>r.update().catch(()=>{})).catch(()=>{});
+  // a new version took over: reload once so it's used right away (not only after closing the app twice)
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{if(hadSW&&!swReloaded){swReloaded=true;location.reload();}});
+}
 
 function start(){REFRESH_MS=PLAN==='paid'?35e3:60e3;$('vSetup').classList.add('hide');$('vMain').classList.remove('hide');renderControls();
   if(hookOn()){hookPoll();setTimeout(()=>{if(hookWorking())hookVerify();if(Date.now()-store.get('hs_sweep',0)>(liveList().length>1500?12:2)*3600e3)setTimeout(hookCatchUp,15e3);hookFetch('/ping').then(p=>{HK.wv=p.v||1;}).catch(()=>{});},6000);if(!lastTrack)lastTrack=Date.now()-4*60e3;}   // webhook keeps everything while the app is closed: first safety check after ~1 min

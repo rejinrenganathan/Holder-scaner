@@ -1,5 +1,5 @@
 // Holder Scanner service worker: caches the app shell + SOL logo only, never live API data.
-const CACHE = 'hs-shell-v74';
+const CACHE = 'hs-shell-v75';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 const SOL_LOGOS = [
   'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png',
@@ -33,8 +33,9 @@ self.addEventListener('fetch', e => {
     return;
   }
   // app shell: network first so updates show up, cache as offline fallback
+  // cache:'no-cache' → always ask GitHub if the file changed (cheap 304 when not), so a new version shows on the next open
   e.respondWith(
-    fetch(e.request)
+    fetch(e.request, { cache: 'no-cache' })
       .then(r => { const copy = r.clone(); caches.open(CACHE).then(c => c.put(e.request, copy)); return r; })
       .catch(() => caches.match(e.request).then(r => r || caches.match('./index.html')))
   );
