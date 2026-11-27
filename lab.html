@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#090b10">
+<title>Winner Lab · Holder Scan</title>
+<style>
+:root{--bg:#090b10;--bg2:#10131a;--card:#141822;--line:#212634;--line2:#2d3344;--txt:#eef1f7;--txt2:#c9d1de;--mut:#8590a6;--good:#22c55e;--bad:#f43f5e;--warn:#f59e0b;--acc:#7c9cff;--smart:#a78bfa;--gold:#fbbf24;--chip:#1c2130;--chip2:#262c3d}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font:14px/1.45 -apple-system,system-ui,Segoe UI,Roboto,sans-serif;padding:0 0 60px}
+a{color:var(--acc);text-decoration:none}
+.top{position:sticky;top:0;z-index:5;background:rgba(9,11,16,.94);backdrop-filter:blur(8px);display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.top h1{font-size:17px;margin:0;flex:1}
+.wrap{padding:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:12px}
+.lbl{font-size:12px;color:var(--mut);margin:0 0 6px}
+.row{display:flex;align-items:center;gap:8px}
+.sp{flex:1}
+.seg{display:flex;gap:4px;flex-wrap:wrap}
+.seg button{background:var(--chip);color:var(--txt2);border:1px solid var(--line2);border-radius:8px;padding:5px 10px;font-size:13px}
+.seg button.on{background:var(--acc);color:#0b0d12;border-color:var(--acc);font-weight:600}
+.set{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line)}
+.set:last-child{border-bottom:0}
+.btn{background:var(--acc);color:#0b0d12;border:0;border-radius:10px;padding:10px 14px;font-weight:700;font-size:14px}
+.btn2{background:var(--chip2);color:var(--txt);border:1px solid var(--line2);border-radius:10px;padding:8px 12px;font-size:13px}
+.btn:disabled{opacity:.5}
+input[type=text],input[type=password]{width:100%;background:var(--bg2);color:var(--txt);border:1px solid var(--line2);border-radius:8px;padding:8px;font-size:13px}
+.note{font-size:12px;color:var(--mut)}
+.ok{color:var(--good)}.bad{color:var(--bad)}.warn{color:var(--warn)}
+.prog{height:6px;background:var(--chip);border-radius:3px;overflow:hidden;margin:8px 0 4px}
+.prog i{display:block;height:100%;background:var(--acc);width:0;transition:width .2s}
+.tabs{display:flex;gap:4px;margin-bottom:10px;position:sticky;top:50px;z-index:4;background:var(--bg);padding:6px 0}
+.tabs button{flex:1;background:var(--chip);color:var(--mut);border:1px solid var(--line);border-radius:8px;padding:7px 0;font-size:13px}
+.tabs button.on{color:var(--txt);border-color:var(--line2);background:var(--card);font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:10px}
+.st{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.st b{display:block;font-size:18px}
+.st span{font-size:12px;color:var(--mut)}
+.it{display:flex;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}
+.it:last-child{border-bottom:0}
+.it img{width:34px;height:34px;border-radius:8px;background:var(--chip);object-fit:cover;flex:none}
+.mn{flex:1;min-width:0}
+.mn .t{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tg{display:inline-block;font-size:11px;padding:1px 6px;border-radius:6px;background:var(--chip2);color:var(--txt2);margin-left:4px;vertical-align:1px}
+.tg.g{background:rgba(34,197,94,.15);color:var(--good)}
+.tg.r{background:rgba(244,63,94,.15);color:var(--bad)}
+.tg.s{background:rgba(167,139,250,.16);color:var(--smart)}
+.tg.y{background:rgba(251,191,36,.15);color:var(--gold)}
+.tg.b{background:rgba(124,156,255,.15);color:var(--acc)}
+.mono{font-family:ui-monospace,Menlo,monospace;font-size:12px}
+.chk{width:22px;height:22px;flex:none;accent-color:var(--acc)}
+.sig{display:grid;grid-template-columns:1fr 64px 64px;gap:6px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px}
+.sig:last-child{border-bottom:0}
+.sig .v{text-align:right}
+.hl{background:rgba(124,156,255,.08);border-radius:6px}
+.log{max-height:120px;overflow:auto;font-size:12px;color:var(--mut);white-space:pre-wrap}
+.hide{display:none!important}
+.fb{position:sticky;bottom:10px;display:flex;gap:8px;justify-content:center;margin-top:10px}
+.chips{display:flex;gap:6px;margin-bottom:8px}
+.chips button{background:var(--chip);color:var(--mut);border:1px solid var(--line);border-radius:7px;padding:4px 10px;font-size:12px}
+.chips button.on{color:var(--txt);border-color:var(--line2);background:var(--card)}
+</style>
+</head>
+<body>
+<div class="top"><a href="./" class="btn2">← App</a><h1>🧪 Winner Lab</h1><span class="note" id="stCount"></span></div>
+<div class="wrap">
+
+<div class="card" id="keysCard">
+  <div class="lbl">Keys (read from your Holder Scan app in this browser)</div>
+  <div id="keyStatus" class="note"></div>
+  <div id="keyInputs" class="hide" style="margin-top:8px">
+    <input type="password" id="kHel" placeholder="Helius API key">
+    <input type="password" id="kSt" placeholder="Solana Tracker API key" style="margin-top:6px">
+    <button class="btn2" id="kSave" style="margin-top:8px">Save keys for the Lab</button>
+  </div>
+</div>
+
+<div class="card">
+  <div class="lbl">Run settings</div>
+  <div class="set"><span>Coins created</span><div class="seg" data-k="days"><button data-v="2">1–2d ago</button><button data-v="3">1–3d</button><button data-v="7">1–7d</button></div></div>
+  <div class="set"><span>Winner peak MC</span><div class="seg" data-k="win"><button data-v="500000">500K</button><button data-v="1000000">1M</button><button data-v="5000000">5M</button></div></div>
+  <div class="set"><span>Coins per side</span><div class="seg" data-k="n"><button data-v="10">10</button><button data-v="15">15</button><button data-v="25">25</button></div></div>
+  <div class="set"><span>Funder check (Helius)</span><div class="seg" data-k="fund"><button data-v="1">On</button><button data-v="0">Off</button></div></div>
+  <div class="note" id="ruleTxt" style="margin-top:6px"></div>
+  <div class="row" style="margin-top:10px"><button class="btn" id="runBtn">▶ Run Lab</button><button class="btn2 hide" id="stopBtn">Stop</button><span class="sp"></span><span class="note" id="estTxt"></span></div>
+  <div id="progBox" class="hide"><div class="prog"><i id="progBar"></i></div><div class="note" id="progTxt"></div></div>
+  <div class="log hide" id="log"></div>
+</div>
+
+<div id="results" class="hide">
+  <div class="note" id="resMeta" style="margin:0 2px 8px"></div>
+  <div class="tabs" id="tabs"><button data-t="coins" class="on">Coins</button><button data-t="wallets">Wallets</button><button data-t="cohorts">Cohorts</button><button data-t="signals">Signals</button></div>
+  <div id="view"></div>
+</div>
+
+</div>
+<script>
+'use strict';
+// ============ Winner Lab: learn which wallets and which signals come before big pumps ============
+// 1) Solana Tracker lists graduated launchpad coins  2) its 5m market-cap chart labels each coin winner / loser
+// 3) first-buyers gives the earliest wallets  4) wallets early in many winners (and few losers) = smart; together = cohort
+// 5) Helius finds who funded them  6) winners vs losers are compared on every signal.
+// Uses only real data. Raw API answers are cached on this phone so a re-run with other settings costs almost nothing.
+const $=id=>document.getElementById(id);
+const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v);}catch(e){return d;}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true;}catch(e){return false;}}};
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const short=w=>w?w.slice(0,4)+'…'+w.slice(-4):'';
+const B58=/^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+const usd=v=>v==null||!isFinite(v)?'–':v>=1e9?'$'+(v/1e9).toFixed(2)+'B':v>=1e6?'$'+(v/1e6).toFixed(v>=1e7?1:2)+'M':v>=1e3?'$'+(v/1e3).toFixed(v>=1e5?0:1)+'K':'$'+Math.round(v);
+const pct=v=>v==null||!isFinite(v)?'–':(v*100).toFixed(0)+'%';
+const dur=s=>s==null?'–':s<3600?Math.round(s/60)+'m':(s/3600).toFixed(s<36000?1:0)+'h';
+const ago=s=>{const d=Date.now()/1000-s;return d<3600?Math.round(d/60)+'m ago':d<86400?Math.round(d/3600)+'h ago':Math.round(d/86400)+'d ago';};
+const toSec=t=>t==null?null:t>1e12?t/1000:t;
+const median=a=>{const b=a.filter(x=>x!=null&&isFinite(x)).sort((x,y)=>x-y);if(!b.length)return null;const m=b.length>>1;return b.length%2?b[m]:(b[m-1]+b[m])/2;};
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+// ---------- keys: the app's own keys in this browser, or keys pasted here ----------
+const KEYS={hel:store.get('hslab_key','')||store.get('hs_key',''),st:store.get('hslab_stkey','')||store.get('hs_stkey','')};
+function drawKeys(){
+  $('keyStatus').innerHTML=`Helius ${KEYS.hel?'<span class="ok">✓</span>':'<span class="bad">missing</span>'} · Solana Tracker ${KEYS.st?'<span class="ok">✓</span>':'<span class="bad">missing</span>'} <a href="#" id="kEdit" style="margin-left:6px">edit</a>`;
+  $('keyInputs').classList.toggle('hide',!!(KEYS.hel&&KEYS.st));
+  $('kEdit').onclick=e=>{e.preventDefault();$('keyInputs').classList.toggle('hide');};
+}
+$('kSave').onclick=()=>{const h=$('kHel').value.trim(),s=$('kSt').value.trim();if(h){KEYS.hel=h;store.set('hslab_key',h);}if(s){KEYS.st=s;store.set('hslab_stkey',s);}$('kHel').value=$('kSt').value='';drawKeys();};
+
+// ---------- settings ----------
+const CFG={days:3,win:1000000,n:15,fund:1,...store.get('hslab_cfg',{})};
+const LOSE_PEAK=200000;      // loser: never reached 200K …
+const LOSE_DROP=0.3;         // … and ended at ≤30% of its peak
+const HOLD_S=3600;           // winner must stay above its "held" bar for 1 hour
+const holdBar=()=>CFG.win*0.3;
+function drawCfg(){
+  document.querySelectorAll('.seg[data-k]').forEach(s=>s.querySelectorAll('button').forEach(b=>b.classList.toggle('on',String(CFG[s.dataset.k])===b.dataset.v)));
+  $('ruleTxt').innerHTML=`🟢 Winner: peak ≥ ${usd(CFG.win)} within 24h of launch and stayed ≥ ${usd(holdBar())} for 1h.<br>🔴 Loser: peak &lt; ${usd(LOSE_PEAK)} and fell 70%+, or a ${usd(CFG.win)}+ wick that didn't hold.<br>⏱ Early buyer: bought before MC reached 1/5 of the coin's peak.`;
+  const calls=Math.ceil(CFG.days*1.5)+CFG.n*5;
+  $('estTxt').textContent=`≈ up to ${calls} Solana Tracker calls (cached coins are free)`;
+}
+document.querySelectorAll('.seg[data-k]').forEach(s=>s.onclick=e=>{const b=e.target.closest('button');if(!b)return;CFG[s.dataset.k]=+b.dataset.v;store.set('hslab_cfg',CFG);drawCfg();});
+
+// ---------- Solana Tracker (free plan: 2,500 calls a month, 3 per second) ----------
+let stLast=0;
+function stCounter(){const m=new Date().toISOString().slice(0,7);const c=store.get('hslab_stcalls',{m,n:0});if(c.m!==m){c.m=m;c.n=0;}return c;}
+function drawCount(){$('stCount').textContent=`ST ${stCounter().n}/mo`;$('stCount').title='Solana Tracker calls made by the Lab this month';}
+async function stGet(path){
+  const wait=stLast+380-Date.now();if(wait>0)await sleep(wait);stLast=Date.now();
+  const c=stCounter();c.n++;store.set('hslab_stcalls',c);drawCount();
+  let r;try{r=await fetch('https://data.solanatracker.io'+path,{headers:{'x-api-key':KEYS.st,accept:'application/json'}});}catch(e){throw new Error('Solana Tracker could not be reached');}
+  if(r.status===401)throw new Error('Solana Tracker rejected the key');
+  if(r.status===403)throw new Error('Solana Tracker: your plan does not include '+path.split('?')[0].replace(/\/[1-9A-HJ-NP-Za-km-z]{32,44}/,'/{token}'));
+  if(r.status===429){await sleep(1500);throw new Error('Solana Tracker limit reached (free plan: 2,500 calls/month, 3/sec)');}
+  if(!r.ok)throw new Error('Solana Tracker HTTP '+r.status);
+  return r.json();
+}
+// ---------- Helius RPC ----------
+async function rpc(method,params){
+  for(let i=0;i<3;i++){
+    const r=await fetch('https://mainnet.helius-rpc.com/?api-key='+encodeURIComponent(KEYS.hel),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method,params})});
+    if(r.status===429){await sleep(800*(i+1));continue;}
+    if(!r.ok)throw new Error('Helius HTTP '+r.status);
+    const j=await r.json();if(j.error)throw new Error(j.error.message||'RPC error');return j.result;
+  }
+  throw new Error('Helius rate limit');
+}
+
+// ---------- cache (per coin; coins are ≥1 day old so their past doesn't change) ----------
+const CK='hslab_c_',CACHE_S=10*86400;
+function cGet(mint,kind){const v=store.get(CK+kind+'_'+mint,null);return v&&Date.now()/1000-v.t<CACHE_S?v.d:null;}
+function cSet(mint,kind,d){if(!store.set(CK+kind+'_'+mint,{t:Date.now()/1000,d})){cPrune(true);store.set(CK+kind+'_'+mint,{t:Date.now()/1000,d});}}
+function cPrune(hard){const now=Date.now()/1000,ks=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith(CK))ks.push(k);}
+  ks.forEach(k=>{const v=store.get(k,null);if(!v||now-v.t>CACHE_S||(hard&&now-v.t>2*86400))localStorage.removeItem(k);});}
+
+// ---------- progress / log ----------
+let STOP=false;
+function prog(p,t){$('progBox').classList.remove('hide');$('progBar').style.width=Math.round(p*100)+'%';$('progTxt').textContent=t;}
+function log(t){const l=$('log');l.classList.remove('hide');l.textContent+=(l.textContent?'\n':'')+t;l.scrollTop=1e9;}
+
+// ---------- step 1: graduated coins ----------
+function slimToken(x){
+  const t=x.token||{},pools=x.pools||[],main=pools.slice().sort((a,b)=>(b.liquidity?.usd||0)-(a.liquidity?.usd||0))[0]||{},r=x.risk||{};
+  const created=toSec(t.creation?.created_time)||null;
+  return{mint:t.mint||main.tokenAddress,sym:t.symbol||'',name:t.name||'',img:t.image||'',created,creator:t.creation?.creator||main.deployer||null,
+    mcNow:Math.max(0,...pools.map(p=>p.marketCap?.usd||0)),liq:main.liquidity?.usd||0,vol:Math.max(0,...pools.map(p=>p.txns?.volume||0)),
+    holders:x.holders||0,market:main.market||'',mintAuth:!!main.security?.mintAuthority,freezeAuth:!!main.security?.freezeAuthority,
+    rugged:!!r.rugged,risk:{top10:r.top10??null,dev:r.dev?.percentage??null,snip:r.snipers?.totalPercentage??null,bund:r.bundlers?.totalInitialPercentage??null,ins:r.insiders?.totalPercentage??null,score:r.score??null}};
+}
+async function loadGraduated(){
+  const now=Math.floor(Date.now()/1000),from=now-CFG.days*86400,to=now-86400;
+  const key='grad_'+CFG.days+'_'+Math.floor(now/3600);   // one fetch per hour per window
+  const hit=store.get('hslab_'+key,null);if(hit)return hit;
+  const out=new Map();
+  for(let page=1;page<=Math.ceil(CFG.days*1.5)&&!STOP;page++){
+    prog(0.02+page*0.02,`Loading graduated coins · page ${page}`);
+    const a=await stGet(`/tokens/multi/graduated?limit=500&page=${page}&minCreatedAt=${from}&maxCreatedAt=${to}`);
+    const arr=Array.isArray(a)?a:(a?.data||a?.tokens||[]);
+    arr.map(slimToken).forEach(t=>{if(t.mint&&t.created&&t.created>=from-3600&&t.created<=to+3600)out.set(t.mint,t);});
+    log(`Page ${page}: ${arr.length} coins (${out.size} in your window)`);
+    if(arr.length<500)break;
+  }
+  const list=[...out.values()];
+  for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith('hslab_grad_'))localStorage.removeItem(k);}
+  store.set('hslab_'+key,list);return list;
+}
+const isJunk=t=>t.mintAuth||t.freezeAuth||(t.holders<100&&t.vol>1e6);
+
+// ---------- step 2: label each coin from its 24h market-cap chart ----------
+async function chartOf(t){
+  let c=cGet(t.mint,'ch');
+  if(!c){const j=await stGet(`/chart/${t.mint}?type=5m&marketCap=true&time_from=${Math.floor(t.created)}&time_to=${Math.floor(t.created+86400)}`);
+    c=(j?.oclhv||j?.ohlcv||[]).map(k=>[k.time,+k.high||0,+k.close||0]).filter(k=>k[0]).sort((a,b)=>a[0]-b[0]);cSet(t.mint,'ch',c);}
+  return c;
+}
+function judge(t,c){
+  if(!c.length)return{label:'nodata'};
+  let peak=0,peakT=null;c.forEach(([tm,h])=>{if(h>peak){peak=h;peakT=tm;}});
+  // longest time the close stayed at/above the held bar (gaps = no trades = MC unchanged)
+  const bar=holdBar();let held=0,st=null;
+  c.forEach(([tm,,cl],i)=>{if(cl>=bar){if(st==null)st=tm;}else if(st!=null){held=Math.max(held,tm-st);st=null;}});
+  if(st!=null)held=Math.max(held,c[c.length-1][0]+300-st);
+  const last=c[c.length-1][2],end=Math.min(last,t.mcNow||last);
+  const pumpT=(c.find(k=>k[1]>=peak/5)||c[0])[0];
+  let label='skip',why='';
+  if(peak>=CFG.win&&held>=HOLD_S){label='win';}
+  else if(peak>=CFG.win&&held<HOLD_S&&end<=peak*LOSE_DROP){label='lose';why='wick';}
+  else if(peak<LOSE_PEAK&&end<=peak*LOSE_DROP){label='lose';}
+  return{label,why,peak,peakT,held,pumpT,endMc:end};
+}
+const mcAt=(c,ts)=>{let v=null;for(const k of c){if(k[0]<=ts)v=k[2];else break;}return v??(c[0]?c[0][2]:null);};
+
+// ---------- step 3: first buyers ----------
+async function buyersOf(t){
+  let b=cGet(t.mint,'fb');
+  if(!b){const j=await stGet(`/v2/pnl/tokens/${t.mint}/first-buyers?limit=200`);
+    b=(j?.traders||[]).map(x=>{const id=x.identity||{},tags=(id.tags||[]).map(String);
+      return{w:x.wallet,fb:toSec(x.timing?.firstBuy??x.timing?.firstTrade),usd:x.buyUsd??x.invested??0,pnl:x.pnl?.token?.total??null,
+        tt:x.pnl?.wallet?.tokensTraded??null,name:id.name||'',tw:id.twitter||'',
+        bot:!!id.bot||tags.some(g=>/bot|sniper|mev|arb/i.test(g)),skip:!!(id.pool||id.exchange||id.developer)};}).filter(x=>x.w&&x.fb);
+    cSet(t.mint,'fb',b);}
+  return b;
+}
+
+// ---------- step 5: funders (Helius: oldest transaction → who sent the first SOL) ----------
+function txFunder(tx,owner){
+  const ins=[...(tx?.transaction?.message?.instructions||[]),...(tx?.meta?.innerInstructions||[]).flatMap(x=>x.instructions||[])];
+  for(const i of ins){const p=i.parsed;if(p&&(p.type==='transfer'||p.type==='transferWithSeed'||p.type==='createAccount')&&p.info&&(p.info.destination===owner||p.info.newAccount===owner)&&(p.info.source||p.info.from)&&(p.info.source||p.info.from)!==owner)return p.info.source||p.info.from;}
+  const k=tx?.transaction?.message?.accountKeys?.[0];const fp=typeof k==='string'?k:k?.pubkey;return fp&&fp!==owner?fp:null;
+}
+async function funderOf(w){
+  const hit=store.get('hslab_f_'+w,undefined);if(hit!==undefined)return hit;
+  let before=null,oldest=null,complete=false;
+  for(let p=0;p<3;p++){const s=await rpc('getSignaturesForAddress',[w,{limit:1000,...(before?{before}:{})}]);if(!Array.isArray(s)||!s.length){complete=true;break;}
+    oldest=s[s.length-1].signature;before=oldest;if(s.length<1000){complete=true;break;}}
+  let f=null;
+  if(complete&&oldest){const tx=await rpc('getTransaction',[oldest,{encoding:'jsonParsed',maxSupportedTransactionVersion:0}]);f=txFunder(tx,w);}
+  const v=complete?f:'deep';store.set('hslab_f_'+w,v);return v;   // 'deep' = 3,000+ transactions, too old to trace cheaply
+}
+
+// ---------- the run ----------
+let RES=store.get('hslab_last',null);
+async function run(){
+  if(!KEYS.st){alert('Add your Solana Tracker key first');return;}
+  STOP=false;$('runBtn').disabled=true;$('stopBtn').classList.remove('hide');$('log').textContent='';$('log').classList.add('hide');
+  cPrune(false);
+  try{
+    const all=await loadGraduated();if(STOP)throw new Error('Stopped');
+    const clean=all.filter(t=>!isJunk(t)),junk=all.length-clean.length;
+    log(`${all.length} graduated coins · ${junk} junk removed (mint/freeze on or fake volume)`);
+    // winner candidates: most traded, 300+ holders · loser candidates: traded but now tiny
+    const wc=clean.filter(t=>t.holders>=300).sort((a,b)=>b.vol-a.vol);
+    const lc=clean.filter(t=>t.mcNow>0&&t.mcNow<LOSE_PEAK*LOSE_DROP&&t.vol>=30000).sort((a,b)=>b.vol-a.vol);
+    const coins=[],seen=new Set();let wins=0,loses=0,checked=0;
+    const N=CFG.n,steps=N*2;
+    async function check(t){if(seen.has(t.mint))return null;seen.add(t.mint);checked++;
+      const c=await chartOf(t),j=judge(t,c);return{t,c,j};}
+    for(const t of wc){if(STOP||wins>=N||checked>N*4)break;
+      prog(0.08+0.32*(wins+loses)/steps,`Checking charts · ${wins} winners, ${loses} losers`);
+      try{const r=await check(t);if(!r)continue;
+        if(r.j.label==='win'){wins++;coins.push(r);}else if(r.j.label==='lose'&&loses<N){loses++;coins.push(r);}}catch(e){log('Chart '+t.sym+': '+e.message);if(/limit|rejected|plan/.test(e.message))throw e;}}
+    let lchk=0;
+    for(const t of lc){if(STOP||loses>=N||lchk>N*3)break;lchk++;
+      prog(0.08+0.32*(wins+loses)/steps,`Checking charts · ${wins} winners, ${loses} losers`);
+      try{const r=await check(t);if(r&&r.j.label==='lose'){loses++;coins.push(r);}}catch(e){log('Chart '+t.sym+': '+e.message);if(/limit|rejected|plan/.test(e.message))throw e;}}
+    log(`Labelled: ${wins} winners, ${loses} losers`);
+    if(!wins)throw new Error(`No coin in this window reached ${usd(CFG.win)} and held. Try a lower winner bar or a longer window.`);
+    // first buyers → early buyers
+    let i=0;
+    for(const x of coins){if(STOP)break;prog(0.4+0.4*(i++/coins.length),`Early buyers · ${x.t.sym||short(x.t.mint)}`);
+      try{const b=await buyersOf(x.t);x.early=b.filter(y=>!y.skip&&y.fb<x.j.pumpT).map(y=>({...y,mc:mcAt(x.c,y.fb),sec:y.fb-x.t.created}));x.nBuyers=b.length;}
+      catch(e){x.early=[];x.err=e.message;log('Buyers '+x.t.sym+': '+e.message);if(/limit|rejected|plan/.test(e.message))throw e;}}
+    const R=analyse(coins);
+    // funders for the wallets that matter
+    if(CFG.fund&&KEYS.hel&&!STOP){
+      const ws=[...new Set([...R.wallets.filter(w=>w.type==='smart').map(w=>w.w),...R.cohorts.flatMap(c=>c.members)])].slice(0,40);
+      let k=0;for(const w of ws){if(STOP)break;prog(0.82+0.16*(k++/ws.length),`Funders · ${short(w)}`);try{R.funder[w]=await funderOf(w);}catch(e){R.funder[w]=null;log('Funder '+short(w)+': '+e.message);}}
+      linkFunders(R);
+    }
+    R.cfg={...CFG};R.at=Date.now();R.total=all.length;R.junk=junk;
+    RES=R;if(!store.set('hslab_last',R))log('Result too big to save on this phone (it is still shown now)');
+    prog(1,STOP?'Stopped — showing what was finished':'Done');
+    show();
+  }catch(e){prog(1,'⚠ '+e.message);log('⚠ '+e.message);}
+  $('runBtn').disabled=false;$('stopBtn').classList.add('hide');
+}
+
+// ---------- step 4: wallets, cohorts, signals ----------
+function analyse(coins){
+  const W={},nCoins=coins.filter(x=>x.early).length,winCoins=coins.filter(x=>x.j.label==='win'&&x.early);
+  coins.forEach(x=>(x.early||[]).forEach(e=>{const o=W[e.w]||(W[e.w]={w:e.w,wins:[],loses:[],secs:[],mcs:[],pnl:0,pnlN:0,usd:[],tt:e.tt,bot:false,name:'',tw:''});
+    (x.j.label==='win'?o.wins:o.loses).push(x.t.mint);o.secs.push(e.sec);o.mcs.push(e.mc);o.usd.push(e.usd);
+    if(x.j.label==='win'&&e.pnl!=null){o.pnl+=e.pnl;o.pnlN++;}if(e.bot)o.bot=true;if(e.name)o.name=e.name;if(e.tw)o.tw=e.tw;if(e.tt!=null)o.tt=Math.max(o.tt||0,e.tt);}));
+  const wallets=Object.values(W).map(o=>{const n=o.wins.length+o.loses.length,hit=n?o.wins.length/n:0,ms=median(o.secs);
+    const bot=o.bot||(o.tt||0)>=5000||(n>=4&&n/nCoins>=0.4)||(n>=3&&ms!=null&&ms<=2);
+    const type=bot?'bot':o.wins.length>=2&&hit>=0.6?'smart':n>=2?'luck':'once';
+    return{...o,n,hit,medSec:ms,medMc:median(o.mcs),medUsd:median(o.usd),type};})
+    .filter(o=>o.type!=='once').sort((a,b)=>({smart:0,luck:1,bot:2}[a.type]-{smart:0,luck:1,bot:2}[b.type])||b.wins.length-a.wins.length||b.hit-a.hit);
+  const botSet=new Set(wallets.filter(w=>w.type==='bot').map(w=>w.w));
+  // cohorts: non-bot pairs that bought within 2 minutes of each other in 2+ winners
+  const pair={},pairL={};
+  coins.forEach(x=>{const e=(x.early||[]).filter(y=>!botSet.has(y.w)).sort((a,b)=>a.fb-b.fb),tgt=x.j.label==='win'?pair:pairL,done=new Set();
+    for(let a=0;a<e.length;a++)for(let b=a+1;b<e.length&&e[b].fb-e[a].fb<=120;b++){if(e[a].w===e[b].w)continue;const k=e[a].w<e[b].w?e[a].w+'|'+e[b].w:e[b].w+'|'+e[a].w;if(done.has(k))continue;done.add(k);
+      const p=tgt[k]||(tgt[k]={n:0,gaps:[],coins:[]});p.n++;p.gaps.push(e[b].fb-e[a].fb);p.coins.push(x.t.mint);}});
+  const par={},find=a=>par[a]===a?a:(par[a]=find(par[a]));
+  Object.entries(pair).forEach(([k,p])=>{if(p.n<2)return;const[a,b]=k.split('|');par[a]=par[a]||a;par[b]=par[b]||b;par[find(a)]=find(b);});
+  const groups={};Object.keys(par).forEach(w=>{const r=find(w);(groups[r]=groups[r]||[]).push(w);});
+  const cohorts=Object.values(groups).filter(g=>g.length>=2&&g.length<=30).map((g,i)=>{const set=new Set(g);let wc=new Set(),lc=new Set(),gaps=[];
+    Object.entries(pair).forEach(([k,p])=>{const[a,b]=k.split('|');if(set.has(a)&&set.has(b)&&p.n>=2){p.coins.forEach(c=>wc.add(c));gaps.push(...p.gaps);}});
+    Object.entries(pairL).forEach(([k,p])=>{const[a,b]=k.split('|');if(set.has(a)&&set.has(b))p.coins.forEach(c=>lc.add(c));});
+    return{id:'C'+(i+1),members:g,winCoins:[...wc],loseCoins:[...lc],gap:median(gaps)};}).sort((a,b)=>b.winCoins.length-a.winCoins.length||b.members.length-a.members.length);
+  cohorts.forEach((c,i)=>c.id='C'+(i+1));
+  // signals: winners vs losers
+  const smartSet=new Set(wallets.filter(w=>w.type==='smart').map(w=>w.w));
+  const per=coins.filter(x=>x.early).map(x=>{const e=x.early;return{label:x.j.label,
+    early:e.length,smart:e.filter(y=>smartSet.has(y.w)).length,bots:e.filter(y=>botSet.has(y.w)).length,
+    fresh:e.length?e.filter(y=>y.tt!=null&&y.tt<=10).length/e.length:null,buy:median(e.map(y=>y.usd)),
+    toPump:(x.j.pumpT-x.t.created)/60,top10:x.t.risk.top10,dev:x.t.risk.dev,snip:x.t.risk.snip,bund:x.t.risk.bund,ins:x.t.risk.ins,holders:x.t.holders};});
+  const S=[['early','Early buyers (before pump)','n'],['smart','Smart wallets early','n'],['bots','Bots early','n'],['fresh','Fresh wallets early (≤10 coins ever)','p'],
+    ['buy','Median early buy','u'],['toPump','Minutes from launch to pump','n'],['bund','Bundled at launch %','p100'],['snip','Snipers hold now %','p100'],
+    ['ins','Insiders hold now %','p100'],['dev','Dev holds now %','p100'],['top10','Top 10 hold now %','p100'],['holders','Holders now','n']];
+  const signals=S.map(([k,label,f])=>{const w=median(per.filter(p=>p.label==='win').map(p=>p[k])),l=median(per.filter(p=>p.label==='lose').map(p=>p[k]));
+    const gap=w!=null&&l!=null&&Math.max(Math.abs(w),Math.abs(l))>0?Math.abs(w-l)/Math.max(Math.abs(w),Math.abs(l)):0;return{k,label,f,w,l,gap};});
+  const slimCoins=coins.map(x=>({t:x.t,j:x.j,early:(x.early||[]).length,nBuyers:x.nBuyers||0,err:x.err||'',
+    smart:(x.early||[]).filter(y=>smartSet.has(y.w)).length}));
+  return{coins:slimCoins,wallets:wallets.slice(0,400).map(w=>({w:w.w,type:w.type,wins:w.wins,loses:w.loses,n:w.n,hit:w.hit,medSec:w.medSec,medMc:w.medMc,medUsd:w.medUsd,pnl:w.pnlN?w.pnl:null,tt:w.tt,name:w.name,tw:w.tw})),
+    cohorts:cohorts.slice(0,30),signals,funder:{},nWallets:Object.keys(W).length};
+}
+function linkFunders(R){
+  const by={};Object.entries(R.funder).forEach(([w,f])=>{if(f&&f!=='deep')(by[f]=by[f]||[]).push(w);});
+  R.funderGroups=Object.entries(by).filter(([f,ws])=>ws.length>=2).map(([f,ws])=>({f,ws,cex:ws.length>=6})).sort((a,b)=>b.ws.length-a.ws.length);
+  R.cohorts.forEach(c=>{const fs=c.members.map(w=>R.funder[w]).filter(f=>f&&f!=='deep');const cnt={};fs.forEach(f=>cnt[f]=(cnt[f]||0)+1);
+    const top=Object.entries(cnt).sort((a,b)=>b[1]-a[1])[0];c.sameFunder=top&&top[1]>=2?{f:top[0],n:top[1]}:null;});
+}
+
+// ---------- views ----------
+let TAB='coins',COINF='win',SEL=new Set();
+const coinName=m=>{const c=RES?.coins.find(x=>x.t.mint===m);return c?(c.t.sym?'$'+c.t.sym:short(m)):short(m);};
+function show(){
+  if(!RES){$('results').classList.add('hide');return;}
+  $('results').classList.remove('hide');
+  const c=RES.cfg||CFG;
+  $('resMeta').textContent=`Last run ${ago(RES.at/1000)} · coins 1–${c.days}d old · winner ${usd(c.win)}+ · ${RES.total} graduated, ${RES.junk} junk`;
+  document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.t===TAB));
+  const v=$('view');v.innerHTML=TAB==='coins'?vCoins():TAB==='wallets'?vWallets():TAB==='cohorts'?vCohorts():vSignals();
+  bindView();
+}
+function stats(a){return`<div class="stats">${a.map(([n,l,cl])=>`<div class="st"><b class="${cl||''}">${n}</b><span>${l}</span></div>`).join('')}</div>`;}
+function vCoins(){
+  const W=RES.coins.filter(x=>x.j.label==='win'),L=RES.coins.filter(x=>x.j.label==='lose'),list=COINF==='win'?W:L;
+  return stats([[W.length,'Winners','ok'],[L.length,'Losers','bad']])+
+  `<div class="chips"><button data-cf="win" class="${COINF==='win'?'on':''}">🟢 Winners</button><button data-cf="lose" class="${COINF==='lose'?'on':''}">🔴 Losers</button></div>
+  <div class="card">${list.map(x=>{const t=x.t,j=x.j,tier=j.peak>=5e6?'<span class="tg y">Gold</span>':j.peak>=1e6?'<span class="tg">Silver</span>':j.label==='win'?'<span class="tg">Bronze</span>':'';
+    return`<div class="it"><img src="${esc(t.img)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'"><div class="mn"><div class="t">${esc(t.sym?'$'+t.sym:short(t.mint))} ${tier}${j.why==='wick'?'<span class="tg r">wick</span>':''}</div>
+    <div class="note">${esc(t.market||'')} · ${ago(t.created)} · peak ${usd(j.peak)} · held ${dur(j.held)} · now ${usd(t.mcNow)}</div>
+    <div class="note">${x.err?'<span class="bad">'+esc(x.err)+'</span>':`${x.early} early buyers${x.smart?` · <span class="tg s">${x.smart} smart</span>`:''}`}</div></div>
+    <a class="btn2" href="https://dexscreener.com/solana/${esc(t.mint)}" target="_blank" rel="noopener">↗</a></div>`;}).join('')||'<div class="note">None</div>'}</div>`;
+}
+function wRow(w){
+  const tag={smart:'<span class="tg s">🧠 Smart</span>',luck:'<span class="tg">🎲 Luck</span>',bot:'<span class="tg r">🤖 Bot</span>'}[w.type];
+  const f=RES.funder?.[w.w],fg=f&&f!=='deep'?(RES.funderGroups||[]).find(g=>g.f===f):null;
+  const coh=RES.cohorts.find(c=>c.members.includes(w.w));
+  return`<div class="it">${w.type!=='bot'?`<input type="checkbox" class="chk" data-w="${w.w}" ${SEL.has(w.w)?'checked':''}>`:'<span style="width:22px"></span>'}
+  <div class="mn"><div class="t">${esc(w.name||short(w.w))} ${tag}${coh?`<span class="tg b">${coh.id}</span>`:''}${w.tw?` <span class="note">@${esc(w.tw)}</span>`:''}</div>
+  <div class="note">early in <b class="ok">${w.wins.length}</b> winners / <b class="bad">${w.loses.length}</b> losers · hit ${pct(w.hit)}</div>
+  <div class="note">entry ${usd(w.medMc)} · ${w.medSec!=null?dur(Math.max(0,w.medSec))+' after launch':''} · buy ${usd(w.medUsd)}${w.pnl!=null?` · made <span class="${w.pnl>=0?'ok':'bad'}">${usd(w.pnl)}</span> on winners`:''}</div>
+  ${f?`<div class="note">${f==='deep'?'funder: wallet too old to trace':`funder <a href="https://solscan.io/account/${esc(f)}" target="_blank" rel="noopener" class="mono">${short(f)}</a>${fg?` <span class="tg ${fg.cex?'':'y'}">${fg.cex?'shared by '+fg.ws.length+' (likely exchange)':'same as '+(fg.ws.length-1)+' other'}</span>`:''}`}</div>`:''}</div>
+  <a class="btn2" href="https://gmgn.ai/sol/address/${esc(w.w)}" target="_blank" rel="noopener">↗</a></div>`;
+}
+let WF='smart';
+function vWallets(){
+  const ws=RES.wallets,cnt=k=>ws.filter(w=>w.type===k).length,list=ws.filter(w=>w.type===WF);
+  return stats([[cnt('smart'),'🧠 Smart (2+ wins, 60%+ hit)','ok'],[cnt('bot'),'🤖 Bots removed','bad']])+
+  `<div class="chips"><button data-wf="smart" class="${WF==='smart'?'on':''}">🧠 Smart</button><button data-wf="luck" class="${WF==='luck'?'on':''}">🎲 Luck</button><button data-wf="bot" class="${WF==='bot'?'on':''}">🤖 Bots</button></div>
+  <div class="card">${list.slice(0,150).map(wRow).join('')||'<div class="note">None in this run</div>'}</div>
+  <div class="note">${RES.nWallets} different early wallets looked at. Wallets early in just one coin are hidden.</div>
+  <div class="fb"><button class="btn ${SEL.size?'':'hide'}" id="sendSel">＋ Send ${SEL.size} to Holder Scan</button><button class="btn2 ${SEL.size?'':'hide'}" id="copySel">Copy</button></div>`;
+}
+function vCohorts(){
+  return stats([[RES.cohorts.length,'Cohorts found'],[RES.cohorts.filter(c=>c.sameFunder).length,'With a shared funder','warn']])+
+  (RES.cohorts.map(c=>`<div class="card"><div class="row"><b>${c.id} · ${c.members.length} wallets</b><span class="sp"></span>${c.sameFunder?`<span class="tg y">${c.sameFunder.n} share funder ${short(c.sameFunder.f)}</span>`:''}</div>
+    <div class="note" style="margin:4px 0">Bought within ~${c.gap!=null?Math.round(c.gap):'?'}s of each other in <b class="ok">${c.winCoins.length} winners</b>${c.loseCoins.length?` and <b class="bad">${c.loseCoins.length} losers</b>`:' and no losers'}</div>
+    <div class="note">${c.winCoins.map(coinName).join(' · ')}</div>
+    <div style="margin-top:6px">${c.members.map(w=>`<label class="row" style="padding:3px 0"><input type="checkbox" class="chk" data-w="${w}" ${SEL.has(w)?'checked':''}><a class="mono" href="https://gmgn.ai/sol/address/${w}" target="_blank" rel="noopener">${short(w)}</a></label>`).join('')}</div></div>`).join('')||'<div class="card note">No wallets bought together in 2+ winners in this run. Try more coins or a longer window.</div>')+
+  `<div class="fb"><button class="btn ${SEL.size?'':'hide'}" id="sendSel">＋ Send ${SEL.size} to Holder Scan</button><button class="btn2 ${SEL.size?'':'hide'}" id="copySel">Copy</button></div>`;
+}
+function fmt(v,f){if(v==null)return'–';return f==='p'?pct(v):f==='p100'?v.toFixed(1)+'%':f==='u'?usd(v):v>=100?Math.round(v):v.toFixed(1).replace(/\.0$/,'');}
+function vSignals(){
+  const top=RES.signals.filter(s=>s.gap>=0.4).map(s=>s.k);
+  return`<div class="card"><div class="sig" style="color:var(--mut);font-size:12px"><span>Median per coin</span><span class="v ok">Winners</span><span class="v bad">Losers</span></div>
+  ${RES.signals.map(s=>`<div class="sig ${top.includes(s.k)?'hl':''}"><span>${esc(s.label)}${top.includes(s.k)?' ⭐':''}</span><span class="v">${fmt(s.w,s.f)}</span><span class="v">${fmt(s.l,s.f)}</span></div>`).join('')}</div>
+  <div class="note">⭐ = big gap between winners and losers, a candidate filter. "Now %" values are today's snapshot from Solana Tracker, not launch time. "Smart wallets early" is partly circular (smart wallets are found from these same coins), so trust it only with 15–25 coins per side. More coins per side = more reliable.</div>`;
+}
+function bindView(){
+  document.querySelectorAll('[data-cf]').forEach(b=>b.onclick=()=>{COINF=b.dataset.cf;show();});
+  document.querySelectorAll('[data-wf]').forEach(b=>b.onclick=()=>{WF=b.dataset.wf;show();});
+  document.querySelectorAll('.chk[data-w]').forEach(c=>c.onchange=()=>{c.checked?SEL.add(c.dataset.w):SEL.delete(c.dataset.w);
+    document.querySelectorAll('#sendSel').forEach(b=>{b.textContent=`＋ Send ${SEL.size} to Holder Scan`;b.classList.toggle('hide',!SEL.size);});
+    document.querySelectorAll('#copySel').forEach(b=>b.classList.toggle('hide',!SEL.size));});
+  const s=$('sendSel');if(s)s.onclick=sendToApp;
+  const cp=$('copySel');if(cp)cp.onclick=()=>{navigator.clipboard?.writeText([...SEL].join('\n')).then(()=>cp.textContent='Copied ✓',()=>cp.textContent='Copy failed');};
+}
+// hands the wallets to the app's existing "add from link" feature (same as the userscript) — tracked as 🧠 Smart
+function sendToApp(){
+  const rows=[...SEL].filter(w=>B58.test(w)).map(w=>{const x=RES.wallets.find(o=>o.w===w);return[w,x?.name||'',x?.tw||''];});
+  const b64=btoa(unescape(encodeURIComponent(JSON.stringify(rows)))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  location.href='./#add='+b64+'&as=smart&from=winner-lab';
+}
+$('tabs').onclick=e=>{const b=e.target.closest('button');if(!b)return;TAB=b.dataset.t;show();};
+$('runBtn').onclick=run;
+$('stopBtn').onclick=()=>{STOP=true;$('stopBtn').textContent='Stopping…';setTimeout(()=>$('stopBtn').textContent='Stop',3000);};
+drawKeys();drawCfg();drawCount();show();
+</script>
+</body>
+</html>
