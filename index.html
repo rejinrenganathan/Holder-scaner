@@ -501,6 +501,22 @@ svg.i2{width:13px;height:13px;flex:none;fill:none;stroke:currentColor;stroke-wid
 .wpn.up b{color:var(--good)}.wpn.dn b{color:var(--bad)}
 .w2{display:flex;gap:9px;margin:2px 0 0 35px;font-size:11px;color:var(--mut);font-weight:600;white-space:nowrap;overflow:hidden}
 .ws2.hold{color:var(--good)}.ws2.part{color:var(--warn)}.ws2.sold{color:var(--bad)}
+
+/* plain style (Axiom-like): grey icon + coloured number, no boxes */
+.gc.v2 .bl{gap:14px;margin-top:10px}
+.gc.v2 .b2{padding:0;border:0!important;background:none!important;border-radius:0;font-size:13px;gap:4px;color:var(--txt)}
+.gc.v2 .b2 svg.i2{width:15px;height:15px;color:var(--mut)}
+.gc.v2 .b2.sf.good,.gc.v2 .b2.sf.good svg.i2{color:var(--good)}.gc.v2 .b2.sf.bad,.gc.v2 .b2.sf.bad svg.i2{color:var(--bad)}
+.gc.v2 .b2.dx img{width:15px;height:15px}.gc.v2 .b2.dx.on{color:var(--good)}.gc.v2 .b2.dx.on img{box-shadow:0 0 0 1.5px var(--good);border-radius:4px}
+.gc.v2 .b2.bo{color:var(--warn)}.gc.v2 .b2.cto{color:var(--acc)}.gc.v2 .b2.ad{color:var(--smart)}
+.gc.v2 .sg{row-gap:9px;column-gap:6px;margin-top:10px}
+.gc.v2 .sg1{justify-content:flex-start;height:auto;border:0;border-radius:0;font-size:13px;gap:5px;color:var(--txt)}
+.gc.v2 .sg1 svg.i2{width:15px;height:15px;color:var(--mut)}
+.gc.v2 .sg1.good b{color:var(--good)}.gc.v2 .sg1.warn b{color:var(--warn)}.gc.v2 .sg1.bad b{color:var(--bad)}
+.gc.v2 .g3{gap:14px;font-size:13px}.gc.v2 .g3>span{padding:0;background:none;border-radius:0}
+.gc.v2 .cn svg.i2{width:15px;height:15px;color:var(--mut)}.gc.v2 .cn{color:var(--txt)}.gc.v2 .cn b{font-weight:800}
+.gc.v2 .wc{padding:0;background:none;font-size:11.5px;font-weight:600}
+.gc.v2 .wmore{background:none;margin-top:2px;padding:6px 0 2px;color:var(--mut)}
 </style>
 </head>
 <body>
@@ -2633,7 +2649,7 @@ function walletRow(w,m,t,rank){
   const p=kolPos(w,m),pf=posPerf(p,t),mo=posMoney(p,t),ht=heldTxt(p),e=wrOf(w);
   const st=p.st==='sold'?`<span class="ws2 sold">○ sold all${ht?' · '+ht:''}</span>`:p.st==='partial'?`<span class="ws2 part">◐ sold ${p.left!=null?Math.round(100-p.left)+'%':'part'}${ht?' · '+ht:''}</span>`:/holding/.test(p.st)?`<span class="ws2 hold">● holding${ht?' '+ht:''}</span>`:'';
   const pnl=mo?`<span class="wpn ${mo.pnl>=0?'up':'dn'}"><b>${mo.pc>=0?'+':'−'}${num(Math.abs(mo.pc),Math.abs(mo.pc)<10?1:0)}%</b><em>${mo.pnl>=0?'+':'−'}${Math.abs(mo.pnl)<1000?'$'+Math.round(Math.abs(mo.pnl)):usd(Math.abs(mo.pnl))}</em></span>`:'<span class="wpn"><b>—</b></span>';
-  return `<div class="wr3" data-kw="${w}"><div class="w1"><span class="wavw">${wAv(w,'wav')}<i class="wbd ${KOL[w]?'k':'s'}" title="${KOL[w]?'KOL':'Smart money'}">${ic2(KOL[w]?'kol':'sm')}</i></span><b class="wn">${esc(wName(w))}</b>${worthTag(w)}${rank?`<span class="wc">${ord(rank)} in</span>`:''}${p.nb>1?`<span class="wc">×${p.nb}</span>`:''}${pnl}</div>
+  return `<div class="wr3" data-kw="${w}"><div class="w1"><span class="wavw">${wAv(w,'wav')}<i class="wbd ${KOL[w]?'k':'s'}" title="${KOL[w]?'KOL':'Smart money'}">${ic2(KOL[w]?'kol':'sm')}</i></span><b class="wn">${esc(wName(w))}</b>${worthTag(w)}${rank||p.nb>1?`<span class="wc">${[rank?ord(rank)+' in':'',p.nb>1?'×'+p.nb:''].filter(Boolean).join(' · ')}</span>`:''}${pnl}</div>
    <div class="w2">${p.inSol?`<span>Buy ${num(p.inSol,p.inSol<1?2:1)} SOL${pf&&pf.entryMc?' @'+usd(pf.entryMc):''}</span>`:''}${st}${e?`<span title="Win rate over ${e.closed} closed trades">WR ${Math.round(e.wr)}%</span>`:''}</div></div>`;
 }
 function tokGroupCard(g,kind){
