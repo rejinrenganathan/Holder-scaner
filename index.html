@@ -383,6 +383,7 @@ html{transition:background .2s}
 .ywbar{position:sticky;bottom:10px;z-index:15;display:flex;align-items:center;gap:6px;margin:8px 0;padding:8px 10px;background:var(--card);border:1px solid var(--line2);border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.35)}.ywbar .note{flex:1}.ywbar .btn{width:auto;margin:0;padding:8px 12px}
 .undobar{position:fixed;left:12px;right:12px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:60;display:flex;justify-content:space-between;align-items:center;background:var(--inv);color:var(--invtxt);border-radius:12px;padding:12px 14px;font-size:14px;box-shadow:0 8px 24px rgba(0,0,0,.4)}.undobar button{background:none;border:0;color:var(--acc);font-weight:800;font-size:14px}
 input.bad{border-color:var(--bad)}
+.ywmore{display:flex;align-items:center;gap:8px;margin-top:8px}.ywmore .btn{width:auto;margin:0;padding:8px 14px}.ywmore .note{flex:1;text-align:center}
 .lbr.isbot{opacity:.55}
 .wsetup{margin-top:10px;background:var(--bg);border-radius:12px;padding:8px 10px}.wsetup summary{cursor:pointer}.wsetup ol{margin:8px 0 6px;padding-left:20px;font-size:13px;line-height:1.5}.wsetup li{margin:4px 0}.wsetup a{color:var(--acc)}
 .hsxdemo{display:inline-block;background:#6d5dfc;color:#fff;border-radius:6px;padding:0 5px}
@@ -704,7 +705,7 @@ function median(a){if(!a.length)return null;const s=[...a].sort((x,y)=>x-y),m=s.
 const STORE_FREE=[/^hslab_(c_|grad|last|f_)/,/^hs_wc$/,/^hs_img$/,/^hs_xav$/,/^hs_kev$/,/^hs_devh$/];   // all re-fetched automatically
 const STORE_MUST=/^hs_(kol|kolx|smart|key|stkey|bekey|hook|set|plan|fav)$/;                             // your own data
 let storeWarned=0;
-const APP_V=78;   // shown in the status card — bump together with sw.js
+const APP_V=79;   // shown in the status card — bump together with sw.js
 const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v);}catch(e){return d;}},
   set(k,v){let j;try{j=JSON.stringify(v);}catch(e){return false;}
     try{localStorage.setItem(k,j);return true;}catch(e){}
@@ -3032,7 +3033,7 @@ function saveWalletLines(rows){
   store.set('hs_kol',KOL);store.set('hs_kolx',KOLX);saveSmart();saveKTR();saveSTR();liveResync();
   return{nk,ns,moved,added};
 }
-let ADDSELM=false,ADDSORT=store.get('hs_adsort','last'),ADDSHOW=200;
+let ADDSELM=false,ADDSORT=store.get('hs_adsort','last'),ADDSHOW=10;   // list shows 10 wallets, Show more adds 20
 // SOL balance with the token-card tiers: 🐋 ≥500 · 🦈 ≥100 · 🐟 below
 const ywBal=w=>{const b=KBAL[w];if(!b||b.sol==null)return'⏳ SOL';const v=b.sol;return`${v>=500?'🐋':v>=100?'🦈':'🐟'} <b>${num(v,v<10?1:0)}</b> SOL`;};
 // delete only after a confirm; everything removed can be put back for 8 seconds
@@ -3083,7 +3084,7 @@ function renderAdd(){
    <div id="adL">${list.slice(0,ADDSHOW).map(w=>{const e=wrOf(w);return`<div class="wl yw">${ADDSELM?`<input type="checkbox" class="msel" data-as="${w}" ${ASEL.has(w)?'checked':''}>`:''}<div class="wl-l" data-kw="${w}">${wAv(w,'wav')}<div style="min-width:0"><div class="ywn"><b>${esc(wName(w))}</b> <span class="tg ${KOL[w]?'sm':'ok'}">${KOL[w]?'KOL':'SMART'}</span>${lastOf(w)?`<span class="note"> · ${ago(lastOf(w))}</span>`:''}</div>
      <div class="ywst"><span data-bal="${w}">${ywBal(w)}</span>${e?`<span>WR <b class="${e.wr>=55?'up':e.wr>=40?'wn':'dn'}">${num(e.wr,0)}%</b> · ${e.closed} trades</span>`:'<span>WR –</span>'}</div>
      <div class="note mono">${KOLX[w]?'@'+esc(KOLX[w])+' · ':''}${short(w)}</div></div></div>${ADDSELM?'':`<button class="ywdots" data-am="${w}" aria-label="Wallet menu">⋯</button>`}</div>`;}).join('')||'<div class="note" style="padding:10px 0">No wallets.</div>'}
-   ${list.length>ADDSHOW?`<button class="btn gh" id="adMore" style="margin-top:8px">Show 200 more · ${list.length-ADDSHOW} left</button>`:''}</div></div>
+   ${list.length>ADDSHOW?`<div class="ywmore"><button class="btn gh" id="adMore">Show ${Math.min(20,list.length-ADDSHOW)} more</button><span class="note">${Math.min(ADDSHOW,list.length)} of ${list.length.toLocaleString()} shown</span>${ADDSHOW>10?'<button class="btn gh" id="adLess">Show less</button>':''}</div>`:ADDSHOW>10&&list.length>10?`<div class="ywmore"><span class="note">All ${list.length.toLocaleString()} shown</span><button class="btn gh" id="adLess">Show less</button></div>`:''}</div></div>
    ${ADDSELM?`<div class="ywbar"><span class="note"><b id="adSC">${[...ASEL].filter(w=>KOL[w]||SMART[w]).length}</b> selected</span><button class="pr" id="adSA">Select all ${list.length}</button><button class="pr" id="adSN">None</button><button class="btn dng" id="adDS">🗑 Delete</button></div>`:''}`;
 
   $('adImp').onclick=()=>importLeaderSheet();$('adLb').onclick=()=>lbBrowse();
@@ -3104,9 +3105,9 @@ function renderAdd(){
       if(/^\s*[\[{]/.test(txt)){const seen=new Set();txt=(txt.match(/[1-9A-HJ-NP-Za-km-z]{32,44}/g)||[]).filter(a=>B58.test(a)&&!seen.has(a)&&seen.add(a)).join('\n');}
       $('adT').value=txt;ADDTXT=txt;prev();toast(`Loaded ${f.name}`);};
     rd.onerror=()=>toast('Could not read that file');rd.readAsText(f);e.target.value='';};
-  $('adF').querySelectorAll('button').forEach(b=>b.onclick=()=>{ADDF=b.dataset.v;renderAdd();});
+  $('adF').querySelectorAll('button').forEach(b=>b.onclick=()=>{ADDF=b.dataset.v;ADDSHOW=10;renderAdd();});
   if($('adDays'))$('adDays').onchange=e=>{ACTIVE_DAYS=+e.target.value;store.set('hs_actdays',ACTIVE_DAYS);ASEL.clear();renderAdd();};
-  let qt;$('adQ').oninput=e=>{clearTimeout(qt);qt=setTimeout(()=>{ADDQ=e.target.value;renderAdd();const el=$('adQ');el.focus();el.setSelectionRange(el.value.length,el.value.length);},300);};
+  let qt;$('adQ').oninput=e=>{clearTimeout(qt);qt=setTimeout(()=>{ADDQ=e.target.value;ADDSHOW=10;renderAdd();const el=$('adQ');el.focus();el.setSelectionRange(el.value.length,el.value.length);},300);};
   $('list').querySelectorAll('[data-as]').forEach(c=>c.onchange=()=>{c.checked?ASEL.add(c.dataset.as):ASEL.delete(c.dataset.as);$('adSC').textContent=[...ASEL].filter(w=>KOL[w]||SMART[w]).length;});
   $('adSel').onclick=()=>{ADDSELM=!ADDSELM;ASEL.clear();renderAdd();};
   if($('adSA'))$('adSA').onclick=()=>{list.forEach(w=>ASEL.add(w));renderAdd();};if($('adSN'))$('adSN').onclick=()=>{ASEL.clear();renderAdd();};
@@ -3115,8 +3116,9 @@ function renderAdd(){
   $('adDA').onclick=()=>{$('adTopM').classList.add('hide');ywConfirm(all,true);};
   $('adExp').onclick=()=>{$('adTopM').classList.add('hide');const txt=all.map(w=>[w,wName(w)!==short(w)?wName(w):'',KOLX[w]?'@'+KOLX[w]:''].filter(Boolean).join(', ')).join('\n')+'\n';
     const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:'text/plain'}));a.download=`holder-scan-wallets-${new Date().toISOString().slice(0,10)}-${all.length}.txt`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},2000);};
-  $('adSort').onchange=e=>{ADDSORT=e.target.value;store.set('hs_adsort',ADDSORT);if(ADDSORT==='sol'&&KEY){toast('Loading SOL balances…');loadKolBal(all).then(()=>{if(TAB==='add'&&$('adL'))renderAdd();});}renderAdd();};
-  if($('adMore'))$('adMore').onclick=()=>{ADDSHOW+=200;renderAdd();};
+  $('adSort').onchange=e=>{ADDSORT=e.target.value;ADDSHOW=10;store.set('hs_adsort',ADDSORT);if(ADDSORT==='sol'&&KEY){toast('Loading SOL balances…');loadKolBal(all).then(()=>{if(TAB==='add'&&$('adL'))renderAdd();});}renderAdd();};
+  if($('adMore'))$('adMore').onclick=()=>{ADDSHOW+=20;renderAdd();};
+  if($('adLess'))$('adLess').onclick=()=>{ADDSHOW=10;renderAdd();$('ywC').scrollIntoView({behavior:'smooth'});};
   // ⋯ on a wallet: Edit · Copy · Open in GMGN · Delete (asks first)
   $('list').querySelectorAll('[data-am]').forEach(b=>b.onclick=e=>{e.stopPropagation();const w=b.dataset.am,old=$('ywRowM');if(old){const same=old.dataset.w===w;old.remove();if(same)return;}
     const m=document.createElement('div');m.className='ywmenu';m.id='ywRowM';m.dataset.w=w;
