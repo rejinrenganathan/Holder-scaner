@@ -373,6 +373,7 @@ html{transition:background .2s}
 .lbfp{margin-top:6px;background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:4px 10px 10px}.lbgh{display:flex;justify-content:space-between;padding:9px 0;font-size:12.5px;color:var(--mut);font-weight:600;border-bottom:1px solid var(--line)}
 .lbfr{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px}.lbfi{width:92px;padding:6px 8px;text-align:center;font-size:13px}.lbfs{width:118px;padding:6px 8px;font-size:13px}
 .lbfa{display:flex;gap:8px;margin-top:10px}.lbfa .btn{flex:1;margin:0}
+.adup{width:auto;margin:0;padding:7px 12px;font-size:12.5px}
 .lbr.isbot{opacity:.55}
 .wsetup{margin-top:10px;background:var(--bg);border-radius:12px;padding:8px 10px}.wsetup summary{cursor:pointer}.wsetup ol{margin:8px 0 6px;padding-left:20px;font-size:13px;line-height:1.5}.wsetup li{margin:4px 0}.wsetup a{color:var(--acc)}
 .hsxdemo{display:inline-block;background:#6d5dfc;color:#fff;border-radius:6px;padding:0 5px}
@@ -694,7 +695,7 @@ function median(a){if(!a.length)return null;const s=[...a].sort((x,y)=>x-y),m=s.
 const STORE_FREE=[/^hslab_(c_|grad|last|f_)/,/^hs_wc$/,/^hs_img$/,/^hs_xav$/,/^hs_kev$/,/^hs_devh$/];   // all re-fetched automatically
 const STORE_MUST=/^hs_(kol|kolx|smart|key|stkey|bekey|hook|set|plan|fav)$/;                             // your own data
 let storeWarned=0;
-const APP_V=76;   // shown in the status card — bump together with sw.js
+const APP_V=77;   // shown in the status card — bump together with sw.js
 const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v);}catch(e){return d;}},
   set(k,v){let j;try{j=JSON.stringify(v);}catch(e){return false;}
     try{localStorage.setItem(k,j);return true;}catch(e){}
@@ -3037,23 +3038,13 @@ function renderAdd(){
   const now=Date.now()/1000,isIdle=w=>{const l=lastOf(w);if(l)return now-l>ACTIVE_DAYS*86400;const t=SMART[w]?.t;return!KOL[w]&&t>1e12&&Date.now()-t>ACTIVE_DAYS*864e5;},nIdle=all.filter(isIdle).length;
   const list=all.filter(w=>(ADDF==='all'||(ADDF==='idle'?isIdle(w):ADDF==='kol'?!!KOL[w]:!KOL[w]))&&(!ADDQ||(wName(w)+' '+(KOLX[w]||'')+' '+w).toLowerCase().includes(ADDQ.toLowerCase())))
     .sort((a,b)=>(lastOf(b)-lastOf(a)));
-  const mr=MAN.w?manualRow(MAN.w,MAN.n,MAN.h):null;
-  $('list').innerHTML=webAddCard()+`<div class="addc"><h3 style="margin:0 0 4px">✍️ Add or edit one wallet</h3>
-   <div class="note">With an X handle → 👑 <b>KOL</b> · without → 🧠 <b>Smart</b>. An address you already saved gets updated.</div>
-   <input id="mnW" placeholder="Wallet address" value="${esc(MAN.w)}" autocomplete="off" spellcheck="false" style="margin-top:8px">
-   <div class="g2q" style="margin-top:6px"><input id="mnN" placeholder="Name (optional)" value="${esc(MAN.n)}"><input id="mnH" placeholder="@handle or x.com link" value="${esc(MAN.h)}" autocomplete="off"></div>
-   <div class="note" id="mnInfo" style="margin:6px 0">${mr?mr.err?'⚠ '+esc(mr.err):`Will ${mr.was?'update':'add'} as <b>${mr.type==='kol'?'👑 KOL':'🧠 Smart'}</b>${mr.was&&mr.was!==mr.type?' (was '+mr.was.toUpperCase()+')':''}`:''}</div>
-   <button class="btn" id="mnSave" ${mr&&!mr.err?'':'disabled'}>${mr&&mr.was?'Update wallet':'Add wallet'}</button></div>
-   <div class="addc"><h3 style="margin:0 0 4px">🏆 Leaderboards</h3>
-   <div class="note">Browse the top traders on Axiom, Solana Tracker, Birdeye, GMGN and Kolscan, and tap ＋ to add any wallet straight away.</div>
-   <button class="btn" id="adLb" style="margin-top:8px">Open leaderboards</button>
-   <button class="btn gh" id="adImp" style="margin-top:8px">Auto-import with filters (win rate, age, SOL…)</button></div>
-   <div class="addc"><h3 style="margin:0 0 4px">📋 Bulk paste</h3>
-   <div class="note">One wallet per line: <b>address</b>, then an optional <b>name</b> and <b>@handle</b>, in any order. Thousands of lines are fine.</div>
-   <div class="fl">Save as</div><div class="chipsel" id="adM"><button data-v="auto" class="${ADDM==='auto'?'on':''}">Auto: handle → 👑 KOL, rest → 🧠 Smart</button><button data-v="smart" class="${ADDM==='smart'?'on':''}">🧠 All as Smart</button></div>
-   <label class="btn gh" style="margin:8px 0;display:block;text-align:center">📁 Upload file (.txt / .csv / .json)<input type="file" id="adFile" accept=".txt,.csv,.tsv,.json,text/plain,text/csv,application/json" style="display:none"></label>
-   <textarea id="adT" rows="7" placeholder="7xKX…Q9 Ansem @blknoiz06&#10;5Q54…e4j1, Cupsey, x.com/Cupseyy&#10;9pQz…Lm3a whale from IPO"></textarea>
+  $('list').innerHTML=`<div class="addc"><div class="dch"><h3 style="margin:0">✍️ Add wallets</h3><label class="btn gh adup">📁 Upload file<input type="file" id="adFile" accept=".txt,.csv,.tsv,.json,text/plain,text/csv,application/json" style="display:none"></label></div>
+   <div class="note">One wallet per line: <b>wallet, name, handle</b>. With a handle → 👑 <b>KOL</b> · without → 🧠 <b>Smart</b>. One line or thousands. An address you already saved is updated.</div>
+   <textarea id="adT" rows="5" placeholder="7xKX…Q9, Ansem, @blknoiz06&#10;5Q54…e4j1, Cupsey, x.com/Cupseyy&#10;9pQz…Lm3a, whale from IPO" autocomplete="off" spellcheck="false" style="margin-top:8px"></textarea>
    <div id="adPrev"></div><button class="btn" id="adSave" disabled>Save wallets</button></div>
+   <div class="addc"><div class="dch"><h3 style="margin:0">🏆 Leaderboards</h3><button class="btn" id="adLb" style="width:auto;margin:0;padding:8px 14px">Open ›</button></div>
+   <div class="note">Axiom · Solana Tracker · Pump.fun winners · Birdeye · GMGN · Kolscan — tap ＋ to add.</div>
+   <button class="btn gh" id="adImp" style="margin-top:8px">Auto-import with filters (win rate, age, SOL…)</button></div>
    <div class="addc"><div class="dch"><b>Your wallets</b><span class="note">${Object.keys(KOL).length} KOL · ${Object.keys(SMART).filter(w=>!KOL[w]).length} smart</span></div>
    <div class="chipsel" id="adF">${[['all','All'],['kol','👑 KOL'],['sw','🧠 Smart'],['idle','💤 Inactive '+nIdle]].map(([a,b])=>`<button data-v="${a}" class="${ADDF===a?'on':''}">${b}</button>`).join('')}</div>
    ${ADDF==='idle'?`<div class="g2" style="margin-top:8px;align-items:center"><select id="adDays">${[3,7,14,30].map(d=>`<option value="${d}" ${ACTIVE_DAYS===d?'selected':''}>No trade in ${d} days</option>`).join('')}</select><span class="note">Select all → 🗑 Delete selected to remove them. Wallets saved less than ${ACTIVE_DAYS} days ago are never counted.</span></div>`:''}
@@ -3061,24 +3052,14 @@ function renderAdd(){
    <div class="selbar"><button class="pr" id="adSA">Select all (${list.length})</button><button class="pr" id="adSN">None</button><span class="note" id="adSC">${[...ASEL].filter(w=>KOL[w]||SMART[w]).length} selected</span></div>
    <div class="mbtns" style="margin-top:0"><button class="btn gh dng" id="adDS">🗑 Delete selected (${[...ASEL].filter(w=>KOL[w]||SMART[w]).length})</button><button class="btn gh dng" id="adDA">🗑 Delete all (${all.length})</button></div>
    <div id="adL">${list.slice(0,300).map(w=>`<div class="wl"><input type="checkbox" class="msel" data-as="${w}" ${ASEL.has(w)?'checked':''}><div class="wl-l" data-kw="${w}">${wAv(w,'wav')}<div style="min-width:0"><b>${esc(wName(w))}</b> <span class="tg ${KOL[w]?'sm':'ok'}">${KOL[w]?'KOL':'SMART'}</span><div class="note">${KOLX[w]?'@'+esc(KOLX[w])+' · ':''}${short(w)}${lastOf(w)?' · last trade '+ago(lastOf(w)):''}</div></div></div><button class="swx" data-ae="${w}" title="Edit">✎</button><button class="swx" data-ar="${w}">✕</button></div>`).join('')||'<div class="note" style="padding:10px 0">No wallets.</div>'}${list.length>300?`<div class="note">Showing 300 of ${list.length} — search to find others.</div>`:''}</div></div>`;
-  const mInfo=()=>{MAN={w:$('mnW').value.trim(),n:$('mnN').value,h:$('mnH').value.trim()};
-    // typing an address you already saved fills in its name and handle
-    if(MAN.w!==mInfo.last&&B58.test(MAN.w)&&(KOL[MAN.w]||SMART[MAN.w])&&!MAN.n&&!MAN.h){MAN.n=KOL[MAN.w]&&KOL[MAN.w]!==KOLX[MAN.w]?KOL[MAN.w]:SMART[MAN.w]?.n||'';MAN.h=KOLX[MAN.w]?'@'+KOLX[MAN.w]:'';$('mnN').value=MAN.n;$('mnH').value=MAN.h;}
-    mInfo.last=MAN.w;const r=MAN.w?manualRow(MAN.w,MAN.n,MAN.h):null;
-    $('mnInfo').innerHTML=r?r.err?'⚠ '+esc(r.err):`Will ${r.was?'update':'add'} as <b>${r.type==='kol'?'👑 KOL':'🧠 Smart'}</b>${r.was&&r.was!==r.type?' (was '+r.was.toUpperCase()+')':''}`:'';
-    $('mnSave').disabled=!r||!!r.err;$('mnSave').textContent=r&&r.was?'Update wallet':'Add wallet';};
-  ['mnW','mnN','mnH'].forEach(id=>$(id).oninput=mInfo);
-  $('mnSave').onclick=()=>{const r=manualRow(MAN.w,MAN.n,MAN.h);if(r.err){toast(r.err);return;}
-    if(r.was&&r.type==='smart'&&KOL[r.w]&&!r.name)r.name=KOL[r.w]!==KOLX[r.w]?KOL[r.w]:'';
-    const res=saveWalletLines([r]);toast(`${r.was?'Updated':'Added'} as ${r.type==='kol'?'👑 KOL':'🧠 Smart'}`);MAN={w:'',n:'',h:''};renderAdd();if(res.added.length)trackPoll({list:res.added,user:true});};
-  $('bkEx').onclick=exportBackup;$('bkIm').onchange=e=>{const f=e.target.files&&e.target.files[0];if(f)importBackup(f);};
   $('adImp').onclick=()=>importLeaderSheet();$('adLb').onclick=()=>lbBrowse();
-  $('list').querySelectorAll('[data-ae]').forEach(b=>b.onclick=e=>{e.stopPropagation();const w=b.dataset.ae;
-    MAN={w,n:KOL[w]?(KOL[w]!==KOLX[w]?KOL[w]:''):SMART[w]?.n||'',h:KOLX[w]?'@'+KOLX[w]:''};renderAdd();window.scrollTo({top:0,behavior:'smooth'});$('mnN').focus();});
+  // ✎ puts that wallet's line in the box: change the name / handle there and Save
+  $('list').querySelectorAll('[data-ae]').forEach(b=>b.onclick=e=>{e.stopPropagation();const w=b.dataset.ae,n=KOL[w]?(KOL[w]!==KOLX[w]?KOL[w]:''):SMART[w]?.n||'',h=KOLX[w]?'@'+KOLX[w]:'';
+    const line=[w,n,h].filter(Boolean).join(', ');ADDTXT=(ADDTXT.trim()?ADDTXT.replace(/\s*$/,'\n'):'')+line;renderAdd();window.scrollTo({top:0,behavior:'smooth'});const t=$('adT');t.focus();t.setSelectionRange(t.value.length,t.value.length);});
   let rows=[];
-  const prev=()=>{rows=parseWalletLines($('adT').value,ADDM);const ok=rows.filter(r=>!r.err),kept=rows.filter(r=>r.keep).length,bad=rows.filter(r=>r.err&&!r.keep),k=ok.filter(r=>r.type==='kol').length,sm=ok.length-k,upd=ok.filter(r=>r.was).length,mv=ok.filter(r=>r.was&&r.was!==r.type).length;
+  const prev=()=>{rows=parseWalletLines($('adT').value,'auto');const ok=rows.filter(r=>!r.err),kept=rows.filter(r=>r.keep).length,bad=rows.filter(r=>r.err&&!r.keep),k=ok.filter(r=>r.type==='kol').length,sm=ok.length-k,upd=ok.filter(r=>r.was).length,mv=ok.filter(r=>r.was&&r.was!==r.type).length;
     $('adPrev').innerHTML=rows.length?`<div class="adsum"><span class="tg sm">👑 ${k} KOL</span><span class="tg ok">🧠 ${sm} smart</span>${upd?`<span class="tg">${upd} already saved → updated${mv?` (${mv} switch type)`:''}</span>`:''}${kept?`<span class="tg">${kept} already KOL → kept</span>`:''}${bad.length?`<span class="tg bad">${bad.length} skipped</span>`:''}</div>
-      ${rows.filter(r=>!r.keep).slice(0,40).map(r=>r.err?`<div class="adr bad">Line ${r.line}: ${esc(r.raw||short(r.w))} — ${r.err}</div>`:`<div class="adr"><span class="tg ${r.type==='kol'?'sm':'ok'}">${r.type==='kol'?'KOL':'SMART'}</span> <b>${esc(r.name||r.handle||'(no name)')}</b> ${r.handle?'<span class="note">@'+esc(r.handle)+'</span>':''} <span class="note mono">${short(r.w)}</span>${r.was&&r.was!==r.type?' <span class="note">(was '+r.was.toUpperCase()+')</span>':''}</div>`).join('')}${rows.length>40?`<div class="note">…and ${rows.length-40} more</div>`:''}`:'';
+      ${rows.filter(r=>!r.keep).slice(0,20).map(r=>r.err?`<div class="adr bad">Line ${r.line}: ${esc(r.raw||short(r.w))} — ${r.err}</div>`:`<div class="adr"><span class="tg ${r.type==='kol'?'sm':'ok'}">${r.type==='kol'?'KOL':'SMART'}</span> <b>${esc(r.name||r.handle||'(no name)')}</b> ${r.handle?'<span class="note">@'+esc(r.handle)+'</span>':''} <span class="note mono">${short(r.w)}</span>${r.was&&r.was!==r.type?' <span class="note">(was '+r.was.toUpperCase()+')</span>':''}</div>`).join('')}${rows.length>20?`<div class="note">+ ${rows.length-20} more lines</div>`:''}`:'';
     $('adSave').disabled=!ok.length;$('adSave').textContent=ok.length?`Save ${ok.length} wallet${ok.length>1?'s':''}`:'Save wallets';};
   if(ADDTXT){$('adT').value=ADDTXT;setTimeout(prev,0);}
   let tm;$('adT').oninput=()=>{ADDTXT=$('adT').value;clearTimeout(tm);tm=setTimeout(prev,250);};
@@ -3086,7 +3067,6 @@ function renderAdd(){
     renderAdd();
     // a few wallets: check them right now · a big upload: the tracker's first pass + the live stream pick them up
     if(r.added.length&&r.added.length<=150)trackPoll({list:r.added,user:true});else if(r.added.length)setTimeout(()=>trackPoll(),800);};
-  $('adM').querySelectorAll('button').forEach(b=>b.onclick=()=>{ADDM=b.dataset.v;store.set('hs_addm',ADDM);$('adM').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));prev();});
   $('adFile').onchange=e=>{const f=e.target.files&&e.target.files[0];if(!f)return;const rd=new FileReader();
     rd.onload=()=>{let txt=String(rd.result||'');
       // JSON (any shape): pull out every wallet address, one per line
@@ -3283,7 +3263,8 @@ function settingsSheet(){
   <textarea id="kAdd" rows="3" placeholder="7xKX...abc Ansem @blknoiz06" style="margin-top:10px"></textarea>
   <button class="btn gh" id="kAddBtn">Add KOLs</button>
   <div style="margin-top:10px;max-height:200px;overflow:auto">${Object.entries(KOL).map(([w,n])=>`<div class="wl">${kolLink(w)}<span class="note"><a href="https://kolscan.io/account/${w}" style="color:var(--mut)">${short(w)}</a></span><button data-krm="${w}">✕</button></div>`).join('')||'<div class="note">No KOLs added yet.</div>'}</div>
-  <button class="btn gh" id="sClear">Clear wallet cache</button>`);
+  <button class="btn gh" id="sClear">Clear wallet cache</button>
+  <details class="qd" style="margin-top:14px"><summary>🌐 Add from websites (Firefox add-on) · backup</summary>${webAddCard()}</details>`);
   $('kSeed').onclick=()=>{const n=seedKOL();TOK.forEach(t=>t.act.w.forEach(w=>{if(KOL[w])t.act.kol.add(w);}));toast(n?n+' KOLs added':'Already added');settingsSheet();};
   $('kUnseed').onclick=()=>{KOL_PRESET_SET.forEach(w=>{delete KOL[w];delete KOLX[w];});store.set('hs_kolx',KOLX);store.set('hs_kol',KOL);TOK.forEach(t=>{t.act.kol=new Set([...t.act.kol].filter(w=>KOL[w]));});toast('Public list removed');settingsSheet();};
   $('kAddBtn').onclick=()=>{let n=0;$('kAdd').value.split('\n').forEach(line=>{const [w,...rest]=line.trim().split(/[\s,]+/);if(w&&w.length>=32&&w.length<=44){const h=rest.find(x=>x.startsWith('@'));const nm=rest.filter(x=>!x.startsWith('@')).join(' ');KOL[w]=nm||(h?h.slice(1):short(w));if(h)KOLX[w]=h.slice(1);n++;}});store.set('hs_kol',KOL);store.set('hs_kolx',KOLX);TOK.forEach(t=>t.act.w.forEach(w=>{if(KOL[w])t.act.kol.add(w);}));toast(n+' KOLs added');settingsSheet();};
@@ -3303,6 +3284,7 @@ function settingsSheet(){
   $('sSave').onclick=()=>{const oldK=KEY;KEY=$('sKey').value.trim();if(KEY!==oldK){parseFails=0;TRK.err='';setTimeout(()=>{if(SET.live!==false)liveStart();trackPoll();},500);}PLAN=$('sPlan').querySelector('.on').dataset.v;SET.auto=$('sAuto').checked;readR2();store.set('hs_key',KEY);store.set('hs_plan',PLAN);store.set('hs_set',SET);schedule();toast('Saved');closeSheet();refresh(true);};
   $('sAddBtn').onclick=()=>{let n=0;$('sAdd').value.split(/[\s,]+/).filter(x=>x.length>=32&&x.length<=44).forEach(w=>{SMART[w]={t:Date.now(),src:'manual'};n++;});store.set('hs_smart',SMART);toast(n+' wallets added');settingsSheet();};
   $('sheet').querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{delete SMART[b.dataset.rm];store.set('hs_smart',SMART);settingsSheet();});
+  if($('bkEx'))$('bkEx').onclick=exportBackup;if($('bkIm'))$('bkIm').onchange=e=>{const f=e.target.files&&e.target.files[0];if(f)importBackup(f);};
   $('sClear').onclick=()=>{WCACHE={};store.set('hs_wc',{});toast('Cache cleared');};
   $('sLearn').onclick=learnFromWinners;
 }
