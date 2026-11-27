@@ -64,7 +64,7 @@ input[type=text],input[type=password]{width:100%;background:var(--bg2);color:var
 </style>
 </head>
 <body>
-<div class="top"><a href="./" class="btn2">← App</a><h1>🧪 Winner Lab</h1><span class="note" id="stCount"></span></div>
+<div class="top"><a href="./" class="btn2">← App</a><h1>🧪 Winner Lab <span class="note" id="labV"></span></h1><span class="note" id="stCount"></span></div>
 <div class="wrap">
 
 <div class="card" id="keysCard">
@@ -108,6 +108,7 @@ input[type=text],input[type=password]{width:100%;background:var(--bg2);color:var
 // 3) first-buyers gives the earliest wallets  4) wallets early in many winners (and few losers) = smart; together = cohort
 // 5) Helius finds who funded them  6) winners vs losers are compared on every signal.
 // Uses only real data. Raw API answers are cached on this phone so a re-run with other settings costs almost nothing.
+const LAB_V=4;   // bump on every Lab change: old saved results are cleared and phones reload the new page
 const $=id=>document.getElementById(id);
 const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v);}catch(e){return d;}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true;}catch(e){return false;}}};
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -313,6 +314,7 @@ async function funderOf(w){
 
 // ---------- the run ----------
 let RES=store.get('hslab_last2',null),RUNNING=false,REFETCH=false;
+if(RES&&RES.v!==LAB_V)RES=null;   // results made by an older Lab use old rules
 async function run(){
   if(!KEYS.st){alert('Add your Solana Tracker key first');return;}
   if(cfgError())return;
@@ -352,7 +354,7 @@ async function run(){
       let k=0;for(const w of ws){if(STOP)break;prog(0.82+0.16*(k++/ws.length),`Funders · ${short(w)}`);try{R.funder[w]=await funderOf(w);}catch(e){R.funder[w]=null;log('Funder '+short(w)+': '+e.message);}}
       linkFunders(R);
     }
-    R.cfg={...CFG};R.at=Date.now();R.total=all.length;R.junk=junk;R.notLp=notLp;R.failed=coins.filter(x=>!x.early).length;
+    R.cfg={...CFG};R.v=LAB_V;R.at=Date.now();R.total=all.length;R.junk=junk;R.notLp=notLp;R.failed=coins.filter(x=>!x.early).length;
     RES=R;if(!store.set('hslab_last2',R))log('Result too big to save on this phone (it is still shown now)');
     prog(1,STOP?'Stopped — showing what was finished':'Done');
     show();
@@ -496,6 +498,10 @@ $('tabs').onclick=e=>{const b=e.target.closest('button');if(!b)return;TAB=b.data
 $('runBtn').onclick=run;
 $('stopBtn').onclick=()=>{STOP=true;$('stopBtn').textContent='Stopping…';setTimeout(()=>$('stopBtn').textContent='Stop',3000);};
 drawKeys();drawCfg();drawCount();show();
+$('labV').textContent='v'+LAB_V;
+// phones keep an old copy of this page for a while: check the live page and reload once if it's newer
+(async()=>{try{const t=await (await fetch('./lab.html?check='+Date.now(),{cache:'no-store'})).text();const m=t.match(/const LAB_V=(\d+)/);
+  if(m&&+m[1]>LAB_V&&sessionStorage.getItem('hslab_rl')!==m[1]){sessionStorage.setItem('hslab_rl',m[1]);location.replace('./lab.html?v='+m[1]);}}catch(e){}})();
 </script>
 </body>
 </html>
