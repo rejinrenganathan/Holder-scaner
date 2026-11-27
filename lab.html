@@ -110,7 +110,7 @@ input[type=text],input[type=password]{width:100%;background:var(--bg2);color:var
 // 3) keep real trades: profit, ROI, buy size, hold time; drop bots, devs, pools, exchanges
 // 4) wallets that are top earners in several different winners AND profitable over their whole history = smart
 // 5) Helius finds who funded them (same funder = maybe one person)
-const LAB_V=6;   // bump on every Lab change: old saved results are cleared and phones reload the new page
+const LAB_V=7;   // bump on every Lab change: old saved results are cleared and phones reload the new page
 const $=id=>document.getElementById(id);
 const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v);}catch(e){return d;}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true;}catch(e){return false;}}};
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -369,7 +369,7 @@ async function run(){
       linkFunders(R);
     }
     Object.assign(R,{v:LAB_V,cfg:{...CFG},at:Date.now(),total:G.total,checked,failed:wins.filter(x=>!x.top).length});
-    RES=R;if(!store.set('hslab_last5',R))log('Result too big to save on this phone (it is still shown now)');
+    RES=R;if(!store.set('hslab_last5',R)){cPrune(true);if(!store.set('hslab_last5',R))log('Result too big to save on this phone — it is shown now, but send your wallets before closing the Lab');}
     prog(1,STOP?'Stopped — showing what was finished':'Done');TAB='wallets';show();setTimeout(()=>$('results').scrollIntoView({behavior:'smooth'}),200);
   }catch(e){prog(1,'⚠ '+e.message);log('⚠ '+e.message);}
   try{lock&&lock.release();}catch(e){}
@@ -394,8 +394,8 @@ function analyse(wins){
   const smart=new Set(wallets.filter(w=>w.type==='smart').map(w=>w.w));
   const coins=wins.map(x=>({t:x.t,j:x.j,n:x.n||0,err:x.err||'',top:(x.top||[]).length,smart:(x.top||[]).filter(y=>smart.has(y.w)).length,
     best:(x.top||[])[0]?{w:x.top[0].w,pnl:x.top[0].pnl}:null}));
-  const one=wallets.filter(w=>w.type==='one').slice(0,150);
-  return{coins,wallets:[...wallets.filter(w=>w.type!=='one'),...one],nOne:wallets.filter(w=>w.type==='one').length,funder:{},funderGroups:[]};
+  wallets.forEach(w=>{w.coins=w.coins.slice(0,6).map(c=>({m:c.m,sym:c.sym,pnl:Math.round(c.pnl)}));});
+  return{coins,wallets:wallets.slice(0,6000),nOne:wallets.filter(w=>w.type==='one').length,funder:{},funderGroups:[]};
 }
 function linkFunders(R){
   const by={};Object.entries(R.funder).forEach(([w,f])=>{if(f&&f!=='deep')(by[f]=by[f]||[]).push(w);});
@@ -403,7 +403,7 @@ function linkFunders(R){
 }
 
 // ---------- views ----------
-let TAB='wallets',WF='smart',SEL=new Set();
+let TAB='wallets',WF='smart',SEL=new Set(),SHOWN=200;
 const STY={sniper:'🎯 Sniper',curve:'📈 Curve buyer',momentum:'🚀 Momentum'};
 function show(){
   if(!RES){$('results').classList.add('hide');return;}
@@ -416,10 +416,10 @@ function show(){
 }
 function stats(a){return`<div class="stats">${a.map(([n,l,cl])=>`<div class="st"><b class="${cl||''}">${n}</b><span>${l}</span></div>`).join('')}</div>`;}
 function wRow(w){
-  const tag={smart:'<span class="tg s">🧠 Smart</span>',one:'<span class="tg">1 winner</span>',luck:'<span class="tg r">🎲 Losing lifetime</span>'}[w.type];
+  const tag={smart:'<span class="tg s">🧠 Smart</span>',one:`<span class="tg">${w.n} winner${w.n>1?'s':''}</span>`,luck:'<span class="tg r">🎲 Losing lifetime</span>'}[w.type];
   const f=RES.funder?.[w.w],fg=f&&f!=='deep'?(RES.funderGroups||[]).find(g=>g.f===f):null;
   return`<div class="it"><input type="checkbox" class="chk" data-w="${w.w}" ${SEL.has(w.w)?'checked':''}>
-  <div class="mn"><div class="t">${esc(w.name||short(w.w))} ${tag}${w.style?` <span class="tg b">${STY[w.style]}</span>`:''}${w.tw?` <span class="note">@${esc(w.tw)}</span>`:''}</div>
+  <div class="mn"><div class="t">${esc(w.name||short(w.w))} ${tag}${w.style?` <span class="tg b">${STY[w.style]}</span>`:''}${w.tt!=null&&w.tt<=3?' <span class="tg y">🆕 fresh wallet</span>':''}${w.tw?` <span class="note">@${esc(w.tw)}</span>`:''}</div>
   <div class="note">top earner in <b class="ok">${w.n}</b> winner${w.n>1?'s':''}: ${w.coins.slice(0,4).map(c=>esc(c.sym?'$'+c.sym:short(c.m))+' '+sgn(c.pnl)).join(' · ')}</div>
   <div class="note">made ${sgn(w.pnl)} on ${usd(w.inv)} in${w.roi!=null?` (${w.roi.toFixed(1)}×)`:''} · entry ${usd(w.medMc)}${w.medHold!=null?' · held '+dur(w.medHold):''}${w.preK?` · before migration ${w.pre}/${w.preK}`:''}</div>
   <div class="note">lifetime ${sgn(w.lt)}${w.lroi!=null?` (${w.lroi.toFixed(2)}×)`:''}${w.tt!=null?' · '+num0(w.tt)+' coins traded':''}</div>
@@ -430,9 +430,10 @@ function vWallets(){
   const ws=RES.wallets,cnt=k=>k==='one'?RES.nOne:ws.filter(w=>w.type===k).length,list=ws.filter(w=>w.type===WF);
   const rj=Object.entries(RES.why||{}).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`${k} ${v}`).join(' · ');
   return stats([[cnt('smart'),`🧠 Smart (${RES.cfg.ov}+ winners, profitable)`,'ok'],[cnt('luck'),'🎲 Lucky (losing lifetime)','bad']])+
-  `<div class="chips"><button data-wf="smart" class="${WF==='smart'?'on':''}">🧠 Smart</button><button data-wf="one" class="${WF==='one'?'on':''}">1 winner ${cnt('one')}</button><button data-wf="luck" class="${WF==='luck'?'on':''}">🎲 Lucky</button></div>
+  `<div class="chips"><button data-wf="smart" class="${WF==='smart'?'on':''}">🧠 Smart</button><button data-wf="one" class="${WF==='one'?'on':''}">Below ${RES.cfg.ov}+ · ${cnt('one')}</button><button data-wf="luck" class="${WF==='luck'?'on':''}">🎲 Lucky</button></div>
   ${list.length?`<div class="row" style="margin-bottom:8px"><button class="btn2" id="selAll" data-ws="${list.map(w=>w.w).join(',')}">${list.every(w=>SEL.has(w.w))?'✕ Clear all':'☑ Select all '+list.length}</button><span class="sp"></span><span class="note" id="selN">${SEL.size} selected</span></div>`:''}
-  <div class="card">${list.map(wRow).join('')||`<div class="note">${WF==='smart'?'No wallet was a top earner in '+RES.cfg.ov+'+ winners. Scan more winners (50), widen the days, or lower the profit bar.':'None in this run'}</div>`}</div>
+  <div class="card">${list.slice(0,SHOWN).map(wRow).join('')||`<div class="note">${WF==='smart'?'No wallet was a top earner in '+RES.cfg.ov+'+ winners. Scan more winners (50), widen the days, or lower the profit bar.':'None in this run'}</div>`}</div>
+  ${list.length>SHOWN?`<button class="btn2" id="more" style="width:100%;margin-bottom:10px">Show ${Math.min(200,list.length-SHOWN)} more · ${list.length-SHOWN} left</button>`:''}
   ${rj?`<div class="note">Top traders not counted: ${esc(rj)}</div>`:''}
   <div class="fb"><button class="btn ${SEL.size?'':'hide'}" id="sendSel">＋ Send ${SEL.size} to Holder Scan</button><button class="btn2 ${SEL.size?'':'hide'}" id="copySel">Copy</button></div>`;
 }
@@ -453,7 +454,8 @@ function vLinked(){
   `<div class="fb"><button class="btn ${SEL.size?'':'hide'}" id="sendSel">＋ Send ${SEL.size} to Holder Scan</button><button class="btn2 ${SEL.size?'':'hide'}" id="copySel">Copy</button></div>`;
 }
 function bindView(){
-  document.querySelectorAll('[data-wf]').forEach(b=>b.onclick=()=>{WF=b.dataset.wf;show();});
+  document.querySelectorAll('[data-wf]').forEach(b=>b.onclick=()=>{WF=b.dataset.wf;SHOWN=200;show();});
+  const mo=$('more');if(mo)mo.onclick=()=>{SHOWN+=200;show();};
   document.querySelectorAll('.chk[data-w]').forEach(c=>c.onchange=()=>{c.checked?SEL.add(c.dataset.w):SEL.delete(c.dataset.w);
     document.querySelectorAll('#sendSel').forEach(b=>{b.textContent=`＋ Send ${SEL.size} to Holder Scan`;b.classList.toggle('hide',!SEL.size);});
     document.querySelectorAll('#copySel').forEach(b=>b.classList.toggle('hide',!SEL.size));
