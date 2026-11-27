@@ -1079,10 +1079,11 @@ async function trackPoll(opt){
   const quick=!!opt.list;if(quick)opt.list.forEach(w=>PRIO.add(w));
   if(!quick){if(tracking)return 0;tracking=true;}let added=0;
   try{
-    const ws=trackList(opt.kind);if(!ws.length)return 0;
+    const ws=opt.ws||trackList(opt.kind);if(!ws.length)return 0;
+    const known=new Set([...KTR,...STR].map(x=>x.s));HSEEN.forEach(x=>known.add(x));   // already have these trades — don't pay to parse them again
     // first time (or after adding many wallets): check every wallet once so the feed fills right away
     const unseen=ws.filter(w=>LASTSIG[w]===undefined);
-    if(!opt.all&&!opt.list&&unseen.length>ws.length*0.3){opt={...opt,all:true,first:true};}
+    if(!opt.all&&!opt.list&&!opt.sweep&&unseen.length>ws.length*0.3){opt={...opt,all:true,first:true};}
     let batch;
     if(opt.list){batch=[...PRIO].filter(w=>KOL[w]||SMART[w]);PRIO.clear();}
     else if(opt.all)batch=(opt.first?[...unseen,...ws.filter(w=>LASTSIG[w]!==undefined).slice(0,40)]:[...ws]).sort((a,b)=>(FAV.has(b)-FAV.has(a))||(lastOf(b)-lastOf(a)));
@@ -1105,13 +1106,13 @@ async function trackPoll(opt){
       try{const r=await rpc('getSignaturesForAddress',[w,{limit:15}]);if(Array.isArray(r))ok++;
         if(Array.isArray(r)&&r.length){const prev=LASTSIG[w];/*tracker*/LASTSIG[w]=r[0].signature;const bt=r[0].blockTime||0;
           if(KOL[w])KACT[w]={t:Date.now(),last:Math.max(KACT[w]?.last||0,bt)};else if(SMART[w]){SMART[w].last=Math.max(SMART[w].last||0,bt);SMART[w].la=Date.now();}
-          let fresh=[];for(const s of r){if(s.signature===prev)break;if(!s.err)fresh.push(s);}
+          let fresh=[];for(const s of r){if(s.signature===prev)break;if(!s.err&&!known.has(s.signature))fresh.push(s);}
           if(prev===undefined)fresh=fresh.filter(s=>Date.now()/1000-(s.blockTime||0)<KEEP_S).slice(0,8);   // first look at a wallet: last 48h only
           fresh.forEach(s=>{if(!owner[s.signature]){owner[s.signature]=w;need.push([s.signature,w]);}});}
         else if(Array.isArray(r)){LASTSIG[w]=LASTSIG[w]||'';if(KOL[w])KACT[w]={t:Date.now(),last:KACT[w]?.last||0};}}catch(e){TRK.err=e.message;}
       done++;opt.onStep&&opt.onStep(done,batch.length);
       if(!flushing&&(need.length-pi>=40||(need.length>pi&&Date.now()-lastFlush>4000))){flushing=flush(false).finally(()=>flushing=null);}
-      if(batch.length>60&&(done%25===0||done===batch.length)){TRK.prog=`${opt.first?'First pass':'Checking'} ${done}/${batch.length} wallets`;showTrk();}},()=>opt.stop?.()||(!opt.user&&!$('vDetail').classList.contains('hide')));   // background rounds pause while a token page is open
+      if(batch.length>60&&(done%25===0||done===batch.length)){TRK.prog=`${opt.first?'First pass':opt.sweep?'Catching up missed trades —':'Checking'} ${done}/${batch.length} wallets`;showTrk();}},()=>opt.stop?.()||(!opt.user&&!$('vDetail').classList.contains('hide')));   // background rounds pause while a token page is open
     if(flushing)await flushing;await flush(true);
     TRK.newSig=need.length;
     const ks=Object.keys(LASTSIG);if(ks.length>4000)ks.slice(0,ks.length-3000).forEach(k=>delete LASTSIG[k]);
@@ -1224,14 +1225,18 @@ const hookOn=()=>!!(HOOK.url&&HOOK.secret&&HOOK.id);
 const hookOK=()=>hookOn()&&HK.ok&&Date.now()-HK.t<5*60e3;
 const hookWorking=()=>hookOn()&&!(HK.fails>=3)&&!(HK.down);   // webhook connected and answering
 function hookSecret(){if(!HOOK.secret){const a=new Uint8Array(18);crypto.getRandomValues(a);HOOK.secret='hs_'+[...a].map(x=>x.toString(16).padStart(2,'0')).join('');saveHook();}return HOOK.secret;}
-const WORKER_V=3;
+const WORKER_V=4;
 function workerCode(){return `// Holder Scan 24/7 webhook receiver v${WORKER_V} — paste this into your Cloudflare Worker
 const SECRET=${JSON.stringify(hookSecret())};
+const SK=new Set(["So11111111111111111111111111111111111111112","EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v","Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"]);
 let ready=false;
-async function init(env){if(ready)return;await env.DB.prepare("CREATE TABLE IF NOT EXISTS ev(id INTEGER PRIMARY KEY AUTOINCREMENT,sig TEXT UNIQUE,ts INTEGER,tx TEXT)").run();ready=true;}
+// ev2: plain row id, no extra index → 1 database write per trade (old table used 3)
+async function init(env){if(ready)return;await env.DB.prepare("CREATE TABLE IF NOT EXISTS ev2(id INTEGER PRIMARY KEY,tx TEXT)").run();ready=true;}
 const H={'access-control-allow-origin':'*','access-control-allow-headers':'*','access-control-allow-methods':'GET,POST,OPTIONS','content-type':'application/json'};
 const J=(o,s=200)=>new Response(JSON.stringify(o),{status:s,headers:H});
-const slim=t=>({signature:t.signature,timestamp:t.timestamp,feePayer:t.feePayer,transactionError:t.transactionError||null,
+// keep only real token trades (a memecoin moved, tx succeeded) — transfers, votes etc. are dropped here
+const keep=t=>t&&t.signature&&!t.transactionError&&(t.tokenTransfers||[]).some(x=>x&&x.mint&&!SK.has(x.mint));
+const slim=t=>({signature:t.signature,timestamp:t.timestamp||Math.floor(Date.now()/1000),feePayer:t.feePayer,transactionError:null,
   tokenTransfers:(t.tokenTransfers||[]).map(x=>({mint:x.mint,fromUserAccount:x.fromUserAccount,toUserAccount:x.toUserAccount,tokenAmount:x.tokenAmount})),
   accountData:(t.accountData||[]).filter(a=>a.nativeBalanceChange).map(a=>({account:a.account,nativeBalanceChange:a.nativeBalanceChange}))});
 export default{async fetch(req,env){try{return await handle(req,env);}catch(e){return J({ok:false,error:String(e&&e.message||e)},500);}}};
@@ -1239,22 +1244,24 @@ async function handle(req,env){
   const u=new URL(req.url);
   if(req.method==='OPTIONS')return new Response(null,{headers:H});
   if(!env.DB)return J({ok:false,error:'D1 database is not connected as DB'},500);
-  await init(env);
   if(u.pathname==='/hook'&&req.method==='POST'){
     if(req.headers.get('authorization')!==SECRET)return J({ok:false},401);
     let a=[];try{a=await req.json();}catch(e){}if(!Array.isArray(a))a=[a];
-    const st=env.DB.prepare("INSERT OR IGNORE INTO ev(sig,ts,tx) VALUES(?,?,?)");
-    const b=a.filter(t=>t&&t.signature).map(t=>st.bind(t.signature,t.timestamp||Math.floor(Date.now()/1000),JSON.stringify(slim(t))));
-    if(b.length)await env.DB.batch(b);
-    if(Math.random()<0.005)await env.DB.prepare("DELETE FROM ev WHERE id < (SELECT MAX(id) FROM ev) - 60000").run();
-    return J({ok:true,n:b.length});
+    const k=a.filter(keep);if(!k.length)return J({ok:true,n:0});      // nothing to store → no database use at all
+    await init(env);
+    const st=env.DB.prepare("INSERT INTO ev2(tx) VALUES(?)");
+    await env.DB.batch(k.map(t=>st.bind(JSON.stringify(slim(t)))));
+    if(Math.random()<0.004)await env.DB.prepare("DELETE FROM ev2 WHERE id < (SELECT MAX(id) FROM ev2) - 60000").run();
+    return J({ok:true,n:k.length});
   }
   if(u.searchParams.get('key')!==SECRET)return J({ok:false,error:'wrong key'},401);
-  if(u.pathname==='/ping'){const r=await env.DB.prepare("SELECT MAX(id) AS last FROM ev").first();return J({ok:true,v:${WORKER_V},last:r.last||0});}
+  await init(env);
+  const last=async()=>((await env.DB.prepare("SELECT MAX(id) AS last FROM ev2").first())||{}).last||0;
+  if(u.pathname==='/ping')return J({ok:true,v:${WORKER_V},last:await last()});
   if(u.pathname==='/events'){const since=+u.searchParams.get('since')||0;
-    const r=await env.DB.prepare("SELECT id,tx FROM ev WHERE id>? ORDER BY id LIMIT 300").bind(since).all();
+    const r=await env.DB.prepare("SELECT id,tx FROM ev2 WHERE id>? ORDER BY id LIMIT 300").bind(since).all();
     const rows=r.results||[];
-    return new Response('{"ok":true,"events":['+rows.map(x=>'{"id":'+x.id+',"tx":'+x.tx+'}').join(',')+']}',{headers:H});}
+    return new Response('{"ok":true,'+(rows.length?'':'"last":'+(await last())+',')+'"events":['+rows.map(x=>'{"id":'+x.id+',"tx":'+x.tx+'}').join(',')+']}',{headers:H});}
   return J({ok:true,app:'holder-scan-hook'});
 }
 `;}
@@ -1269,25 +1276,45 @@ async function heliusHooks(method,path,body){let last;
       if(r.status===404&&method!=='DELETE'&&h!==HAPI[HAPI.length-1]){last=new Error('HTTP 404');continue;}
       const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||j.message||'Helius HTTP '+r.status);return j;}catch(e){last=e;}}
   throw last;}
-const HOOK_TYPES=['SWAP'];
+const HOOK_TYPES=['ANY'];   // every type: pump.fun / PumpSwap trades are NOT labelled SWAP by Helius (BUY, SELL, UNKNOWN…) — the Worker keeps only trades
 const hookBody=list=>({webhookURL:hookBase()+'/hook',transactionTypes:HOOK_TYPES,accountAddresses:list,webhookType:'enhanced',authHeader:HOOK.secret,txnStatus:'success'});
-const addrHash=l=>{let h=7;   // v2: SWAP-only webhook (changing this re-sends the webhook settings once)
+const addrHash=l=>{let h=13;   // v3: ANY types again (changing this re-sends the webhook settings once)
   const s=l.slice().sort().join(',');for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))|0;return l.length+':'+h;};
 async function hookSync(force){
   if(!hookOn()||HK.syncing)return;const list=liveList().slice(0,100000),hh=addrHash(list);if(!force&&hh===HOOK.addrHash)return;
   HK.syncing=true;try{await heliusHooks('PUT','/'+HOOK.id,hookBody(list));HOOK.addrHash=hh;saveHook();HK.err='';}catch(e){HK.err='Webhook wallet list: '+e.message;}finally{HK.syncing=false;}}
 let hsT=null;const hookResync=()=>{clearTimeout(hsT);hsT=setTimeout(()=>hookSync(),8000);};
 // read what's new from the Worker and turn it into trades
+const LTS={};const HSEEN=new Set();const hSeen=s=>{HSEEN.add(s);if(HSEEN.size>30000){const it=HSEEN.values();for(let i=0;i<10000;i++)HSEEN.delete(it.next().value);}};
+// check that Helius really watches every saved wallet with the right settings; fix it if not
+async function hookVerify(){
+  if(!hookOn()||!KEY)return;const want=Math.min(liveList().length,100000);
+  try{const j=await heliusHooks('GET','/'+HOOK.id);
+    const n=(j.accountAddresses||[]).length,ty=(j.transactionTypes||[]).map(x=>String(x).toUpperCase()).join(',');HK.hel={n,ty,t:Date.now()};
+    if(n!==want||ty!==HOOK_TYPES.join(',')||String(j.webhookURL||'').replace(/\/+$/,'')!==hookBase()+'/hook'){await hookSync(true);if(!HK.err)HK.hel={n:want,ty:HOOK_TYPES.join(','),t:Date.now(),fixed:1};}}
+  catch(e){if(/404|not found/i.test(e.message)){   // webhook was deleted on Helius → make a new one
+      try{const j=await heliusHooks('POST','',hookBody(liveList().slice(0,100000)));if(j.webhookID){HOOK.id=j.webhookID;HOOK.addrHash=addrHash(liveList().slice(0,100000));saveHook();HK.hel={n:want,ty:HOOK_TYPES.join(','),t:Date.now(),fixed:1};}}catch(e2){HK.err='Webhook: '+e2.message;}}
+    else HK.err='Webhook check: '+e.message;}
+}
+// one pass over EVERY saved wallet: picks up trades missed while the webhook / Worker was down
+let cuT=null;
+async function hookCatchUp(){if(!KEY)return;clearTimeout(cuT);if(tracking){cuT=setTimeout(hookCatchUp,30e3);return;}
+  store.set('hs_sweep',Date.now());await trackPoll({all:true,sweep:true,ws:liveList()});}
 let hpRun=false;
 async function hookPoll(){
   if(!hookOn()||hpRun)return;hpRun=true;let got=0;
+  const wasDown=!!HK.down;
   try{for(let page=0;page<10;page++){const j=await hookFetch('/events?since='+HOOK.since);const ev=j.events||[];
-      ev.forEach(x=>{const e=x.tx;if(!e||!e.signature)return;const who=new Set([e.feePayer,...(e.tokenTransfers||[]).flatMap(t=>[t.fromUserAccount,t.toUserAccount]),...(e.accountData||[]).map(a=>a.account)]);
-        who.forEach(w=>{if(!w)return;if(KOL[w]?addTrade(e,w):SMART[w]?addSTrade(e,w):false){got++;LASTSIG[w]=LASTSIG[w]||e.signature;}});
+      if(!ev.length&&j.last!=null&&j.last<HOOK.since){HOOK.since=0;continue;}   // new Worker table (v4) starts counting from 1 again
+      ev.forEach(x=>{const e=x.tx;if(!e||!e.signature)return;hSeen(e.signature);
+        const fp=e.feePayer;if(fp&&(KOL[fp]||SMART[fp])&&(e.timestamp||0)>=(LTS[fp]||0)){LTS[fp]=e.timestamp||0;LASTSIG[fp]=e.signature;}
+        const who=new Set([e.feePayer,...(e.tokenTransfers||[]).flatMap(t=>[t.fromUserAccount,t.toUserAccount]),...(e.accountData||[]).map(a=>a.account)]);
+        who.forEach(w=>{if(!w)return;if(KOL[w]?addTrade(e,w):SMART[w]?addSTrade(e,w):false){got++;HK.tot=(HK.tot||0)+1;}});
         if(x.id>HOOK.since)HOOK.since=x.id;});
       if(ev.length<300)break;}
     HK.ok=true;HK.t=Date.now();HK.err='';HK.fails=0;HK.down=false;HK.ev+=got;saveHook();
     if(LIVE.on)liveStop();                                   // webhook is back: the live stream isn't needed
+    if(wasDown)hookCatchUp();                                // trades Helius couldn't deliver while it was down → fetch them now
     if(got){saveKTR();saveSTR();renderSoft();liveDirty();}   // show at once, then fetch prices for any new tokens
   }catch(e){
     // one slow answer (weak signal, Worker waking up) isn't a problem — only report after 3 misses in a row
@@ -1319,7 +1346,7 @@ function hookSheet(){
   openSheet(`<h3 style="margin:0 0 4px">🪝 24/7 webhook</h3>
    <div class="note">Helius sends every trade of all your wallets to a small free server of yours (Cloudflare), even while your phone is locked. The app picks them up instantly when open — no live-stream limits, far fewer Helius credits.</div>
    ${on&&HK.wv&&HK.wv<WORKER_V?`<div class="hkst bad">⚠ Your Worker code is old (v${HK.wv}). Tap <b>Copy Worker code</b>, paste it over the old code in Cloudflare, Deploy, then tap Reconnect.</div>`:''}
-   ${on?`<div class="hkst ${hookOK()?'ok':''}">${hookOK()?'✅ Connected':'⏳ Connected — waiting for the Worker'} · ${liveList().length} wallets watched${HK.t?` · checked ${ago(HK.t/1000)}`:''}${HK.err?`<br><span class="bad">${esc(HK.err)}</span>`:''}</div>
+   ${on?`<div class="hkst ${hookOK()?'ok':''}">${hookOK()?'✅ Connected':'⏳ Connected — waiting for the Worker'} · ${liveList().length} wallets saved${HK.hel?` · Helius watching <b>${HK.hel.n}</b> (${esc(HK.hel.ty)})`:''}${HK.t?` · checked ${ago(HK.t/1000)}`:''}${HK.err?`<br><span class="bad">${esc(HK.err)}</span>`:''}</div>
      <div class="mbtns"><button class="btn gh" id="hkSync">↻ Update wallet list</button><button class="btn gh dng" id="hkOff">Disconnect</button></div>`:''}
    <details class="wsetup" ${on?'':'open'}><summary><b>${on?'Setup steps':'Set up (about 15 minutes, all on your phone)'}</b></summary><ol>
     <li>Open <a href="https://dash.cloudflare.com/sign-up" target="_blank" rel="noopener"><b>dash.cloudflare.com</b></a> and create a free account (or log in).</li>
@@ -1338,7 +1365,7 @@ function hookSheet(){
     try{await hookConnect($('hkUrl').value);$('hkMsg').innerHTML='<span class="up">✅ Connected — trades now arrive 24/7.</span>';toast('Webhook connected');setTimeout(hookSheet,900);hookPoll();}
     catch(e){$('hkMsg').innerHTML=`<span class="bad">⚠ ${esc(e.message)}</span>${/daily database limit/i.test(e.message)?'<br>Nothing to fix — it starts working again by itself after 5:30 AM IST. Until then trades come from the normal checks.':/Failed to fetch|NetworkError|Load failed/i.test(e.message)?'<br>Your Worker crashed or is blocked. Paste the newest Worker code (Copy Worker code → Edit code → Deploy) and try again.':/wrong key/.test(e.message)?'<br>Paste the Worker code again (Copy Worker code) and Deploy.':/not connected|D1/.test(e.message)?'<br>Do step 4: add the D1 binding named DB.':/Failed to fetch|abort/i.test(e.message)?'<br>Check the address and that the Worker is deployed.':''}`;}
     b.disabled=false;};
-  if($('hkSync'))$('hkSync').onclick=async()=>{await hookSync(true);toast(HK.err||'Wallet list updated');hookSheet();};
+  if($('hkSync'))$('hkSync').onclick=async()=>{await hookSync(true);await hookVerify();toast(HK.err||'Wallet list updated');hookSheet();};
   if($('hkOff'))armBtn($('hkOff'),async()=>{await hookDisconnect();toast('Webhook disconnected');hookSheet();});
 }
 const renderSoft=()=>{if($('sheet').classList.contains('hide')&&$('vDetail').classList.contains('hide'))renderList();};
@@ -1347,7 +1374,7 @@ async function trackTick(){if(!visible()||!KEY||!$('vDetail').classList.contains
 function trkHTML(){
   const xs=XR.map(x=>`${esc(new URL(x.u).hostname.split('.').slice(-2,-1)[0]||'rpc')} ${Date.now()>x.until?'✅':'⏸'}`).join(' · ');
   const ago_=TRK.t?Math.round((Date.now()-TRK.t)/1000)+'s ago':'starting…';
-  return `<div class="trk ${TRK.err?'bad':''}" id="trk">${TRK.prog?`⏳ ${esc(TRK.prog)}`:`⏱ Tracking ${TRK.total||'…'} wallets · last round ${ago_} · checked ${TRK.checked} · <b>${TRK.added}</b> new trade${TRK.added===1?'':'s'}`}${hookOn()?`<br><span class="note">🪝 Webhook 24/7: ${hookOK()?'<b class="up">on</b>':'connecting…'} · ${liveList().length} wallets${HK.ev?` · ${HK.ev} trades received`:''}${HK.t?` · checked ${Math.round((Date.now()-HK.t)/1000)}s ago`:''}</span>`:''}${HK.err?`<br><span class="note bad">${esc(HK.err)}</span>`:''}${hookOn()&&HK.wv&&HK.wv<WORKER_V?'<br><span class="note bad">⚠ Update your Worker code: ⚙ Settings → 🪝 24/7 webhook</span>':''}${LIVE.on?`<br><span class="note">⚡ Live: <b>${LIVE.subs}</b>/${LIVE.want} wallets streaming${LIVE.trades?` · ${LIVE.trades} live trades`:''}${LIVE.t?` · last event ${Math.round((Date.now()-LIVE.t)/1000)}s ago`:''}</span>`:''}${LIVE.err?`<br><span class="note">${esc(LIVE.err)}</span>`:''}${xs?`<br><span class="note">RPCs: Helius ✅ · ${xs}</span>`:''}${TRK.err?`<br>⚠ ${esc(TRK.err)}`:''}</div>`;
+  return `<div class="trk ${TRK.err?'bad':''}" id="trk">${TRK.prog?`⏳ ${esc(TRK.prog)}`:`⏱ Tracking ${TRK.total||'…'} wallets · last round ${ago_} · checked ${TRK.checked} · <b>${TRK.added}</b> new trade${TRK.added===1?'':'s'}`}${hookOn()?`<br><span class="note">🪝 Webhook 24/7: ${hookOK()?'<b class="up">on</b>':'connecting…'} · ${liveList().length} wallets${HK.hel?` · Helius ✓ ${HK.hel.n}`:''}${HK.ev?` · ${HK.ev} new trades since open`:''}${HK.t?` · checked ${Math.round((Date.now()-HK.t)/1000)}s ago`:''}</span>`:''}${HK.err?`<br><span class="note bad">${esc(HK.err)}</span>`:''}${hookOn()&&HK.wv&&HK.wv<WORKER_V?'<br><span class="note bad">⚠ Update your Worker code: ⚙ Settings → 🪝 24/7 webhook</span>':''}${LIVE.on?`<br><span class="note">⚡ Live: <b>${LIVE.subs}</b>/${LIVE.want} wallets streaming${LIVE.trades?` · ${LIVE.trades} live trades`:''}${LIVE.t?` · last event ${Math.round((Date.now()-LIVE.t)/1000)}s ago`:''}</span>`:''}${LIVE.err?`<br><span class="note">${esc(LIVE.err)}</span>`:''}${xs?`<br><span class="note">RPCs: Helius ✅ · ${xs}</span>`:''}${TRK.err?`<br>⚠ ${esc(TRK.err)}`:''}</div>`;
 }
 function showTrk(){const el=$('trk');if(el)el.outerHTML=trkHTML();}
 setInterval(()=>{if(visible()&&!TRK.prog)showTrk();},5000);
@@ -3540,7 +3567,7 @@ $('instBtn').onclick=async()=>{if(!deferredPrompt)return;deferredPrompt.prompt()
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
 
 function start(){REFRESH_MS=PLAN==='paid'?35e3:60e3;$('vSetup').classList.add('hide');$('vMain').classList.remove('hide');renderControls();
-  if(hookOn()){hookPoll();setTimeout(()=>{if(hookWorking())hookSync();hookFetch('/ping').then(p=>{HK.wv=p.v||1;}).catch(()=>{});},6000);if(!lastTrack)lastTrack=Date.now()-4*60e3;}   // webhook keeps everything while the app is closed: first safety check after ~1 min
+  if(hookOn()){hookPoll();setTimeout(()=>{if(hookWorking())hookVerify();if(Date.now()-store.get('hs_sweep',0)>2*3600e3)setTimeout(hookCatchUp,15e3);hookFetch('/ping').then(p=>{HK.wv=p.v||1;}).catch(()=>{});},6000);if(!lastTrack)lastTrack=Date.now()-4*60e3;}   // webhook keeps everything while the app is closed: first safety check after ~1 min
   setTimeout(()=>{if(SET.live!==false)liveStart();},4000);
   {const p=readAddHash()||store.get('hs_pendadd',null);if(p){store.set('hs_pendadd',null);setTimeout(()=>applyAdd(p),600);}}
   const cached=loadTokCache();if(cached){renderList();setLive('busy','updating…');}else renderList(true);
