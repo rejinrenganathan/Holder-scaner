@@ -1156,7 +1156,7 @@ async function trackPoll(opt){
     const known=new Set([...KTR,...STR].map(x=>x.s));HSEEN.forEach(x=>known.add(x));   // already have these trades — don't pay to parse them again
     // first time (or after adding many wallets): check every wallet once so the feed fills right away
     const unseen=ws.filter(w=>LASTSIG[w]===undefined);
-    if(!opt.all&&!opt.list&&!opt.sweep&&unseen.length>ws.length*0.3){opt={...opt,all:true,first:true};}
+    if(!opt.all&&!opt.list&&!opt.sweep&&unseen.length>ws.length*0.3&&!hookWorking()){opt={...opt,all:true,first:true};}
     let batch;
     if(opt.list){batch=[...PRIO].filter(w=>KOL[w]||SMART[w]);PRIO.clear();}
     else if(opt.all)batch=(opt.first?[...unseen,...ws.filter(w=>LASTSIG[w]!==undefined).slice(0,40)]:[...ws]).sort((a,b)=>(FAV.has(b)-FAV.has(a))||(lastOf(b)-lastOf(a)));
@@ -1345,7 +1345,10 @@ async function hookFetch(path){const c=new AbortController(),tm=setTimeout(()=>c
 // Helius webhook management (create / update the wallet list / delete)
 const HAPI=['https://api-mainnet.helius-rpc.com','https://api.helius.xyz','https://mainnet.helius-rpc.com'];
 async function heliusHooks(method,path,body){let last;
-  for(const h of HAPI){try{const r=await fetch(h+'/v0/webhooks'+path+'?api-key='+encodeURIComponent(KEY),{method,headers:{'content-type':'application/json'},body:body?JSON.stringify(body):undefined});
+  for(const h of HAPI){try{let r;
+      // Helius is often busy right after a big import (the tracker uses the same free limit): wait 2/5/10/20s and try again
+      for(let a=0;a<5;a++){r=await fetch(h+'/v0/webhooks'+path+'?api-key='+encodeURIComponent(KEY),{method,headers:{'content-type':'application/json'},body:body?JSON.stringify(body):undefined});
+        if(r.status!==429&&r.status<500)break;if(a<4)await sleep([2e3,5e3,10e3,20e3][a]);}
       if(r.status===404&&method!=='DELETE'&&h!==HAPI[HAPI.length-1]){last=new Error('HTTP 404');continue;}
       const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||j.message||'Helius HTTP '+r.status);return j;}catch(e){last=e;}}
   throw last;}
@@ -1356,7 +1359,8 @@ const addrHash=l=>{let h=13;   // v3: ANY types again (changing this re-sends th
 async function hookSync(force){
   if(!hookOn()||HK.syncing)return;const list=liveList().slice(0,100000),hh=addrHash(list);if(!force&&hh===HOOK.addrHash)return;
   HK.syncing=true;try{await heliusHooks('PUT','/'+HOOK.id,hookBody(list));HOOK.addrHash=hh;saveHook();HK.err='';}catch(e){HK.err='Webhook wallet list: '+e.message;}finally{HK.syncing=false;}}
-let hsT=null;const hookResync=()=>{clearTimeout(hsT);hsT=setTimeout(()=>hookSync(),8000);};
+let hsT=null;const hookResync=()=>{clearTimeout(hsT);hsT=setTimeout(async()=>{await hookSync();if(hookWorking())hookVerify();},8000);};
+setInterval(()=>{if(visible()&&hookWorking()&&HK.hel&&HK.hel.n!==Math.min(liveList().length,100000))hookVerify();},5*60e3);   // until Helius watches every wallet
 // read what's new from the Worker and turn it into trades
 const LTS={};const HSEEN=new Set();const hSeen=s=>{HSEEN.add(s);if(HSEEN.size>30000){const it=HSEEN.values();for(let i=0;i<10000;i++)HSEEN.delete(it.next().value);}};
 // check that Helius really watches every saved wallet with the right settings; fix it if not
@@ -1447,7 +1451,7 @@ async function trackTick(){if(!visible()||!KEY||!$('vDetail').classList.contains
 function trkHTML(){
   const xs=XR.map(x=>`${esc(new URL(x.u).hostname.split('.').slice(-2,-1)[0]||'rpc')} ${Date.now()>x.until?'✅':'⏸'}`).join(' · ');
   const ago_=TRK.t?Math.round((Date.now()-TRK.t)/1000)+'s ago':'starting…';
-  return `<div class="trk ${TRK.err?'bad':''}" id="trk">${TRK.prog?`⏳ ${esc(TRK.prog)}`:`⏱ Tracking ${TRK.total||'…'} wallets · last round ${ago_} · checked ${TRK.checked} · <b>${TRK.added}</b> new trade${TRK.added===1?'':'s'}`}${hookOn()?`<br><span class="note">🪝 Webhook 24/7: ${hookOK()?'<b class="up">on</b>':'connecting…'} · ${liveList().length} wallets${HK.hel?` · Helius ✓ ${HK.hel.n}`:''}${HK.ev?` · ${HK.ev} new trades since open`:''}${HK.t?` · checked ${Math.round((Date.now()-HK.t)/1000)}s ago`:''}</span>`:''}${HK.err?`<br><span class="note bad">${esc(HK.err)}</span>`:''}${hookOn()&&HK.wv&&HK.wv<WORKER_V?'<br><span class="note bad">⚠ Update your Worker code: ⚙ Settings → 🪝 24/7 webhook</span>':''}${LIVE.on?`<br><span class="note">⚡ Live: <b>${LIVE.subs}</b>/${LIVE.want} wallets streaming${LIVE.trades?` · ${LIVE.trades} live trades`:''}${LIVE.t?` · last event ${Math.round((Date.now()-LIVE.t)/1000)}s ago`:''}</span>`:''}${LIVE.err?`<br><span class="note">${esc(LIVE.err)}</span>`:''}${xs?`<br><span class="note">RPCs: Helius ✅ · ${xs}</span>`:''}${TRK.err?`<br>⚠ ${esc(TRK.err)}`:''}</div>`;
+  return `<div class="trk ${TRK.err?'bad':''}" id="trk">${TRK.prog?`⏳ ${esc(TRK.prog)}`:`⏱ Tracking ${TRK.total||'…'} wallets · last round ${ago_} · checked ${TRK.checked} · <b>${TRK.added}</b> new trade${TRK.added===1?'':'s'}`}${hookOn()?`<br><span class="note">🪝 Webhook 24/7: ${hookOK()?'<b class="up">on</b>':'connecting…'} · ${liveList().length} wallets${HK.hel?(HK.hel.n>=Math.min(liveList().length,100000)?` · Helius ✓ ${HK.hel.n}`:` · <b class="dn">Helius ⚠ ${HK.hel.n}/${liveList().length}</b> fixing…`):''}${HK.ev?` · ${HK.ev} new trades since open`:''}${HK.t?` · checked ${Math.round((Date.now()-HK.t)/1000)}s ago`:''}</span>`:''}${HK.err?`<br><span class="note bad">${esc(HK.err)}</span>`:''}${hookOn()&&HK.wv&&HK.wv<WORKER_V?'<br><span class="note bad">⚠ Update your Worker code: ⚙ Settings → 🪝 24/7 webhook</span>':''}${LIVE.on?`<br><span class="note">⚡ Live: <b>${LIVE.subs}</b>/${LIVE.want} wallets streaming${LIVE.trades?` · ${LIVE.trades} live trades`:''}${LIVE.t?` · last event ${Math.round((Date.now()-LIVE.t)/1000)}s ago`:''}</span>`:''}${LIVE.err?`<br><span class="note">${esc(LIVE.err)}</span>`:''}${xs?`<br><span class="note">RPCs: Helius ✅ · ${xs}</span>`:''}${TRK.err?`<br>⚠ ${esc(TRK.err)}`:''}</div>`;
 }
 function showTrk(){const el=$('trk');if(el)el.outerHTML=trkHTML();}
 setInterval(()=>{if(visible()&&!TRK.prog)showTrk();},5000);
@@ -3763,7 +3767,7 @@ $('instBtn').onclick=async()=>{if(!deferredPrompt)return;deferredPrompt.prompt()
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
 
 function start(){REFRESH_MS=PLAN==='paid'?35e3:60e3;$('vSetup').classList.add('hide');$('vMain').classList.remove('hide');renderControls();
-  if(hookOn()){hookPoll();setTimeout(()=>{if(hookWorking())hookVerify();if(Date.now()-store.get('hs_sweep',0)>2*3600e3)setTimeout(hookCatchUp,15e3);hookFetch('/ping').then(p=>{HK.wv=p.v||1;}).catch(()=>{});},6000);if(!lastTrack)lastTrack=Date.now()-4*60e3;}   // webhook keeps everything while the app is closed: first safety check after ~1 min
+  if(hookOn()){hookPoll();setTimeout(()=>{if(hookWorking())hookVerify();if(Date.now()-store.get('hs_sweep',0)>(liveList().length>1500?12:2)*3600e3)setTimeout(hookCatchUp,15e3);hookFetch('/ping').then(p=>{HK.wv=p.v||1;}).catch(()=>{});},6000);if(!lastTrack)lastTrack=Date.now()-4*60e3;}   // webhook keeps everything while the app is closed: first safety check after ~1 min
   setTimeout(()=>{if(SET.live!==false)liveStart();},4000);
   {const p=readAddHash()||store.get('hs_pendadd',null);if(p){store.set('hs_pendadd',null);setTimeout(()=>applyAdd(p),600);}}
   const cached=loadTokCache();if(cached){renderList();setLive('busy','updating…');}else renderList(true);
