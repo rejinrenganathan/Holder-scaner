@@ -110,7 +110,7 @@ input[type=text],input[type=password]{width:100%;background:var(--bg2);color:var
 // 3) keep real trades: profit, ROI, buy size, hold time; drop bots, devs, pools, exchanges
 // 4) wallets that are top earners in several different winners AND profitable over their whole history = smart
 // 5) Helius finds who funded them (same funder = maybe one person)
-const LAB_V=5;   // bump on every Lab change: old saved results are cleared and phones reload the new page
+const LAB_V=6;   // bump on every Lab change: old saved results are cleared and phones reload the new page
 const $=id=>document.getElementById(id);
 const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v);}catch(e){return d;}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true;}catch(e){return false;}}};
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -431,6 +431,7 @@ function vWallets(){
   const rj=Object.entries(RES.why||{}).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`${k} ${v}`).join(' · ');
   return stats([[cnt('smart'),`🧠 Smart (${RES.cfg.ov}+ winners, profitable)`,'ok'],[cnt('luck'),'🎲 Lucky (losing lifetime)','bad']])+
   `<div class="chips"><button data-wf="smart" class="${WF==='smart'?'on':''}">🧠 Smart</button><button data-wf="one" class="${WF==='one'?'on':''}">1 winner ${cnt('one')}</button><button data-wf="luck" class="${WF==='luck'?'on':''}">🎲 Lucky</button></div>
+  ${list.length?`<div class="row" style="margin-bottom:8px"><button class="btn2" id="selAll" data-ws="${list.map(w=>w.w).join(',')}">${list.every(w=>SEL.has(w.w))?'✕ Clear all':'☑ Select all '+list.length}</button><span class="sp"></span><span class="note" id="selN">${SEL.size} selected</span></div>`:''}
   <div class="card">${list.map(wRow).join('')||`<div class="note">${WF==='smart'?'No wallet was a top earner in '+RES.cfg.ov+'+ winners. Scan more winners (50), widen the days, or lower the profit bar.':'None in this run'}</div>`}</div>
   ${rj?`<div class="note">Top traders not counted: ${esc(rj)}</div>`:''}
   <div class="fb"><button class="btn ${SEL.size?'':'hide'}" id="sendSel">＋ Send ${SEL.size} to Holder Scan</button><button class="btn2 ${SEL.size?'':'hide'}" id="copySel">Copy</button></div>`;
@@ -455,7 +456,10 @@ function bindView(){
   document.querySelectorAll('[data-wf]').forEach(b=>b.onclick=()=>{WF=b.dataset.wf;show();});
   document.querySelectorAll('.chk[data-w]').forEach(c=>c.onchange=()=>{c.checked?SEL.add(c.dataset.w):SEL.delete(c.dataset.w);
     document.querySelectorAll('#sendSel').forEach(b=>{b.textContent=`＋ Send ${SEL.size} to Holder Scan`;b.classList.toggle('hide',!SEL.size);});
-    document.querySelectorAll('#copySel').forEach(b=>b.classList.toggle('hide',!SEL.size));});
+    document.querySelectorAll('#copySel').forEach(b=>b.classList.toggle('hide',!SEL.size));
+    const n=$('selN');if(n)n.textContent=SEL.size+' selected';
+    const sa=$('selAll');if(sa){const ws=sa.dataset.ws.split(',').filter(Boolean);sa.textContent=ws.every(w=>SEL.has(w))?'✕ Clear all':'☑ Select all '+ws.length;}});
+  const sa=$('selAll');if(sa)sa.onclick=()=>{const ws=sa.dataset.ws.split(',').filter(Boolean),all=ws.every(w=>SEL.has(w));ws.forEach(w=>all?SEL.delete(w):SEL.add(w));show();};
   const s=$('sendSel');if(s)s.onclick=sendToApp;
   const cp=$('copySel');if(cp)cp.onclick=()=>{navigator.clipboard?.writeText([...SEL].join('\n')).then(()=>cp.textContent='Copied ✓',()=>cp.textContent='Copy failed');};
 }
