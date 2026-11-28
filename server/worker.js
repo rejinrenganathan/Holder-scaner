@@ -9,7 +9,7 @@
 // the plan price to the payment wallet with that key attached. The server finds the transfer by the key on Helius, checks recipient,
 // exact amount, confirmation and that the signature was never used before, then turns the plan on. A cron re-checks every 5 minutes.
 
-const API_V = 10;
+const API_V = 11;
 // Owner wallet(s) — always allowed into the dashboard. More owners can be added in Site control.
 const OWNER_WALLETS = 'CZQkA9JszBPP7x2LescrtZwh1LGoxZwnW68wLbdFPz93';
 // Sites allowed to call this API from a browser
@@ -114,13 +114,16 @@ async function init(env) {
       got INTEGER NOT NULL DEFAULT 0, created INTEGER NOT NULL, paid_at INTEGER NOT NULL DEFAULT 0, checked INTEGER NOT NULL DEFAULT 0,
       until_before INTEGER NOT NULL DEFAULT 0, until_after INTEGER NOT NULL DEFAULT 0, inr REAL NOT NULL DEFAULT 0, note TEXT NOT NULL DEFAULT '')`),
     env.DB.prepare(`CREATE INDEX IF NOT EXISTS pay_user ON payments(user_id, created)`),
-    env.DB.prepare(`CREATE INDEX IF NOT EXISTS pay_status ON payments(status, created)`)
+    env.DB.prepare(`CREATE INDEX IF NOT EXISTS pay_status ON payments(status, created)`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS token_meta(mint TEXT PRIMARY KEY, j TEXT NOT NULL, dex_t INTEGER NOT NULL DEFAULT 0, st_t INTEGER NOT NULL DEFAULT 0, ord_t INTEGER NOT NULL DEFAULT 0)`)
   ]);
   // columns added after build 1
   for (const sql of ['ALTER TABLE users ADD COLUMN blocked INTEGER NOT NULL DEFAULT 0', "ALTER TABLE users ADD COLUMN via TEXT NOT NULL DEFAULT ''", 'ALTER TABLE users ADD COLUMN follow INTEGER NOT NULL DEFAULT 1']) {
     try { await env.DB.prepare(sql).run(); } catch (e) { /* already there */ }
   }
-  try { await env.DB.prepare('ALTER TABLE payments ADD COLUMN usd REAL NOT NULL DEFAULT 0').run(); } catch (e) { /* already there */ }
+  for (const sql of ['ALTER TABLE payments ADD COLUMN usd REAL NOT NULL DEFAULT 0', 'ALTER TABLE trades ADD COLUMN amt REAL NOT NULL DEFAULT 0', "ALTER TABLE users ADD COLUMN prefs TEXT NOT NULL DEFAULT ''"]) {
+    try { await env.DB.prepare(sql).run(); } catch (e) { /* already there */ }
+  }
   ready = true;
 }
 async function getSettings(env) {
@@ -337,11 +340,11 @@ async function handle(req, env, ctx) {
     for (const tx of list) {
       if (!tx || !tx.signature || tx.transactionError) continue;
       const who = new Set([tx.feePayer, ...(tx.tokenTransfers || []).flatMap(x => [x.fromUserAccount, x.toUserAccount]), ...(tx.accountData || []).map(a => a.account)]);
-      for (const w of who) { if (!w || !T.has(w)) continue; const tr = parseTrade(tx, w), k = tx.signature + w; if (tr && !seen.has(k)) { seen.add(k); rows.push([tx.timestamp || now(), w, tr.m, tr.side, Math.round(tr.sol * 1000) / 1000, tx.signature]); } }
+      for (const w of who) { if (!w || !T.has(w)) continue; const tr = parseTrade(tx, w), k = tx.signature + w; if (tr && !seen.has(k)) { seen.add(k); rows.push([tx.timestamp || now(), w, tr.m, tr.side, Math.round(tr.sol * 1000) / 1000, tx.signature, tr.amt || 0]); } }
     }
     if (s.hook_dirty === '1' && now() - (+s.hook_synced || 0) >= 30) { await setSetting(env, 'hook_dirty', '0'); later(syncHook(env, '').catch(() => { })); }
     if (rows.length) {
-      const st = env.DB.prepare('INSERT OR IGNORE INTO trades(ts, wallet, mint, side, sol, sig) VALUES(?, ?, ?, ?, ?, ?)');
+      const st = env.DB.prepare('INSERT OR IGNORE INTO trades(ts, wallet, mint, side, sol, sig, amt) VALUES(?, ?, ?, ?, ?, ?, ?)');
       await env.DB.batch(rows.map(r => st.bind(...r)));
       later(bump(env, 'trades', rows.length));
     }
@@ -350,7 +353,7 @@ async function handle(req, env, ctx) {
   }
 
   // ---------- public app (Scan Holders) ----------
-  if (path === '/api/feed' || path === '/api/trades' || path === '/api/token' || path === '/api/wallets' || path.startsWith('/api/wallets/')) {
+  if (path === '/api/feed' || path === '/api/trades' || path === '/api/token' || path === '/api/wallets' || path.startsWith('/api/wallets/') || path === '/api/prefs') {
     const s = await getSettings(env);
     const se = await sessionFromRequest(req, env), u = se ? se.user : null;
     const full = !!u && (planActive(u) || isOwner(u, s));
@@ -402,8 +405,8 @@ function parseTrade(tx, w) {
   const im = Object.keys(ins), om = Object.keys(outs);
   const ad = (tx.accountData || []).find(a => a.account === w); let sol = (ad ? ad.nativeBalanceChange : 0) / 1e9;
   for (const x of tt) { if (!x || x.mint !== SOL_MINT) continue; if (x.toUserAccount === w) sol += +x.tokenAmount || 0; if (x.fromUserAccount === w) sol -= +x.tokenAmount || 0; }
-  if (im.length === 1 && !om.length && -sol >= 0.01) return { m: im[0], side: 'buy', sol: -sol };
-  if (om.length === 1 && !im.length && sol >= 0.01) return { m: om[0], side: 'sell', sol };
+  if (im.length === 1 && !om.length && -sol >= 0.01) return { m: im[0], side: 'buy', sol: -sol, amt: ins[im[0]] };
+  if (om.length === 1 && !im.length && sol >= 0.01) return { m: om[0], side: 'sell', sol, amt: outs[om[0]] };
   return null;
 }
 // every wallet we follow: site wallets (not hidden) + every user's own wallets — kept in memory for a minute
@@ -449,6 +452,284 @@ async function solPrice() {
   return PX;
 }
 
+// ---------- Hot tab: token data cache + filter engine (build 11) ----------
+// Every token's market + safety data is fetched once and shared by every user:
+//  • DexScreener (free, 30 tokens per call): market cap, liquidity, volume, price change, buys/sells, boosts, paid profile, socials
+//  • Solana Tracker (your key, paced one call at a time): launchpad pool, safety (bundlers, snipers, top 10, dev), fees, holders, unique buyers
+//  • DexScreener orders (paced): ads — only when someone uses the Ads filter
+const SUFFIX_LP = [[/pump$/, 'Pump.fun'], [/bonk$/, 'Bonk.fun'], [/BAGS$/, 'Bags'], [/boop$/, 'Boop']];
+const MARKET_LP = { pumpfun: 'Pump.fun', 'pumpfun-amm': 'Pump.fun', pumpswap: 'Pump.fun', 'raydium-launchpad': 'Raydium LaunchLab', launchlab: 'Raydium LaunchLab',
+  moonshot: 'Moonit', moonit: 'Moonit', boop: 'Boop', 'meteora-curve': 'Meteora launchpads', 'meteora-dbc': 'Meteora launchpads', believe: 'Meteora launchpads',
+  'jupiter-studio': 'Meteora launchpads', heaven: 'Meteora launchpads', bags: 'Bags' };
+const CURVE_MARKETS = new Set(['pumpfun', 'raydium-launchpad', 'launchlab', 'moonshot', 'moonit', 'boop', 'meteora-curve', 'meteora-dbc', 'heaven', 'bags']);
+const LP_NAMES = ['Pump.fun', 'Bonk.fun', 'Raydium LaunchLab', 'Bags', 'Moonit', 'Boop', 'Meteora launchpads'];
+const sleep = ms => new Promise(r => setTimeout(r, globalThis.__FAST_TEST ? 0 : ms));   // tests skip the pauses
+const SEEN_MARKETS = new Set(Object.keys(MARKET_LP).concat(['raydium', 'raydium-cpmm', 'raydium-amm', 'raydium-clmm', 'meteora', 'meteora-damm', 'meteora-damm-v2', 'orca', 'pumpswap']));
+function classifyLinks(urls) {
+  const s = { x: false, tg: false, web: false, ig: false, tt: false };
+  for (const u0 of urls) { const u = String(u0 || '').toLowerCase(); if (!u) continue;
+    if (/(^|\/\/|\.)(x|twitter)\.com/.test(u)) s.x = true; else if (/(^|\/\/)t\.me\/|telegram/.test(u)) s.tg = true;
+    else if (/instagram\.com/.test(u)) s.ig = true; else if (/tiktok\.com/.test(u)) s.tt = true; else if (/^https?:\/\//.test(u)) s.web = true; }
+  return s;
+}
+function dexMeta(p) {
+  const tx = p.txns || {}, v = p.volume || {}, pc = p.priceChange || {}, info = p.info || null, links = [];
+  if (info) { (info.websites || []).forEach(w => links.push(w && w.url)); (info.socials || []).forEach(x => links.push(x && (x.url || (x.type === 'twitter' ? 'https://x.com' : x.type === 'telegram' ? 'https://t.me/' : '')))); }
+  const n = x => typeof x === 'number' && isFinite(x) ? x : null, txo = o => o ? { b: +o.buys || 0, s: +o.sells || 0 } : null;
+  return { sym: p.baseToken && p.baseToken.symbol, name: p.baseToken && p.baseToken.name, img: info && info.imageUrl || null, mcD: n(p.marketCap) ?? n(p.fdv), liqD: p.liquidity ? n(p.liquidity.usd) : null,
+    price: n(+p.priceUsd), vol: { m5: n(v.m5), h1: n(v.h1), h6: n(v.h6), h24: n(v.h24) }, pc: { m5: n(pc.m5), h1: n(pc.h1), h6: n(pc.h6), h24: n(pc.h24) },
+    tx: { m5: txo(tx.m5), h1: txo(tx.h1), h6: txo(tx.h6), h24: txo(tx.h24) }, pairAt: p.pairCreatedAt ? Math.floor(p.pairCreatedAt / 1000) : null, dexId: String(p.dexId || '').toLowerCase(),
+    boosts: (p.boosts && +p.boosts.active) || 0, dexPaid: !!(info && (info.imageUrl || (info.socials || []).length || (info.websites || []).length)), socD: classifyLinks(links), url: p.url || '' };
+}
+function stMeta(ti) {
+  const tk = ti.token || {}, pools = Array.isArray(ti.pools) ? ti.pools : [], r = ti.risk || {}, ev = ti.events || {};
+  const markets = [...new Set(pools.map(p => String(p && p.market || '').toLowerCase()).filter(Boolean))];
+  const main = pools.slice().sort((a, b) => ((b && b.liquidity || {}).usd || 0) - ((a && a.liquidity || {}).usd || 0))[0] || {};
+  const sec = main.security || {}, ext = { ...(tk.extensions || {}), ...(tk.strictSocials || {}) };
+  let ct = tk.creation && tk.creation.created_time; if (ct > 1e12) ct = Math.floor(ct / 1000);
+  const pct = o => o && typeof o.totalPercentage === 'number' ? o.totalPercentage : null;
+  return { symS: tk.symbol, nameS: tk.name, imgS: tk.image, markets, created: ct || null, liqS: main.liquidity ? main.liquidity.usd ?? null : null, mcS: main.marketCap ? main.marketCap.usd ?? null : null,
+    freeze: 'freezeAuthority' in sec ? sec.freezeAuthority : undefined, mintA: 'mintAuthority' in sec ? sec.mintAuthority : undefined, curve: typeof main.curvePercentage === 'number' ? main.curvePercentage : null,
+    bundlers: pct(r.bundlers), snipers: pct(r.snipers), top10: typeof r.top10 === 'number' ? r.top10 : null, dev: r.dev && typeof r.dev.percentage === 'number' ? r.dev.percentage : null,
+    fees: r.fees && typeof r.fees.total === 'number' ? r.fees.total : null, holders: typeof ti.holders === 'number' ? ti.holders : null,
+    pc30e: ev['30m'] && typeof ev['30m'].priceChangePercentage === 'number' ? ev['30m'].priceChangePercentage : null,
+    socS: classifyLinks(Object.values(ext).filter(x => typeof x === 'string')) };
+}
+async function metaGet(env, mints) {
+  const out = {};
+  for (let i = 0; i < mints.length; i += 90) {
+    const part = mints.slice(i, i + 90);
+    const rows = (await env.DB.prepare(`SELECT * FROM token_meta WHERE mint IN (${part.map(() => '?').join(',')})`).bind(...part).all()).results || [];
+    for (const r of rows) { try { out[r.mint] = { ...JSON.parse(r.j), _dt: r.dex_t, _st: r.st_t, _ot: r.ord_t }; } catch (e) { } }
+  }
+  return out;
+}
+async function metaPut(env, patches, col) {   // patches: { mint: partial object }
+  const ms = Object.keys(patches); if (!ms.length) return;
+  const cur = await metaGet(env, ms), t = now(), st = [];
+  for (const m of ms) {
+    const old = cur[m] || {}; const { _dt, _st, _ot, ...base } = old;
+    const j = JSON.stringify({ ...base, ...patches[m] });
+    st.push(env.DB.prepare(`INSERT INTO token_meta(mint, j, dex_t, st_t, ord_t) VALUES(?, ?, ?, ?, ?) ON CONFLICT(mint) DO UPDATE SET j = excluded.j,
+      dex_t = MAX(token_meta.dex_t, excluded.dex_t), st_t = MAX(token_meta.st_t, excluded.st_t), ord_t = MAX(token_meta.ord_t, excluded.ord_t)`)
+      .bind(m, j, col === 'dex' ? t : 0, col === 'st' ? t : 0, col === 'ord' ? t : 0));
+  }
+  for (let i = 0; i < st.length; i += 50) await env.DB.batch(st.slice(i, i + 50));
+}
+// DexScreener: refresh tokens older than a minute, 30 per call
+async function dexRefresh(env, mints, metas) {
+  const stale = mints.filter(m => !metas[m] || now() - (metas[m]._dt || 0) > 60);
+  const chunks = []; for (let i = 0; i < stale.length; i += 30) chunks.push(stale.slice(i, i + 30));
+  const patches = {};
+  for (let i = 0; i < chunks.length; i += 4) {
+    await Promise.all(chunks.slice(i, i + 4).map(async part => {
+      try {
+        const r = await fetch('https://api.dexscreener.com/tokens/v1/solana/' + part.join(','), { headers: { accept: 'application/json' } }); await bump(env, 'call_dex');
+        const list = r.ok ? await r.json() : null; if (!Array.isArray(list)) return;
+        const best = {};
+        for (const p of list) { const a = p && p.baseToken && p.baseToken.address; if (!a || !part.includes(a)) continue; if (!best[a] || ((p.liquidity || {}).usd || 0) > ((best[a].liquidity || {}).usd || 0)) best[a] = p; }
+        for (const m of part) patches[m] = best[m] ? dexMeta(best[m]) : { noDex: true };
+      } catch (e) { }
+    }));
+  }
+  await metaPut(env, patches, 'dex');
+  for (const [m, p] of Object.entries(patches)) metas[m] = { ...(metas[m] || {}), ...p, _dt: now() };
+}
+// Solana Tracker: one call at a time (your plan answers 429 to bursts), shared lock so only one worker runs it
+async function stWork(env, mints, wantOrders) {
+  const DB = env.DB, t = now();
+  await DB.prepare("INSERT OR IGNORE INTO settings(k, v) VALUES('st_lock', '0')").run();
+  const got = await DB.prepare("UPDATE settings SET v = ? WHERE k = 'st_lock' AND CAST(v AS INTEGER) < ?").bind(String(t + 28), t).run();
+  if (!got.meta || !got.meta.changes) return 0;
+  let n = 0;
+  try {
+    const key = await getKey(env, 'stracker'), t0 = Date.now();
+    const metas = await metaGet(env, mints);
+    const get = async p => { const r = await fetch('https://data.solanatracker.io' + p, { headers: { 'x-api-key': key, accept: 'application/json' } }); await bump(env, 'call_stracker'); return { s: r.status, j: r.ok ? await r.json().catch(() => null) : null }; };
+    if (key) for (const m of mints.filter(m => !metas[m] || now() - (metas[m]._st || 0) > 240)) {
+      if (Date.now() - t0 > 22000) break;
+      const a = await get('/tokens/' + m);
+      if (a.s === 429) { await sleep(3000); continue; }
+      await sleep(1050);
+      const b = await get('/stats/' + m);
+      const patch = a.j ? stMeta(a.j) : { noST: a.s === 404 };
+      if (b.j) { const ub = {}; for (const k of ['15m', '30m', '1h', '24h']) if (b.j[k] && typeof b.j[k].buyers === 'number') ub[k] = b.j[k].buyers;
+        patch.ub = ub; if (b.j['30m'] && typeof b.j['30m'].priceChangePercentage === 'number') patch.pc30 = b.j['30m'].priceChangePercentage; }
+      await metaPut(env, { [m]: patch }, 'st'); n++;
+      for (const mk of patch.markets || []) if (!SEEN_MARKETS.has(mk)) { SEEN_MARKETS.add(mk); await logEvent(env, 'info', 'launchpads', `New pool type seen: ${mk} (token ${short4(m)})`, 'Tell Claude so it can be named in the Launchpads list'); }
+      await sleep(1050);
+    }
+    if (wantOrders) for (const m of mints.filter(m => !metas[m] || now() - (metas[m]._ot || 0) > 900).slice(0, 15)) {
+      if (Date.now() - t0 > 24000) break;
+      try { const r = await fetch('https://api.dexscreener.com/orders/v1/solana/' + m); await bump(env, 'call_dex');
+        const arr = r.ok ? await r.json() : null; const L = Array.isArray(arr) ? arr : (arr && Array.isArray(arr.orders) ? arr.orders : null);
+        if (L) await metaPut(env, { [m]: { ads: L.some(o => o && (o.type === 'tokenAd' || o.type === 'trendingBarAd') && o.status === 'approved'), paidO: L.some(o => o && o.type === 'tokenProfile' && o.status === 'approved') } }, 'ord');
+      } catch (e) { }
+      await sleep(1050);
+    }
+  } finally { await DB.prepare("UPDATE settings SET v = '0' WHERE k = 'st_lock'").run(); }
+  return n;
+}
+// whole-market candidates (KOL and Smart both off): Solana Tracker's latest / graduating / graduated launchpad tokens, refreshed once a minute for everyone
+async function marketMints(env) {
+  const DB = env.DB, c = await DB.prepare("SELECT v FROM settings WHERE k = 'mkt'").first();
+  let cache = null; try { cache = c ? JSON.parse(c.v) : null; } catch (e) { }
+  if (cache && now() - cache.t < 60) return cache.m;
+  await setSetting(env, 'mkt', JSON.stringify({ t: now(), m: cache ? cache.m : [] }));   // others use the old list while this one refreshes
+  const key = await getKey(env, 'stracker'); if (!key) return cache ? cache.m : [];
+  try {
+    const r = await fetch('https://data.solanatracker.io/tokens/multi/all?limit=100', { headers: { 'x-api-key': key, accept: 'application/json' } }); await bump(env, 'call_stracker');
+    const j = r.ok ? await r.json() : null; if (!j) return cache ? cache.m : [];
+    const list = [...(j.latest || []), ...(j.graduating || []), ...(j.graduated || [])].filter(x => x && x.token && x.token.mint);
+    const patches = {}; for (const ti of list) patches[ti.token.mint] = stMeta(ti);
+    await metaPut(env, patches, 'st');
+    const m = [...new Set(list.map(x => x.token.mint))];
+    await setSetting(env, 'mkt', JSON.stringify({ t: now(), m }));
+    return m;
+  } catch (e) { return cache ? cache.m : []; }
+}
+// ---- reading a token's numbers (one place, so every filter reads the same value) ----
+function lpOf(mint, m) {
+  for (const [re, name] of SUFFIX_LP) if (re.test(mint)) return name;
+  for (const mk of m.markets || []) if (MARKET_LP[mk]) return MARKET_LP[mk];
+  if (MARKET_LP[m.dexId]) return MARKET_LP[m.dexId];
+  return null;
+}
+function stageOf(m) {
+  const mk = m.markets || [];
+  if (mk.length) return mk.some(x => !CURVE_MARKETS.has(x)) ? 'mig' : 'bond';
+  if (m.dexId) return CURVE_MARKETS.has(m.dexId) ? 'bond' : 'mig';
+  return null;
+}
+const winKey = w => w <= 900 ? 'm5' : w <= 3600 ? 'h1' : w <= 14400 ? 'h6' : 'h24';
+const ubKey = w => w <= 900 ? '15m' : w <= 3600 ? '1h' : '24h';
+function view(mint, m, win) {
+  const st = stageOf(m), k = winKey(win), tx = (m.tx || {})[k], vol = (m.vol || {})[k] ?? null;
+  const soc = m.socD || {}, so = m.socS || {};
+  return { lp: lpOf(mint, m), stage: st, created: m.created || m.pairAt || null,
+    mc: m.mcD ?? m.mcS ?? null, liq: st === 'bond' ? (m.liqS ?? m.liqD ?? null) : (m.liqD ?? m.liqS ?? null),
+    vol, buys: tx ? tx.b : null, sells: tx ? tx.s : null, bs: tx && tx.s ? tx.b / tx.s : tx && tx.b ? tx.b : null,
+    ub: m.ub ? m.ub[ubKey(win)] ?? null : null, fees: m.fees ?? null, holders: m.holders ?? null,
+    bundlers: m.bundlers ?? null, snipers: m.snipers ?? null, top10: m.top10 ?? null, dev: m.dev ?? null,
+    pc: { '5m': (m.pc || {}).m5 ?? null, '30m': m.pc30 ?? m.pc30e ?? null, '6h': (m.pc || {}).h6 ?? null, '24h': (m.pc || {}).h24 ?? null, h1: (m.pc || {}).h1 ?? null },
+    soc: { x: !!(soc.x || so.x), tg: !!(soc.tg || so.tg), web: !!(soc.web || so.web), ig: !!(soc.ig || so.ig), tt: !!(soc.tt || so.tt) },
+    paid: m.dexPaid || m.paidO || false, boosted: (m.boosts || 0) > 0, ads: typeof m.ads === 'boolean' ? m.ads : null,
+    unsafe: (m.freeze !== undefined && m.freeze !== null && m.freeze !== '') || (m.mintA !== undefined && m.mintA !== null && m.mintA !== ''),
+    hasST: !!m._st, sym: m.sym || m.symS || '', name: m.name || m.nameS || '', img: m.img || m.imgS || null, price: m.price ?? null };
+}
+// ---- filters: read and clean what the app sends; free accounts keep only the free filters ----
+const num = (x, lo, hi) => { const n = Number(x); return isFinite(n) && n >= lo && n <= hi ? n : null; };
+function range(o, hi) { if (!o || typeof o !== 'object') return null; const a = num(o.min, 0, hi), b = num(o.max, 0, hi); return a == null && b == null ? null : { min: a, max: b }; }
+function parseFilters(raw, full) {
+  let f = {}; try { f = JSON.parse(raw || '{}') || {}; } catch (e) { }
+  const b = f.b || {}, out = { b: { all: b.all !== false, kol: b.kol !== false, smart: b.smart !== false } };
+  if (!out.b.kol && !out.b.smart) out.b.all = true;
+  out.stage = { bond: !f.stage || f.stage.bond !== false, mig: !f.stage || f.stage.mig !== false }; if (!out.stage.bond && !out.stage.mig) out.stage = { bond: true, mig: true };
+  out.lpOff = Array.isArray(f.lpOff) ? f.lpOff.filter(x => LP_NAMES.includes(x)) : []; if (out.lpOff.length >= LP_NAMES.length) out.lpOff = [];
+  out.age = range(f.age, 1e9); out.mc = range(f.mc, 1e13); out.liq = range(f.liq, 1e12);
+  if (!full) { out.minb = 2; out.sort = 'hot'; return out; }
+  out.minb = num(f.minb, 0, 1e7) || 0; out.minsol = num(f.minsol, 0, 1e7) || 0; out.hold = num(f.hold, 0, 100) || 0; out.lastb = num(f.lastb, 0, 86400 * 7) || 0;
+  if (f.pc && (f.pc.dir === 'up' || f.pc.dir === 'down')) out.pc = { dir: f.pc.dir, min: num(f.pc.min, 0, 1e6) || 0, tf: ['5m', '30m', '6h', '24h'].includes(f.pc.tf) ? f.pc.tf : '5m' };
+  for (const k of ['bun', 'snp', 'top', 'dev']) out[k] = range(f[k], 100);
+  out.vol = range(f.vol, 1e13); out.fee = range(f.fee, 1e9); out.ubr = range(f.ubr, 1e9); out.bsr = range(f.bsr, 1e6); out.hld = range(f.hld, 1e9);
+  out.soc = Array.isArray(f.soc) ? f.soc.filter(x => ['x', 'web', 'ig', 'tt', 'tg'].includes(x)) : [];
+  out.paid = !!f.paid; out.boost = !!f.boost; out.ads = !!f.ads;
+  out.sort = ['hot', 'new', 'buyers', 'sol', 'mc', 'vol', 'fees'].includes(f.sort) ? f.sort : 'hot';
+  return out;
+}
+const inR = (v, r) => !r || (v != null && (r.min == null || v >= r.min) && (r.max == null || v <= r.max));   // filter on + no data → hidden
+async function hotFeed(req, env, s, u, full, later, q) {
+  const DB = env.DB, t = now(), uid = u ? u.id : -1, follow = !u || u.follow !== 0;
+  const win = [900, 3600, 14400, 86400].includes(+q.get('win')) ? +q.get('win') : 3600;
+  const f = parseFilters(q.get('f'), full), tracked = f.b.kol || f.b.smart, FREE = Math.max(1, +s.free_tokens || 4);
+  const kinds = [f.b.kol ? 'kol' : null, f.b.smart ? 'smart' : null].filter(Boolean);
+  let toks = [];
+  if (tracked) {
+    // one row per token + wallet: buys in the window (0.1 SOL or more), token amounts for "still holding", last buy
+    const rows = (await DB.prepare(`SELECT t.mint, t.wallet, COALESCE(sw.kind, uw.kind, 'smart') kind, sw.name, sw.handle, uw.name uname,
+        SUM(CASE WHEN t.side = 'buy' AND t.ts > ?1 AND t.sol >= 0.1 THEN t.sol ELSE 0 END) bsol,
+        SUM(CASE WHEN t.side = 'buy' AND t.ts > ?1 AND t.sol >= 0.1 THEN 1 ELSE 0 END) bn,
+        MIN(CASE WHEN t.side = 'buy' AND t.ts > ?1 AND t.sol >= 0.1 THEN t.ts END) bfirst,
+        MAX(CASE WHEN t.side = 'buy' AND t.sol >= 0.1 THEN t.ts END) blast,
+        SUM(CASE WHEN t.side = 'buy' THEN t.amt ELSE 0 END) bamt, SUM(CASE WHEN t.side = 'buy' AND t.amt > 0 THEN t.sol ELSE 0 END) bsolA,
+        SUM(CASE WHEN t.side = 'sell' THEN t.amt ELSE 0 END) samt, SUM(CASE WHEN t.side = 'sell' THEN 1 ELSE 0 END) sn
+      FROM trades t LEFT JOIN site_wallets sw ON sw.wallet = t.wallet AND sw.hidden = 0 LEFT JOIN user_wallets uw ON uw.wallet = t.wallet AND uw.user_id = ?2
+      WHERE t.ts > ?3 AND (sw.wallet IS NOT NULL OR uw.wallet IS NOT NULL)${follow ? '' : ' AND uw.wallet IS NOT NULL'}
+      GROUP BY t.mint, t.wallet HAVING bn > 0 LIMIT 6000`).bind(t - win, uid, t - 48 * 3600).all()).results || [];
+    const by = {};
+    for (const r of rows) {
+      if (!kinds.includes(r.kind)) continue;
+      const holding = r.bamt > 0 ? (r.bamt - r.samt) / r.bamt > 0.5 : r.sn === 0;
+      const age = t - r.blast, fresh = age < 900 ? 1 : age < 3600 ? 0.7 : age < 14400 ? 0.4 : 0.2;
+      const x = by[r.mint] = by[r.mint] || { mint: r.mint, kol: 0, smart: 0, buyers: 0, solIn: 0, holding: 0, first: Infinity, last: 0, raw: 0, sold: 0, w: [], entrySol: 0, entryAmt: 0, firstPx: null, firstTs: Infinity };
+      x[r.kind]++; x.buyers++; x.solIn += r.bsol; if (holding) x.holding++; else x.sold++;
+      x.first = Math.min(x.first, r.bfirst); x.last = Math.max(x.last, r.blast);
+      x.raw += (r.kind === 'kol' ? 3 : 2) * fresh * (holding ? 1 : 0.3);
+      if (r.bamt > 0 && r.bsolA > 0) { x.entrySol += r.bsolA; x.entryAmt += r.bamt; if (r.bfirst < x.firstTs) { x.firstTs = r.bfirst; x.firstPx = r.bsolA / r.bamt; } }
+      x.w.push({ w: r.wallet, kind: r.kind, name: r.name || r.uname || '', x: r.handle || '', sol: Math.round(r.bsol * 100) / 100, ts: r.bfirst, holding });
+    }
+    toks = Object.values(by).map(x => { x.raw += Math.log2(1 + x.solIn) * 0.5; return x; }).sort((a, b) => b.raw - a.raw).slice(0, 150);
+  } else {
+    toks = (await marketMints(env)).map(mint => ({ mint, market: true }));
+  }
+  const mints = toks.map(x => x.mint), metas = await metaGet(env, mints);
+  await dexRefresh(env, mints, metas);
+  const needST = mints.filter(m => !metas[m] || now() - (metas[m]._st || 0) > 240).slice(0, 40);
+  if (needST.length || f.ads) later(stWork(env, tracked ? mints.slice(0, 60) : needST, f.ads).catch(() => 0));
+  const px = await solPrice();
+  let waiting = 0;
+  const pass = [];
+  for (const x of toks) {
+    const m = metas[x.mint] || {}, v = view(x.mint, m, win);
+    if (!v.lp) { if (!v.hasST) waiting++; continue; }   // launchpad tokens only (unknown → wait for Solana Tracker)
+    if (v.unsafe) continue;                                                     // mint or freeze authority still on → never shown
+    if (!f.stage[v.stage === 'bond' ? 'bond' : 'mig'] && v.stage) continue;
+    if (!v.stage && !(f.stage.bond && f.stage.mig)) continue;
+    if (f.lpOff.includes(v.lp)) continue;
+    const ageS = v.created ? t - v.created : null;
+    if (!inR(ageS, f.age) || !inR(v.mc, f.mc) || !inR(v.liq, f.liq)) continue;
+    let hot, buyersN, sol;
+    if (x.market) {
+      // whole market: sudden buying only, no dead tokens
+      const t5 = (m.tx || {}).m5, t1 = (m.tx || {}).h1, v5 = (m.vol || {}).m5;
+      if (!t5 || !(v5 >= 500)) continue;
+      const ratio = t1 && t1.b ? t5.b / Math.max(1, t1.b / 12) : t5.b ? 5 : 0;
+      if (!(t5.b >= 15 && v5 >= 3000 && ratio >= 2)) continue;
+      buyersN = v.buys; sol = null;
+      hot = Math.min(99, Math.round(10 * Math.log2(1 + (v.buys || 0) / 10) + 8 * Math.min(5, ratio)));
+      x.spike = Math.round(ratio * 10) / 10;
+    } else {
+      buyersN = x.buyers; sol = x.solIn;
+      hot = f.b.all ? Math.min(99, Math.round(8 * Math.log2(1 + (v.buys || 0) / 5) + 4 * Math.log10(1 + (v.vol || 0)) + x.raw * 2)) : Math.min(99, Math.round(x.raw * 8));
+    }
+    if (f.minb && !(buyersN != null && buyersN >= f.minb)) continue;
+    if (!x.market) {
+      if (f.minsol && !(sol >= f.minsol)) continue;
+      if (f.hold && !(x.buyers && 100 * x.holding / x.buyers >= f.hold)) continue;
+      if (f.lastb && !(t - x.last <= f.lastb)) continue;
+    } else if (f.lastb) { const k = f.lastb <= 300 ? 'm5' : f.lastb <= 3600 ? 'h1' : f.lastb <= 21600 ? 'h6' : 'h24'; const tx = (m.tx || {})[k]; if (!(tx && tx.b > 0)) continue; }
+    if (f.pc) { const pv = v.pc[f.pc.tf]; if (pv == null) continue; if (f.pc.dir === 'up' ? !(pv > 0 && pv >= f.pc.min) : !(pv < 0 && -pv >= f.pc.min)) continue; }
+    if (!inR(v.bundlers, f.bun) || !inR(v.snipers, f.snp) || !inR(v.top10, f.top) || !inR(v.dev, f.dev)) continue;
+    if (!inR(v.vol, f.vol) || !inR(v.fees, f.fee) || !inR(v.ub, f.ubr) || !inR(v.bs, f.bsr) || !inR(v.holders, f.hld)) continue;
+    if (f.soc && f.soc.length && !f.soc.every(k => v.soc[k])) continue;
+    if (f.paid && !v.paid) continue;
+    if (f.boost && !v.boosted) continue;
+    if (f.ads && v.ads !== true) { if (v.ads === null) waiting++; continue; }
+    const supply = v.price && v.mc ? v.mc / v.price : null;
+    const entry = !x.market && supply && px.usd && x.firstPx ? Math.round(x.firstPx * px.usd * supply) : null;
+    pass.push({ mint: x.mint, sym: v.sym, name: v.name, img: v.img, mc: v.mc, liq: v.liq, ch1: v.pc.h1, pc: v.pc, hot, market: !!x.market,
+      kol: x.kol || 0, smart: x.smart || 0, buyers: buyersN, solIn: sol != null ? Math.round(sol * 100) / 100 : null, first: x.first === Infinity ? null : x.first, last: x.last || null,
+      holding: full && !x.market ? x.holding : undefined, sold: full && !x.market ? x.sold : undefined,
+      buys: v.buys, vol: v.vol, spike: x.spike || null, stage: v.stage, lp: v.lp, created: v.created, fees: v.fees, holders: v.holders,
+      bundlers: v.bundlers, snipers: v.snipers, top10: v.top10, entryMc: entry, buyersList: (x.w || []).sort((a, b) => a.ts - b.ts).slice(0, full ? 12 : 3) });
+  }
+  const key = { hot: z => z.hot, new: z => z.created || 0, buyers: z => z.buyers || 0, sol: z => z.solIn ?? z.vol ?? 0, mc: z => z.mc || 0, vol: z => z.vol || 0, fees: z => z.fees || 0 }[f.sort] || (z => z.hot);
+  pass.sort((a, b) => key(b) - key(a) || (b.last || 0) - (a.last || 0));
+  const count = pass.length, vis = full ? pass.slice(0, 60) : pass.slice(0, FREE);
+  const plan = u ? (isOwner(u, s) ? 'owner' : planActive(u) ? u.plan : 'free') : 'guest';
+  return json(req, { ok: true, tab: 'hot', win, plan, mode: tracked ? (f.b.all ? 'mixed' : 'tracked') : 'market', limit: full ? null : FREE, count, tokens: q.get('dry') ? [] : vis, locked: count - vis.length, waiting, filters: f });
+}
+
 // ---------- public app API ----------
 const short4 = w => w.slice(0, 4) + '…' + w.slice(-4);
 async function publicApi(req, env, path, s, u, full, later) {
@@ -457,6 +738,7 @@ async function publicApi(req, env, path, s, u, full, later) {
   const plan = u ? (isOwner(u, s) ? 'owner' : planActive(u) ? u.plan : 'free') : 'guest';
   const scope = follow ? '' : ' AND uw.wallet IS NOT NULL';   // "follow site KOLs" off → only the user's own wallets
 
+  if (path === '/api/feed' && q.get('tab') === 'hot') return hotFeed(req, env, s, u, full, later, q);
   if (path === '/api/feed') {
     const tab = ['hot', 'kol', 'smart', 'spikes', 'mine'].includes(q.get('tab')) ? q.get('tab') : 'hot';
     const win = tab === 'spikes' ? 900 : Math.min(86400, Math.max(900, +q.get('win') || 14400));
@@ -504,6 +786,13 @@ async function publicApi(req, env, path, s, u, full, later) {
     return json(req, { ok: true, plan, trades: vis, locked: out.length - vis.length, buys: rows.filter(r => r.side === 'buy').length, sells: rows.filter(r => r.side === 'sell').length });
   }
 
+  // ---- saved filters (kept on the account) ----
+  if (path === '/api/prefs') {
+    if (!u) return fail(req, 401, 'Sign in to save filters');
+    if (req.method === 'POST') { const v = JSON.stringify(b && b.prefs || {}); if (v.length > 4000) return fail(req, 400, 'Too much to save'); await DB.prepare('UPDATE users SET prefs = ? WHERE id = ?').bind(v, u.id).run(); return json(req, { ok: true }); }
+    let p = {}; try { p = JSON.parse(u.prefs || '{}'); } catch (e) { }
+    return json(req, { ok: true, prefs: p });
+  }
   // ---- the user's own wallets ----
   if (!u) return fail(req, 401, 'Sign in to add your own wallets');
   const limit = full ? +s.paid_wallets || 4000 : +s.free_wallets || 10;

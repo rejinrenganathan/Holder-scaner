@@ -276,8 +276,199 @@ function downScreen(msg) {
   $('#app').innerHTML = `<div class="hero"><div class="logo" style="background:#2c2c2e;box-shadow:none">${svg('refresh')}</div><h1 style="font-size:26px">Back soon</h1><p>${esc(msg || 'Scan Holders is being updated.')}</p><button class="bt" onclick="location.reload()">Try again</button></div>`;
 }
 
+// ---------- Hot tab with filters (build 11) ----------
+// Every filter is its own check; a token must pass all filters that are on. "Any" = that filter is skipped.
+// Buyers: KOL / Smart decide whose buys count; with both off the whole market counts (sudden buying only).
+const HFK = 'sh_hotf';
+const HF0 = () => ({ b: { all: true, kol: true, smart: true }, stage: { bond: true, mig: true }, lpOff: [], age: null, minb: 2, minsol: 0, hold: 0, lastb: 0, pc: null,
+  bun: null, snp: null, liq: null, top: null, dev: null, mc: null, vol: null, fee: null, ubr: null, bsr: null, hld: null, soc: [], paid: false, boost: false, ads: false, sort: 'hot' });
+let HF = (() => { try { return { ...HF0(), ...JSON.parse(localStorage.getItem(HFK) || '{}') }; } catch (e) { return HF0(); } })();
+const HOT_WIN = [[900, '15m'], [3600, '1h'], [14400, '4h'], [86400, '24h']];
+const LPS = ['Pump.fun', 'Bonk.fun', 'Raydium LaunchLab', 'Bags', 'Moonit', 'Boop', 'Meteora launchpads'];
+const FREE_F = new Set(['b', 'stage', 'lpOff', 'age', 'mc', 'liq']);
+const isPro = () => !!(me && (me.isAdmin || (me.plan && me.plan !== 'free')));
+const marketMode = (o = HF) => !o.b.kol && !o.b.smart;
+// numbers people type: 50K, 2.5M, 45m, 3h, 2d, 10%
+function parseAmt(s) { const m = String(s).trim().replace(/[$,\s%×x]/g, '').match(/^(\d+(?:\.\d+)?)([kmb])?$/i); return m ? +m[1] * ({ k: 1e3, m: 1e6, b: 1e9 }[(m[2] || '').toLowerCase()] || 1) : NaN; }
+function parseDur(s) { const m = String(s).trim().toLowerCase().match(/^(\d+(?:\.\d+)?)\s*(s|m|min|h|d)?$/); return m ? Math.round(+m[1] * ({ s: 1, m: 60, min: 60, h: 3600, d: 86400 }[m[2] || 'm'])) : NaN; }
+const fDur = s => s >= 86400 ? +(s / 86400).toFixed(1) + 'd' : s >= 3600 ? +(s / 3600).toFixed(1) + 'h' : Math.round(s / 60) + 'm';
+const fUsd = n => usd(n);
+// what each Any / Min / Max row stores and shows
+const RANGES = {
+  age: ['Token age', 'dur', ['5m', '30m', '1h', '6h', '24h', '7d']], bun: ['Bundles', 'pct', ['1%', '5%', '10%', '20%']], snp: ['Snipers', 'pct', ['1%', '5%', '15%', '30%']],
+  liq: ['Liquidity', 'usd', ['$5K', '$25K', '$100K', '$500K']], top: ['Top 10 holders', 'pct', ['10%', '20%', '30%', '50%']], dev: ['Dev holding', 'pct', ['0%', '1%', '5%', '10%']],
+  mc: ['Market cap', 'usd', ['$50K', '$100K', '$500K', '$1M', '$10M']], vol: ['Volume', 'usd', ['$10K', '$50K', '$250K', '$1M']], fee: ['Trading fees', 'sol', ['1', '5', '20', '100']],
+  ubr: ['Unique buyers', 'cnt', ['50', '100', '500', '2K']], bsr: ['Buy / sell ratio', 'x', ['1', '1.5', '2', '5']], hld: ['Total holders', 'cnt', ['100', '500', '1K', '5K']]
+};
+const fmtR = (k, v) => { const t = RANGES[k][1]; return t === 'dur' ? fDur(v) : t === 'usd' ? fUsd(v) : t === 'pct' ? Math.round(v * 10) / 10 + '%' : t === 'sol' ? v + ' SOL' : t === 'x' ? v + '×' : fmt(v); };
+const parseR = (k, s) => RANGES[k][1] === 'dur' ? parseDur(s) : parseAmt(s);
+function activeList() {
+  const L = [], d = HF0();
+  if (!HF.b.kol || !HF.b.smart || !HF.b.all) L.push(['b', marketMode() ? 'Whole market' : [HF.b.all ? 'All' : '', HF.b.kol ? 'KOL' : '', HF.b.smart ? 'Smart' : ''].filter(Boolean).join(' + ')]);
+  if (!HF.stage.bond || !HF.stage.mig) L.push(['stage', HF.stage.bond ? 'Bonding' : 'Migrated']);
+  if (HF.lpOff.length) L.push(['lpOff', `${LPS.length - HF.lpOff.length} launchpads`]);
+  if (HF.minb !== d.minb) L.push(['minb', HF.minb ? (marketMode() ? fmt(HF.minb) + '+ buys' : HF.minb + '+ buyers') : 'Any buyers']);
+  if (HF.minsol) L.push(['minsol', HF.minsol + '+ SOL in']);
+  if (HF.hold) L.push(['hold', HF.hold === 100 ? 'All holding' : HF.hold + '%+ holding']);
+  if (HF.lastb) L.push(['lastb', 'Last buy ' + fDur(HF.lastb)]);
+  if (HF.pc) L.push(['pc', `${HF.pc.dir === 'up' ? 'Up' : 'Down'}${HF.pc.min ? ' ' + HF.pc.min + '%' : ''} · ${HF.pc.tf}`]);
+  for (const k of Object.keys(RANGES)) { const r = HF[k]; if (r) L.push([k, `${RANGES[k][0]} ${r.min != null ? fmtR(k, r.min) : ''}${r.min != null && r.max != null ? '–' : ''}${r.max != null ? (r.min == null ? '≤ ' : '') + fmtR(k, r.max) : '+'}`]); }
+  if (HF.soc.length) L.push(['soc', HF.soc.map(x => ({ x: 'X', web: 'Website', ig: 'Instagram', tt: 'TikTok', tg: 'Telegram' })[x]).join(' + ')]);
+  if (HF.paid) L.push(['paid', 'DEX paid']); if (HF.boost) L.push(['boost', 'Boosted']); if (HF.ads) L.push(['ads', 'Ads']);
+  if (HF.sort !== 'hot') L.push(['sort', 'Sort: ' + SORTS[HF.sort]]);
+  return L;
+}
+const SORTS = { hot: 'Hot score', new: 'Newest', buyers: 'Most buyers', sol: 'Most SOL in', mc: 'Market cap', vol: 'Volume', fees: 'Trading fees' };
+function clearOne(k) { const d = HF0(); HF[k] = d[k]; saveHF(); }
+function saveHF() { try { localStorage.setItem(HFK, JSON.stringify(HF)); } catch (e) { } clearTimeout(saveHF.t); if (me) saveHF.t = setTimeout(() => api('/api/prefs', { body: { prefs: { hot: HF } } }).catch(() => { }), 800); }
+const hotQuery = (extra = '') => `/api/feed?tab=hot&win=${FS.win}&f=${encodeURIComponent(JSON.stringify(HF))}${extra}`;
+
+async function HotFeed(quiet) {
+  if (!HOT_WIN.some(([w]) => w === FS.win)) FS.win = 3600;
+  if (!quiet || !$('#fl')) {
+    const act = activeList();
+    $('#fwin').innerHTML = `<span class="ch" id="hfb" style="background:var(--acc);color:#fff">⚙ Filters${act.length ? ' · ' + act.length : ''}</span>` + HOT_WIN.map(([w, l]) => `<span class="ch ${FS.win === w ? 'on' : ''}" data-w="${w}">${l}</span>`).join('');
+    $('#fwin').querySelectorAll('[data-w]').forEach(c => c.onclick = () => { FS.win = +c.dataset.w; Feed(); });
+    $('#hfb').onclick = () => hotSheet();
+    $('#fnote').insertAdjacentHTML('beforebegin', act.length ? `<div class="chips" id="hfa">${act.map(([k, l]) => `<span class="ch" data-k="${k}" style="background:var(--accbg);color:var(--acc)">${esc(l)} ✕</span>`).join('')}</div>` : '');
+    document.querySelectorAll('#hfa [data-k]').forEach(c => c.onclick = () => { clearOne(c.dataset.k); Feed(); });
+  }
+  let j; try { j = await api(hotQuery()); } catch (e) { if (e.message !== 'down' && $('#fl')) $('#fl').innerHTML = `<div class="cd err">${esc(e.message)}</div>`; return; }
+  if (tab !== 'feed' || FS.tab !== 'hot' || !$('#fl')) return;
+  for (const t of j.tokens) META.set(t.mint, { t: Date.now(), d: { sym: t.sym, name: t.name, img: t.img, mc: t.mc, liq: t.liq, ch1: t.ch1, ch5: t.pc && t.pc['5m'], ch24: t.pc && t.pc['24h'], age: t.created ? t.created * 1000 : null, url: null } });
+  $('#fnote').innerHTML = `<span class="live"></span>${j.mode === 'market' ? 'Sudden buying across the market' : j.mode === 'mixed' ? 'Tokens our wallets bought · ranked by all buyers' : 'Ranked by Hot score'} · ${fmt(j.count)} token${j.count === 1 ? '' : 's'}${j.waiting ? ` · checking ${j.waiting} more` : ''}`;
+  if (!j.tokens.length) { $('#fl').innerHTML = `<div class="cd center mu" style="padding:28px 16px">${j.waiting ? 'Checking tokens — they show up here in a few seconds.' : 'No tokens match right now. Try a longer time or fewer filters.'}</div>`; return autoRefresh(Feed); }
+  const fake = j.locked ? Array.from({ length: Math.min(4, j.locked) }, (_, i) => `<div class="tk"><div class="av">??</div><div class="tm"><div class="t1">$LOCKED${i + 1}</div><div class="t2">2 KOL · 1 smart · 12 SOL in</div></div><div class="tr"><div class="t1">$420K</div><div class="t2 up">+38%</div></div></div>`).join('') : '';
+  $('#fl').innerHTML = `<div class="cd" style="padding:2px 16px">${j.tokens.map(hotRow).join('')}</div>` + (j.locked ? `<div class="lockwrap"><div class="cd blur" style="padding:2px 16px">${fake}</div><div class="unlock">${lockCard(j.locked, 'tokens')}</div></div>` : '');
+  $('#fl').querySelectorAll('.tk[data-m]').forEach(r => r.onclick = () => tokenSheet(r.dataset.m));
+  autoRefresh(Feed);
+}
+function hotRow(t) {
+  const d = { sym: t.sym, img: t.img }, fire = t.hot >= 80 ? 'er' : t.hot >= 50 ? 'wa' : 'ne';
+  const who = t.market ? `${fmt(t.buys || 0)} buys · ${t.spike ? t.spike + '× spike' : ''}` : [t.kol ? `${t.kol} KOL` : '', t.smart ? `${t.smart} smart` : ''].filter(Boolean).join(' · ') + (t.first ? ` · first ${ago(t.first)} ago` : '');
+  const l2 = t.market ? `${t.vol != null ? usd(t.vol) + ' vol' : ''}${t.liq != null ? ' · liq ' + usd(t.liq) : ''}` : `<span class="up">+${t.solIn} SOL in</span>${t.holding != null ? ` · ${t.holding} of ${t.holding + t.sold} holding` : ''}${t.liq != null ? ' · liq ' + usd(t.liq) : ''}`;
+  const firstKind = t.buyersList && t.buyersList[0] ? (t.buyersList[0].kind === 'kol' ? 'KOLs' : 'Smart') : '';
+  const x = t.entryMc && t.mc ? t.mc / t.entryMc : null;
+  const entry = x ? `<div class="t2"><span class="pl sm ${x >= 1 ? 'ok' : 'er'}" style="font-size:11px">${firstKind} in at ${usd(t.entryMc)} → now ${usd(t.mc)} · ${x >= 10 ? Math.round(x) : Math.round(x * 10) / 10}×</span></div>` : '';
+  return `<div class="tk" data-m="${esc(t.mint)}">${av(d, t.mint)}
+   <div class="tm"><div class="t1">${esc(t.sym ? '$' + t.sym : short(t.mint))} <span class="pl sm ${fire}">🔥 ${t.hot}</span> <span class="mu" style="font-weight:400">${t.created ? ago(t.created) : ''}</span></div>
+    <div class="t2">${esc(who)}</div><div class="t2">${l2}</div>${entry}</div>
+   <div class="tr"><div class="t1">${t.mc != null ? usd(t.mc) : '—'}</div><div class="t2">${pct(t.ch1)}</div></div></div>`;
+}
+// ---------- the filter sheet ----------
+let HT = 'lp', HD = null, HE = null;   // open tab, draft filters, open editor
+function hotSheet() {
+  HD = JSON.parse(JSON.stringify(HF)); HE = null; HT = HT || 'lp';
+  sheet(`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div style="font-size:20px;font-weight:600">Filters</div>
+    <div style="display:flex;gap:6px"><button class="ch" id="hsort" style="display:flex;gap:4px;align-items:center"><span class="mu">Sort</span> <span id="hsv"></span> ▾</button><button class="ch" id="hreset">Reset</button></div></div>
+   <div id="hsortm"></div><div class="chips" id="htabs" style="border-top:.5px solid var(--line);padding-top:10px"></div><div id="hbody" style="min-height:300px"></div>
+   <div style="position:sticky;bottom:-18px;background:#1c1c1e;padding:10px 0 4px;margin-top:8px"><button class="bt bp wide" id="hshow">Show tokens</button></div>`, bg => {
+    bg.querySelector('#hreset').onclick = () => { HD = HF0(); HE = null; drawH(); };
+    bg.querySelector('#hsort').onclick = () => { if (!isPro()) return proToast(); const m = bg.querySelector('#hsortm'); m.innerHTML = m.innerHTML ? '' : `<div class="cd" style="padding:2px 16px">${Object.entries(SORTS).map(([k, l]) => `<div class="row tap" data-s="${k}"><span>${l}</span>${HD.sort === k ? '<span style="color:var(--acc)">✓</span>' : ''}</div>`).join('')}</div>`;
+      m.querySelectorAll('[data-s]').forEach(r => r.onclick = () => { HD.sort = r.dataset.s; m.innerHTML = ''; drawH(); }); };
+    bg.querySelector('#hshow').onclick = () => { HF = HD; saveHF(); closeSheet(); Feed(); };
+    drawH();
+  });
+}
+const proToast = () => { toast('That filter is part of a plan'); };
+function proOK(k) { return isPro() || FREE_F.has(k); }
+const lockIco = k => proOK(k) ? '' : ' 🔒';
+const sec = (l, k, off) => `<div class="sec" style="margin:14px 2px 6px;text-transform:none;font-size:13px${off ? ';opacity:.4' : ''}">${l}${k ? lockIco(k) : ''}</div>`;
+function segRow(k, label, opts, fmtV, custom, off) {   // single choice + optional ✎
+  const v = HD[k], inOpts = opts.includes(v);
+  return `<div data-row="${k}" ${off ? 'class="hoff"' : ''}>${sec(label, k, off)}<div class="seg" style="margin:0">${opts.map(o => `<button class="${v === o ? 'on' : ''}" data-set="${k}" data-v="${o}">${o === 0 ? 'Any' : fmtV(o)}</button>`).join('')}${custom ? `<button class="${!inOpts ? 'on' : ''}" data-ed="${k}">${!inOpts ? fmtV(v) + ' ✎' : '✎'}</button>` : ''}</div>${HE === k ? editorHTML(k) : ''}</div>`;
+}
+function rangeRow(k, off) {
+  const r = HD[k], [label] = RANGES[k];
+  const b = (x, on, l) => `<button class="${on ? 'on' : ''}" data-rg="${k}" data-x="${x}">${l}</button>`;
+  return `<div data-row="${k}" ${off ? 'class="hoff"' : ''}>${sec(label, k, off)}<div class="seg" style="margin:0">${b('any', !r, 'Any')}${b('min', r && r.min != null, r && r.min != null ? 'Min ' + fmtR(k, r.min) + ' ✎' : 'Min ✎')}${b('max', r && r.max != null, r && r.max != null ? 'Max ' + fmtR(k, r.max) + ' ✎' : 'Max ✎')}</div>${HE === k + ':min' || HE === k + ':max' ? editorHTML(HE) : ''}</div>`;
+}
+function editorHTML(id) {
+  const [k, side] = id.split(':'), R = RANGES[k];
+  const picks = R ? R[2] : k === 'minb' ? (marketMode(HD) ? ['100', '500', '1K', '5K'] : ['2', '4', '10', '15']) : k === 'minsol' ? ['1', '3', '15', '100'] : k === 'hold' ? ['30%', '60%', '90%'] : k === 'lastb' ? ['2m', '10m', '30m', '3h'] : k === 'pc' ? ['10%', '50%', '100%', '300%'] : [];
+  const title = R ? `${side === 'min' ? 'Minimum' : 'Maximum'} ${R[0].toLowerCase()}` : { minb: marketMode(HD) ? 'Minimum buys' : 'Minimum buyers', minsol: 'Minimum SOL in', hold: 'Still holding (%)', lastb: 'Last buy within', pc: HD.pc && HD.pc.dir === 'down' ? 'Down at least (%)' : 'Up at least (%)' }[k];
+  return `<div class="cd" style="margin:8px 0 0;background:#2c2c2e"><div class="mu" style="margin-bottom:6px">${title}</div>
+   <div class="chips" style="margin-bottom:8px">${picks.map(p => `<span class="ch" data-pick="${esc(p)}">${esc(p)}</span>`).join('')}</div>
+   <input type="text" id="hin" inputmode="decimal" placeholder="${esc(picks[1] || '')}" style="background:#3a3a3c"><div class="err" id="herr" style="min-height:18px;margin-top:4px;font-size:13px"></div>
+   <div class="g2"><button class="bt" id="hclr">${R ? 'Clear' : 'Cancel'}</button><button class="bt bp" id="hok">Save</button></div></div>`;
+}
+function saveEditor(id, raw) {
+  const [k, side] = id.split(':'), R = RANGES[k];
+  if (!String(raw).trim()) return 'Enter a value first';
+  if (R) {
+    const v = parseR(k, raw); if (!(v >= 0) || !isFinite(v)) return R[1] === 'dur' ? 'Use a time like 45m, 3h or 2d' : 'Use a number like 50K, 2.5M or 20';
+    if (R[1] === 'pct' && v > 100) return '100% is the most';
+    const r = { min: null, max: null, ...(HD[k] || {}) }; r[side] = v;
+    if (r.min != null && r.max != null && r.min > r.max) return side === 'min' ? `Min must be lower than Max (${fmtR(k, r.max)})` : `Max must be higher than Min (${fmtR(k, r.min)})`;
+    HD[k] = r; return '';
+  }
+  if (k === 'lastb') { const v = parseDur(raw); if (!(v > 0)) return 'Use a time like 10m or 2h'; HD.lastb = v; return ''; }
+  const v = parseAmt(raw); if (!(v > 0) || !isFinite(v)) return 'Use a number above 0';
+  if (k === 'minb') { if (!Number.isInteger(v) || v > 1e7) return 'Use a whole number'; HD.minb = v; return ''; }
+  if (k === 'minsol') { HD.minsol = Math.round(v * 100) / 100; return ''; }
+  if (k === 'hold') { if (v > 100) return '100% is the most'; HD.hold = Math.round(v); return ''; }
+  if (k === 'pc') { HD.pc = { ...(HD.pc || { dir: 'up', tf: '5m' }), min: Math.round(v) }; return ''; }
+  return '';
+}
+function tabCount(tb) {
+  const d = HF0(), ne = k => JSON.stringify(HD[k]) !== JSON.stringify(d[k]);
+  const g = { lp: ['stage', 'age', 'lpOff'], basic: ['b', 'minb', 'minsol', 'hold', 'lastb', 'pc'], audit: ['bun', 'snp', 'liq', 'top', 'dev'], ind: ['mc', 'vol', 'fee', 'ubr', 'bsr', 'hld'], soc: ['soc', 'paid', 'boost', 'ads'] }[tb];
+  return g.filter(ne).length;
+}
+function drawH() {
+  const body = $('#hbody'); if (!body) return;
+  $('#hsv').textContent = SORTS[HD.sort] + (isPro() ? '' : ' 🔒');
+  const TB = [['lp', 'Launchpads'], ['basic', 'Basics'], ['audit', 'Audit'], ['ind', 'Indicators'], ['soc', 'Social']];
+  $('#htabs').innerHTML = TB.map(([k, l]) => { const n = tabCount(k); return `<span class="ch ${HT === k ? 'on' : ''}" data-t="${k}">${l}${n ? ` <span class="pl sm ac" style="background:var(--acc);color:#fff">${n}</span>` : ''}</span>`; }).join('');
+  $('#htabs').querySelectorAll('[data-t]').forEach(c => c.onclick = () => { HT = c.dataset.t; HE = null; drawH(); });
+  const mk = marketMode(HD); let h = '';
+  const sw = (label, on, attr) => `<div class="row" style="min-height:44px"><span>${label}</span><button class="tg ${on ? 'on' : ''}" ${attr} aria-label="${esc(label)}"></button></div>`;
+  if (HT === 'lp') h = sec('Stage') + `<div class="cd" style="padding:2px 16px;margin:0">${sw('Bonding', HD.stage.bond, 'data-stage="bond"')}${sw('Migrated', HD.stage.mig, 'data-stage="mig"')}</div>` + rangeRow('age')
+    + sec('Launchpads') + `<div class="cd" style="padding:2px 16px;margin:0">${sw('All launchpads', !HD.lpOff.length, 'data-lpall')}</div><div class="cd" style="padding:2px 16px;margin:8px 0 0">${LPS.map(n => sw(n, !HD.lpOff.includes(n), `data-lp="${esc(n)}"`)).join('')}</div>`;
+  if (HT === 'basic') h = sec('Buyers') + `<div class="seg" style="margin:0">${['all', 'kol', 'smart'].map(k => `<button class="${HD.b[k] ? 'on' : ''}" data-buy="${k}">${{ all: 'All', kol: 'KOL', smart: 'Smart' }[k]}</button>`).join('')}</div>`
+    + segRow('minb', mk ? 'Minimum buys' : 'Minimum buyers', mk ? [0, 100, 500, 1000, 5000] : [0, 2, 3, 5, 8], v => mk ? fmt(v) + '+' : v + '+', true)
+    + segRow('minsol', 'Minimum SOL in', [0, 5, 10, 25, 50], v => String(v), true, mk) + segRow('hold', 'Still holding', [0, 50, 75, 100], v => v === 100 ? 'All' : v === 50 ? 'Half+' : v + '%+', true, mk)
+    + segRow('lastb', 'Last buy within', [0, 300, 900, 3600], fDur, true)
+    + `<div data-row="pc">${sec('Price change', 'pc')}<div class="seg" style="margin:0">${[['any', 'Any'], ['up', 'Up'], ['down', 'Down']].map(([k, l]) => `<button class="${(HD.pc ? HD.pc.dir : 'any') === k ? 'on' : ''}" data-pcd="${k}">${l}${HD.pc && HD.pc.dir === k && HD.pc.min ? (k === 'up' ? ' +' : ' −') + HD.pc.min + '%' : ''}</button>`).join('')}<button data-ed="pc">✎</button></div>
+      <div class="seg" style="margin:6px 0 0;${HD.pc ? '' : 'opacity:.4;pointer-events:none'}">${['5m', '30m', '6h', '24h'].map(x => `<button class="${HD.pc && HD.pc.tf === x ? 'on' : ''}" data-pct="${x}">${x}</button>`).join('')}</div>${HE === 'pc' ? editorHTML('pc') : ''}</div>`;
+  if (HT === 'audit') h = ['bun', 'snp', 'liq', 'top', 'dev'].map(k => rangeRow(k)).join('');
+  if (HT === 'ind') h = ['mc', 'vol', 'fee', 'ubr', 'bsr', 'hld'].map(k => rangeRow(k)).join('') + '<div class="mu3" style="margin-top:8px">Volume, unique buyers and buy / sell use the time picked on the Feed.</div>';
+  if (HT === 'soc') { const b = (k, l) => `<button class="${k === 'any' ? (!HD.soc.length ? 'on' : '') : HD.soc.includes(k) ? 'on' : ''}" data-soc="${k}">${l}</button>`;
+    h = sec('Must have', 'soc') + `<div class="seg" style="margin:0">${b('any', 'Any')}${b('x', 'X')}${b('web', 'Website')}</div><div class="seg" style="margin:6px 0 0">${b('ig', 'Instagram')}${b('tt', 'TikTok')}${b('tg', 'Telegram')}</div>`
+    + sec('DexScreener', 'paid') + `<div class="cd" style="padding:2px 16px;margin:0">${sw('DEX paid', HD.paid, 'data-flag="paid"')}${sw('Boosted', HD.boost, 'data-flag="boost"')}${sw('Ads', HD.ads, 'data-flag="ads"')}</div>`; }
+  body.innerHTML = h;
+  const gate = (k, fn) => () => { if (!proOK(k)) return proToast(); fn(); drawH(); countH(); };
+  body.querySelectorAll('[data-stage]').forEach(x => x.onclick = gate('stage', () => { const k = x.dataset.stage; HD.stage[k] = !HD.stage[k]; if (!HD.stage.bond && !HD.stage.mig) HD.stage[k] = true; }));
+  body.querySelectorAll('[data-lp]').forEach(x => x.onclick = gate('lpOff', () => { const n = x.dataset.lp, i = HD.lpOff.indexOf(n); if (i >= 0) HD.lpOff.splice(i, 1); else HD.lpOff.push(n); if (HD.lpOff.length >= LPS.length) HD.lpOff = LPS.filter(z => z !== n); }));
+  body.querySelectorAll('[data-lpall]').forEach(x => x.onclick = gate('lpOff', () => { HD.lpOff = HD.lpOff.length ? [] : LPS.slice(1); }));
+  body.querySelectorAll('[data-buy]').forEach(x => x.onclick = gate('b', () => { const k = x.dataset.buy; const was = marketMode(HD); HD.b[k] = !HD.b[k]; if (!HD.b.kol && !HD.b.smart) HD.b.all = true; const now2 = marketMode(HD); if (!was && now2 && HD.minb < 100) HD.minb = 0; if (was && !now2 && (HD.minb === 0 || HD.minb >= 100)) HD.minb = 2; }));
+  body.querySelectorAll('[data-set]').forEach(x => x.onclick = gate(x.dataset.set, () => { HD[x.dataset.set] = +x.dataset.v; HE = null; }));
+  body.querySelectorAll('[data-ed]').forEach(x => x.onclick = () => { const k = x.dataset.ed; if (!proOK(k)) return proToast(); HE = HE === k ? null : k; drawH(); bindEd(); });
+  body.querySelectorAll('[data-rg]').forEach(x => x.onclick = () => { const k = x.dataset.rg, s = x.dataset.x; if (!proOK(k)) return proToast(); if (s === 'any') { HD[k] = null; HE = null; drawH(); countH(); return; } HE = HE === k + ':' + s ? null : k + ':' + s; drawH(); bindEd(); });
+  body.querySelectorAll('[data-pcd]').forEach(x => x.onclick = gate('pc', () => { const d = x.dataset.pcd; HD.pc = d === 'any' ? null : { dir: d, tf: HD.pc ? HD.pc.tf : '5m', min: HD.pc && HD.pc.dir === d ? HD.pc.min : 0 }; HE = null; }));
+  body.querySelectorAll('[data-pct]').forEach(x => x.onclick = gate('pc', () => { HD.pc.tf = x.dataset.pct; }));
+  body.querySelectorAll('[data-soc]').forEach(x => x.onclick = gate('soc', () => { const k = x.dataset.soc; if (k === 'any') HD.soc = []; else { const i = HD.soc.indexOf(k); if (i >= 0) HD.soc.splice(i, 1); else HD.soc.push(k); } }));
+  body.querySelectorAll('[data-flag]').forEach(x => x.onclick = gate(x.dataset.flag, () => { const k = x.dataset.flag; HD[k] = !HD[k]; }));
+  body.querySelectorAll('.hoff').forEach(el => { el.style.opacity = '.4'; el.querySelectorAll('button').forEach(b => b.onclick = () => toast('Turn on KOL or Smart for this filter')); });
+  bindEd(); countH();
+}
+function bindEd() {
+  const inp = $('#hin'); if (!inp || !HE) return;
+  const err = $('#herr'); inp.oninput = () => { err.textContent = ''; };
+  document.querySelectorAll('[data-pick]').forEach(p => p.onclick = () => { inp.value = p.dataset.pick; err.textContent = ''; });
+  $('#hclr').onclick = () => { const [k, side] = HE.split(':'); if (RANGES[k]) { const r = { ...(HD[k] || {}) }; r[side] = null; HD[k] = r.min == null && r.max == null ? null : r; } HE = null; drawH(); countH(); };
+  $('#hok').onclick = () => { const e = saveEditor(HE, inp.value); if (e) { err.textContent = e; return; } HE = null; drawH(); countH(); };
+  setTimeout(() => inp.focus(), 50);
+}
+function countH() {
+  const b = $('#hshow'); if (!b) return; clearTimeout(countH.t); b.textContent = 'Show tokens';
+  countH.t = setTimeout(async () => { const keep = HF; HF = HD; const q = hotQuery('&dry=1'); HF = keep;
+    try { const j = await api(q); if ($('#hshow')) $('#hshow').textContent = `Show ${fmt(j.count)} token${j.count === 1 ? '' : 's'}`; } catch (e) { } }, 450);
+}
+async function loadHotPrefs() { if (!me) return; try { const j = await api('/api/prefs'); if (j.prefs && j.prefs.hot) { HF = { ...HF0(), ...j.prefs.hot }; localStorage.setItem(HFK, JSON.stringify(HF)); } } catch (e) { } }
+
 // ---------- Feed ----------
-const FS = { tab: 'hot', win: 14400 };
+const FS = { tab: 'hot', win: 3600 };
 async function Feed(quiet) {
   const tabs = [['hot', 'Hot'], ['kol', 'KOL'], ['smart', 'Smart'], ['spikes', 'Spikes']].concat(me ? [['mine', 'Mine']] : []);
   if (!me && FS.tab === 'mine') FS.tab = 'hot';
@@ -287,9 +478,12 @@ async function Feed(quiet) {
       <div class="chips" id="fwin"></div><div class="mu" id="fnote" style="margin:0 4px 8px"></div><div id="fl">${skel(6)}</div>`;
     $('#rf').onclick = () => { buzz(); Feed(); };
     $('#fseg').querySelectorAll('button').forEach(b => b.onclick = () => { buzz(5); FS.tab = b.dataset.k; Feed(); });
+    if (FS.tab === 'hot') return HotFeed(false).then(() => {});
+    if ([3600, 14400, 43200, 86400].indexOf(FS.win) < 0) FS.win = 14400;
     $('#fwin').innerHTML = FS.tab === 'spikes' ? '<span class="ch on">Last 15 min</span>' : [[3600, '1h'], [14400, '4h'], [43200, '12h'], [86400, '24h']].map(([w, l]) => `<span class="ch ${FS.win === w ? 'on' : ''}" data-w="${w}">${l}</span>`).join('');
     $('#fwin').querySelectorAll('[data-w]').forEach(c => c.onclick = () => { FS.win = +c.dataset.w; Feed(); });
   }
+  if (FS.tab === 'hot') return HotFeed(true);
   let j; try { j = await api(`/api/feed?tab=${FS.tab}&win=${FS.win}`); } catch (e) { if (e.message !== 'down' && $('#fl')) $('#fl').innerHTML = `<div class="cd err">${esc(e.message)}</div>`; return; }
   await meta(j.tokens.map(t => t.mint));
   if (tab !== 'feed' || !$('#fl')) return;
@@ -633,6 +827,7 @@ function legalSheet(k) {
   if (!me && !localStorage.getItem(SEEN) && !h) return Welcome();
   go(h || 'feed');
   if (pend().length) checkPendingQuiet();
+  if (me) loadHotPrefs().then(() => { if (tab === 'feed' && FS.tab === 'hot' && !$('#sheet')) Feed(); });
 })();
 window.addEventListener('hashchange', () => { const h = location.hash.slice(1); if (h && h !== tab && TABS.some(x => x[0] === h)) go(h); });
 </script>
