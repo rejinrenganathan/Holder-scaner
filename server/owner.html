@@ -992,7 +992,7 @@ function More() {
    <div class="sec">Account</div>
    <div class="cd" style="padding:2px 16px"><div class="row"><div class="sq" style="background:#5e5ce6;border-radius:50%">${esc((me.email || me.wallet || '?')[0].toUpperCase())}</div><div class="rl"><div>${esc(me.email || short(me.wallet))}</div><div class="mu">Owner</div></div></div>
     <div class="row tap" id="so" style="margin:0 -16px;padding:9px 16px;color:var(--er)"><div class="sq" style="background:#ff453a">${svg('out')}</div><span style="flex:1">Sign out</span></div></div>
-   <div class="mu3 center" style="margin-top:18px">Holder Scan owner · server v20</div>`;
+   <div class="mu3 center" style="margin-top:18px">Holder Scan owner · server v21</div>`;
   $('#so').onclick = signOut;
 }
 
@@ -1229,23 +1229,69 @@ async function Keys() {
   let j; try { j = await api('/api/owner/keys'); } catch (e) { return e.message === 'signed out' || errBox('API keys', e); }
   const pill = k => k.status === 'ok' ? '<span class="pl ok">Working</span>' : k.status === 'warn' ? '<span class="pl wa">Limit</span>' : k.status === 'error' ? '<span class="pl er">Not working</span>' : k.status === 'missing' ? '<span class="pl ne">Not added</span>' : '<span class="pl ne">Not tested</span>';
   $('#app').innerHTML = header('API keys', 'Keys stay on your server. The page only ever shows the last 4 characters.') + j.keys.map(k => `
-  <div class="cd"><div class="hd"><span class="ht">${esc(k.label)}</span>${pill(k)}</div>
+  <div class="cd"><div class="hd"><span class="ht">${esc(k.label)}</span><span id="up_${k.name}">${pill(k)}</span></div>
+   <div id="u_${k.name}">${k.set ? '<div class="mu" style="padding:8px 0">Loading plan usage…</div>' : ''}</div>
    <div class="row"><span class="mu">Key</span><span class="addr">${k.set ? esc(k.masked) : '—'}</span></div>
    ${k.note && k.status !== 'ok' ? `<div class="row"><span class="mu">Last result</span><span style="color:var(--${k.status === 'warn' ? 'wa' : 'er'})">${esc(k.note)}</span></div>` : ''}
    <div class="row"><span class="mu">Last checked</span><span>${k.checked ? ago(k.checked) : '—'}</span></div>
    <div class="row"><span class="mu">Calls from the server today</span><span>${fmt(k.callsToday)}</span></div>
    <div class="g2 mt">${k.set ? `<button class="bt" data-test="${k.name}">Test</button>` : '<span></span>'}<button class="bt ${k.set ? '' : 'bp'}" data-set="${k.name}">${k.set ? 'Change' : 'Add key'}</button></div>
    ${k.set ? `<button class="lk wide center mt" style="color:var(--er)" data-rm="${k.name}">Remove key</button>` : ''}</div>`).join('') + `
-  <div class="cd"><div class="hd"><span class="ht">Cloudflare</span></div>
+  <div class="cd"><div class="hd"><span class="ht">Cloudflare</span><span id="up_cloudflare"></span></div>
+   <div id="u_cloudflare"></div>
    <div class="row"><span>Requests to this server today</span><span>${fmt(j.requestsToday)}</span></div>
    <div class="mu">The free plan allows 100,000 requests a day for your whole account (this server and the webhook server together). Workers Paid ($5/month) raises it to 10 million a month.</div></div>`;
   const lab = n => j.keys.find(k => k.name === n).label;
+  loadUsage(j.keys);
   document.querySelectorAll('[data-test]').forEach(b => b.onclick = () => act(b, async () => { const r = (await api('/api/owner/keys', { body: { name: b.dataset.test } })).result; toast(`${lab(b.dataset.test)}: ${r.note}`); Keys(); }));
   document.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { if (confirm(`Remove the ${lab(b.dataset.rm)} key?`)) act(b, async () => { await api('/api/owner/keys', { body: { name: b.dataset.rm, remove: true } }); toast('Key removed'); Keys(); }); });
   document.querySelectorAll('[data-set]').forEach(b => b.onclick = () => sheet(`<h3>${esc(lab(b.dataset.set))} key</h3>
    <div class="field"><input id="kv" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Paste the key"><div class="mu mt">It's tested right away, then saved on your server.</div></div>
    <div class="g2"><button class="bt" onclick="closeSheet()">Cancel</button><button class="bt bp" id="ks">Test and save</button></div>`, bg => {
     bg.querySelector('#ks').onclick = e => act(e.target, async () => { const r = (await api('/api/owner/keys', { body: { name: b.dataset.set, value: $('#kv').value } })).result; closeSheet(); toast(`Saved · ${r.note}`); Keys(); });
+  }));
+}
+
+// plan limits under each key: bar (green < 70%, orange 70–90%, red > 90%), used / plan, left, resets
+const pctCol = p => p >= 90 ? 'er' : p >= 70 ? 'wa' : 'ok';
+function resetTxt(d) {
+  if (!d) return ''; if (d === 'midnight UTC') return 'Resets at midnight UTC';
+  const x = new Date(/^\d{4}-\d{2}-\d{2}$/.test(d) ? d + 'T00:00:00Z' : d); if (isNaN(x)) return '';
+  const days = Math.max(0, Math.ceil((x - Date.now()) / 864e5));
+  return `Resets ${x.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })} · ${days} day${days === 1 ? '' : 's'}`;
+}
+function usageBlock(name, u, project) {
+  if (!u) return '';
+  if (u.state === 'nokey') return '';
+  if (u.state === 'noproject') return `<div class="row"><div class="rl"><div>Plan usage</div><div class="mu">Add your Helius project ID to see credits used and left</div></div><button class="lk" data-proj>Add</button></div>`;
+  if (u.state === 'na') return `<div class="row"><span class="mu">Plan usage</span><span class="mu">Not shared by Birdeye on this plan</span></div>`;
+  if (u.state === 'error') return `<div class="row"><span class="mu">Plan usage</span><span style="color:var(--er);white-space:normal;text-align:right">${esc(u.note || 'Could not load')}</span></div>${name === 'helius' ? `<div class="row"><span class="mu">Project ID</span><button class="lk" data-proj>Edit</button></div>` : ''}`;
+  const pc = u.limit && u.used != null ? Math.min(100, Math.round(100 * u.used / u.limit)) : null;
+  const unit = name === 'cloudflare' ? 'Requests today' : 'Credits this cycle';
+  let h = '';
+  if (pc != null) h += `<div style="display:flex;justify-content:space-between;font-size:13px;margin-top:10px"><span class="mu" style="font-size:13px">${unit}</span><span>${fmt(u.used)} / ${fmt(u.limit)}</span></div>
+    <div style="height:8px;background:var(--card2);border-radius:4px;overflow:hidden;margin-top:7px"><div style="height:100%;width:${Math.max(pc, 1)}%;background:var(--${pctCol(pc)})"></div></div>
+    <div style="display:flex;justify-content:space-between;margin-top:6px"><span class="mu3">${pc}% used</span><span class="mu3">${esc(resetTxt(u.resets))}</span></div>`;
+  else if (u.left != null) h += `<div class="row"><span class="mu">Credits left</span><span>${fmt(u.left)}</span></div>`;
+  if (u.plan) h += `<div class="row"><span class="mu">Plan</span><span>${esc(u.plan.charAt(0).toUpperCase() + u.plan.slice(1))}</span></div>`;
+  if (pc != null && u.left != null) h += `<div class="row"><span class="mu">${name === 'cloudflare' ? 'Requests left today' : 'Credits left'}</span><span>${fmt(u.left)}</span></div>`;
+  if (pc == null && u.resets) h += `<div class="row"><span class="mu">Next renewal</span><span>${esc(resetTxt(u.resets).replace('Resets ', ''))}</span></div>`;
+  if (u.top) h += `<div class="row"><span class="mu">Biggest use</span><span>${esc(u.top)}</span></div>`;
+  if (name === 'helius') h += `<div class="row"><span class="mu">Project ID</span><button class="lk" data-proj>Edit</button></div>`;
+  return h;
+}
+async function loadUsage(keys) {
+  let r; try { r = await api('/api/owner/usage'); } catch (e) { if (e.message === 'signed out') return; keys.forEach(k => { const el = $('#u_' + k.name); if (el) el.innerHTML = `<div class="row"><span class="mu">Plan usage</span><span class="mu">Could not load</span></div>`; }); return; }
+  for (const name of ['helius', 'stracker', 'birdeye', 'cloudflare']) {
+    const el = $('#u_' + name), u = r.usage[name]; if (!el) continue;
+    el.innerHTML = usageBlock(name, u, r.project);
+    const pc = u && u.state === 'ok' && u.limit && u.used != null ? Math.round(100 * u.used / u.limit) : null, pl = $('#up_' + name);
+    if (pl && pc != null && pc >= 70) pl.innerHTML = `<span class="pl ${pctCol(pc)}">${pc}% used</span>`;
+  }
+  document.querySelectorAll('[data-proj]').forEach(b => b.onclick = () => sheet(`<h3>Helius project ID</h3>
+   <div class="field"><input id="hp" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Paste the project ID" value="${esc(r.project)}"><div class="mu mt">Find it in your Helius dashboard (Project settings). It isn't secret like the key.</div></div>
+   <div class="g2"><button class="bt" onclick="closeSheet()">Cancel</button><button class="bt bp" id="hps">Save</button></div>`, bg => {
+    bg.querySelector('#hps').onclick = e => act(e.target, async () => { await api('/api/owner/usage', { body: { heliusProject: $('#hp').value } }); closeSheet(); toast('Saved'); Keys(); });
   }));
 }
 

@@ -9,7 +9,7 @@
 // the plan price to the payment wallet with that key attached. The server finds the transfer by the key on Helius, checks recipient,
 // exact amount, confirmation and that the signature was never used before, then turns the plan on. A cron re-checks every 5 minutes.
 
-const API_V = 20;
+const API_V = 21;
 // Owner wallet(s) — always allowed into the dashboard. More owners can be added in Site control.
 const OWNER_WALLETS = 'CZQkA9JszBPP7x2LescrtZwh1LGoxZwnW68wLbdFPz93';
 // Sites allowed to call this API from a browser
@@ -1194,6 +1194,64 @@ async function owner(req, env, route, s, se, later) {
       const r = by[name];
       return { name, label, set: !!r, masked: r ? mask(r.value) : '', status: r ? r.status : 'missing', note: r ? r.note : '', checked: r ? r.checked : 0, callsToday: st['call_' + name] || 0 };
     }), requestsToday: st.req || 0 });
+  }
+  // ---- plan limits: real usage from each service (cached 2 min) ----
+  if (route === 'usage' && req.method === 'POST') {
+    const id = String(b.heliusProject || '').trim();
+    if (id && !/^[A-Za-z0-9-]{6,64}$/.test(id)) return fail(req, 400, 'That project ID looks wrong — copy it from your Helius dashboard');
+    await setSetting(env, 'helius_project', id); await setSetting(env, 'usage_cache', '');
+    return json(req, { ok: true });
+  }
+  if (route === 'usage' && req.method === 'GET') {
+    const s2 = await getSettings(env), fresh = q.get('fresh') === '1';
+    let cache = null; try { cache = JSON.parse(s2.usage_cache || 'null'); } catch (e) { }
+    if (cache && !fresh && t - cache.t < 120) return json(req, { ok: true, usage: cache.u, project: s2.helius_project || '' });
+    const J = async (u, h) => { try { const r = await fetch(u, { headers: { accept: 'application/json', ...h } }); const j = await r.json().catch(() => null); return { ok: r.ok, code: r.status, j }; } catch (e) { return { ok: false, code: -1, j: null }; } };
+    const nz = v => (typeof v === 'number' && isFinite(v) ? v : null);
+    const U = {};
+    // Helius — Admin API, needs the project ID
+    const hk = await getKey(env, 'helius');
+    if (!hk) U.helius = { state: 'nokey' };
+    else if (!s2.helius_project) U.helius = { state: 'noproject' };
+    else {
+      const r = await J(`https://admin-api.helius.xyz/v0/admin/projects/${encodeURIComponent(s2.helius_project)}/usage`, { 'X-Api-Key': hk }); await bump(env, 'call_helius');
+      if (!r.ok || !r.j) U.helius = { state: 'error', note: r.code === 401 || r.code === 403 ? 'This key can\'t see that project' : r.code === 404 ? 'Project not found — check the ID' : `Helius answered ${r.code}` };
+      else { const j = r.j, sd = j.subscriptionDetails || {}, cr = j.credits || {};
+        const used = nz(j.creditsUsed), left = nz(j.creditsRemaining), limit = nz(sd.creditsLimit) ?? (used != null && left != null ? used + left : null);
+        const parts = Object.entries(cr).filter(([, v]) => typeof v === 'number' && v > 0).sort((a, b2) => b2[1] - a[1]);
+        const NAMES = { rpc: 'RPC', enhancedApi: 'Enhanced API', walletApi: 'Wallet API', das: 'DAS', webhooks: 'Webhooks', laserstreamGrpc: 'LaserStream', laserstreamWebsocket: 'WebSocket', archival: 'Archival', other: 'Other' };
+        const tot = parts.reduce((a, [, v]) => a + v, 0);
+        U.helius = { state: 'ok', plan: sd.plan || 'free', used, left, limit, resets: (j.creditCycle && j.creditCycle.end) || (sd.billingCycle && sd.billingCycle.end) || null,
+          top: parts.length && tot ? `${NAMES[parts[0][0]] || parts[0][0]} ${Math.round(100 * parts[0][1] / tot)}%` : null }; }
+    }
+    // Solana Tracker — /credits (left) + /subscription (plan, plan credits, renewal); one call at a time
+    const sk = await getKey(env, 'stracker');
+    if (!sk) U.stracker = { state: 'nokey' };
+    else {
+      const a = await J('https://data.solanatracker.io/credits', { 'x-api-key': sk }); await bump(env, 'call_stracker');
+      if (!globalThis.__FAST_TEST) await sleep(1100);
+      const c = await J('https://data.solanatracker.io/subscription', { 'x-api-key': sk }); await bump(env, 'call_stracker');
+      if (!a.ok && !c.ok) U.stracker = { state: 'error', note: a.code === 429 || c.code === 429 ? 'Too many calls — try again in a minute' : `Solana Tracker answered ${a.code}` };
+      else { const left = nz(a.j && a.j.credits), sub = (c.ok && c.j) || {}, total = nz(sub.credits);
+        const limit = total != null && left != null && total >= left ? total : null;
+        U.stracker = { state: 'ok', plan: sub.plan || null, left, limit, used: limit != null ? limit - left : null, resets: sub.next_billing_date || null, status: sub.status || null }; }
+    }
+    // Birdeye — credits endpoint (optional; not every plan answers it)
+    const bk = await getKey(env, 'birdeye');
+    if (!bk) U.birdeye = { state: 'nokey' };
+    else {
+      const r = await J('https://public-api.birdeye.so/utils/v1/credits', { 'X-API-KEY': bk, 'x-chain': 'solana' }); await bump(env, 'call_birdeye');
+      const d = r.j && (r.j.data || r.j), used = nz(d && d.usage && d.usage.total), left = nz(d && d.remaining && d.remaining.total);
+      U.birdeye = r.ok && (used != null || left != null) ? { state: 'ok', used, left, limit: used != null && left != null ? used + left : null } : { state: 'na' };
+    }
+    // Cloudflare — requests we counted today against the free plan's daily limit
+    const st = Object.fromEntries(((await DB.prepare('SELECT k, n FROM stats WHERE day = ?').bind(dayOf(t)).all()).results || []).map(r => [r.k, r.n]));
+    U.cloudflare = { state: 'ok', used: st.req || 0, limit: 100000, left: Math.max(0, 100000 - (st.req || 0)), resets: 'midnight UTC' };
+    // warn once a day when a service is over 90%
+    for (const [k, v] of Object.entries(U)) if (v.state === 'ok' && v.limit && v.used != null && v.used / v.limit > 0.9) {
+      const flag = 'usage_warn_' + k; if (s2[flag] !== dayOf(t)) { await setSetting(env, flag, dayOf(t)); await logEvent(env, 'warn', 'keys', `${{ helius: 'Helius', stracker: 'Solana Tracker', birdeye: 'Birdeye', cloudflare: 'Cloudflare' }[k]} is at ${Math.round(100 * v.used / v.limit)}% of its plan`, 'Upgrade that plan or slow down calls before it runs out'); } }
+    await setSetting(env, 'usage_cache', JSON.stringify({ t, u: U }));
+    return json(req, { ok: true, usage: U, project: s2.helius_project || '' });
   }
   if (route === 'keys' && req.method === 'POST') {
     const name = String(b.name || '');
