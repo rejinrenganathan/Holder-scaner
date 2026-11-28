@@ -26,9 +26,9 @@ button,input,select,textarea{font:inherit;color:inherit}
 .wrap>*{animation:in .28s cubic-bezier(.2,.8,.2,1) both}
 @keyframes in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 /* bars */
-.bar{position:fixed;top:0;left:0;right:0;z-index:6;height:calc(48px + env(safe-area-inset-top));padding-top:env(safe-area-inset-top);display:flex;align-items:center;justify-content:center;
- background:rgba(18,18,18,.78);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-bottom:.5px solid rgba(84,84,88,.5);opacity:0;pointer-events:none;transition:opacity .2s}
-.bar.show{opacity:1;pointer-events:auto}.bar b{font-size:17px;font-weight:600}
+.bar{position:fixed;top:0;left:0;right:0;z-index:6;height:calc(44px + env(safe-area-inset-top));padding:env(safe-area-inset-top) 8px 0;display:grid;grid-template-columns:96px 1fr 96px;align-items:center;
+ background:rgba(22,22,24,.86);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-bottom:.5px solid rgba(84,84,88,.5);opacity:0;pointer-events:none;transition:opacity .2s}
+.bar.show{opacity:1;pointer-events:auto}.bar b{font-size:17px;font-weight:600;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .top{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;padding:calc(14px + env(safe-area-inset-top)) 0 14px}
 .top h1{font-size:34px;font-weight:700;letter-spacing:.2px;margin:0;line-height:1.1}
 .back{display:inline-flex;align-items:center;gap:2px;color:var(--acc);font-size:17px;background:none;border:0;padding:8px 8px 8px 0;min-height:44px;cursor:pointer}
@@ -53,7 +53,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 /* buttons */
 .bt{border:0;background:var(--card2);color:var(--acc);border-radius:12px;padding:11px 14px;font-size:16px;font-weight:500;cursor:pointer;text-align:center;min-height:44px;transition:transform .12s,opacity .12s}
 .bt:active{transform:scale(.97);opacity:.8}.bp{background:var(--acc);color:#fff}.bd{color:var(--er)}a.bt{color:var(--acc)}a.bt.bp{color:#fff}
-.bt[disabled]{opacity:.4}.wide{width:100%;display:block}
+.bt[disabled]{opacity:.4}.mbt{display:flex;align-items:center;justify-content:center;gap:5px;white-space:nowrap;padding:9px 6px;font-size:15px;text-decoration:none}.mbt svg{flex:none}.wide{width:100%;display:block}
 .lk{color:var(--acc);font-size:16px;cursor:pointer;background:none;border:0;padding:8px 0;min-height:40px;text-decoration:none}
 /* segmented + chips */
 .seg{display:flex;background:var(--card);border-radius:10px;padding:2px;margin-bottom:14px;position:relative}
@@ -114,7 +114,7 @@ textarea{font-family:ui-monospace,Menlo,monospace;font-size:13px;min-height:100p
 @keyframes sp{to{transform:rotate(360deg)}}
 .sk{background:linear-gradient(90deg,#1c1c1e 25%,#2c2c2e 50%,#1c1c1e 75%);background-size:200% 100%;animation:shim 1.2s infinite;border-radius:14px}
 @keyframes shim{to{background-position:-200% 0}}
-.ptr{position:fixed;top:calc(8px + env(safe-area-inset-top));left:50%;transform:translateX(-50%) translateY(-60px);z-index:7;width:36px;height:36px;border-radius:50%;background:var(--card2);display:flex;align-items:center;justify-content:center;transition:transform .2s}
+.ptr{position:fixed;top:calc(8px + env(safe-area-inset-top));left:50%;transform:translateX(-50%) translateY(-90px);opacity:0;z-index:7;width:36px;height:36px;border-radius:50%;background:var(--card2);color:var(--tx);display:flex;align-items:center;justify-content:center;transition:transform .2s,opacity .2s;pointer-events:none}.ptr svg{width:20px;height:20px}
 .err{color:var(--er);font-size:14px;margin-top:4px}
 .addr{font-family:ui-monospace,Menlo,monospace;font-size:13px;word-break:break-all}
 a{color:var(--acc)}
@@ -122,7 +122,7 @@ a{color:var(--acc)}
 </head>
 <body>
 <div class="wrap" id="app"><div class="center mu" style="padding:60px 0"><span class="spin"></span> Loading…</div></div>
-<div class="bar" id="bar"><b id="barT"></b></div>
+<div class="bar" id="bar"><span id="barL"></span><b id="barT"></b><span id="barR" style="text-align:right"></span></div>
 <div class="ptr" id="ptr"></div>
 <nav class="nav" id="nav" style="display:none"></nav>
 <script>
@@ -150,9 +150,33 @@ const ICON = {
   site: '<path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/>', keys: '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3"/>',
   health: '<path d="M3 12h4l2-5 4 10 2-5h6"/>', out: '<path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h11"/>'
 };
+const ico = d => `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+const ICONS = { copy: ico('<rect x="9" y="9" width="11" height="11" rx="2.5"/><path d="M5 15V6a2 2 0 0 1 2-2h8"/>'), globe: ico('<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.8 3 2.8 15 0 18M12 3c-2.8 3-2.8 15 0 18"/>'),
+  ext: ico('<path d="M8 16L16 8M10 8h6v6"/>'), edit: ico('<path d="M4 20h4L19 9l-4-4L4 16z"/>'), receipt: ico('<path d="M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6"/>') };
 const svg = k => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICON[k]}</svg>`;
 
+// Speed: screens open instantly from memory, then refresh quietly in the background
+const GC = new Map();
+const routeKey = () => tab + '/' + sub + '/' + (typeof WVIEW !== 'undefined' ? WVIEW : '');
+function refresh() { buzz(); GC.clear(); return render(); }
 async function api(path, opt = {}) {
+  const cacheable = !opt.body && path.startsWith('/api/owner/') && !/run=1/.test(path);
+  if (cacheable) {
+    const c = GC.get(path);
+    if (c) {
+      if (Date.now() - c.t > 15000 && !c.p) {
+        const rk = routeKey();
+        c.p = rawApi(path).then(j => { const changed = JSON.stringify(j) !== JSON.stringify(c.j); GC.set(path, { j, t: Date.now() }); if (changed && routeKey() === rk && !$('#sheet') && !document.querySelector('.as')) render(); }).catch(() => { c.p = null; });
+      }
+      return c.j;
+    }
+    const j = await rawApi(path); GC.set(path, { j, t: Date.now() }); return j;
+  }
+  const j = await rawApi(path, opt);
+  if (opt.body && !/\/(proxy|wallets\/balances)$/.test(path) && !opt.body.dry) GC.clear();   // something changed → next screens load fresh
+  return j;
+}
+async function rawApi(path, opt = {}) {
   const r = await fetch(API + path, { method: opt.body ? 'POST' : 'GET', headers: { 'content-type': 'application/json', ...(token ? { authorization: 'Bearer ' + token } : {}) },
     body: opt.body ? JSON.stringify(opt.body) : undefined });
   let j = null; try { j = await r.json(); } catch (e) { }
@@ -261,12 +285,15 @@ function go(where, fromHash) {
   window.scrollTo(0, 0);
   render();
 }
-let TITLE = '';
+let TITLE = ''; const SEEN = new Set();
 function header(title, extra, actions) {
   TITLE = title; const bt = $('#barT'); if (bt) bt.textContent = title;
+  const bl = $('#barL'), br = $('#barR');
+  if (bl) bl.innerHTML = sub ? `<button class="back" style="min-height:44px;font-size:16px" onclick="location.hash='more'">${svg('back')}More</button>` : '';
+  if (br) br.innerHTML = `<button class="ib" style="width:32px;height:32px;background:transparent" aria-label="Refresh" onclick="refresh()">${svg('refresh')}</button>`;
   return `${sub ? `<button class="back" style="margin-top:calc(4px + env(safe-area-inset-top))" onclick="location.hash='more'">${svg('back')}More</button>` : ''}
    <div class="top" style="${sub ? 'padding-top:2px' : ''}"><div style="min-width:0">${extra && !sub ? `<div class="mu" style="margin-bottom:2px">${extra}</div>` : ''}<h1>${esc(title)}</h1>${extra && sub ? `<div class="mu" style="margin-top:4px">${extra}</div>` : ''}</div>
-    <div style="display:flex;gap:8px">${actions || ''}<button class="ib" title="Refresh" aria-label="Refresh" onclick="buzz();render()">${svg('refresh')}</button></div></div>`;
+    <div style="display:flex;gap:8px">${actions || ''}<button class="ib" title="Refresh" aria-label="Refresh" onclick="refresh()">${svg('refresh')}</button></div></div>`;
 }
 // compact title bar after scrolling past the big title
 window.addEventListener('scroll', () => { const b = $('#bar'); if (b) b.classList.toggle('show', window.scrollY > 56); }, { passive: true });
@@ -279,13 +306,13 @@ window.addEventListener('scroll', () => { const b = $('#bar'); if (b) b.classLis
   }, { passive: true });
   document.addEventListener('touchmove', e => {
     const t = e.touches[0];
-    if (y0 != null && !edge) { pulled = Math.max(0, t.clientY - y0); const p = ptr(); if (p && pulled > 10) { p.style.transform = `translateX(-50%) translateY(${Math.min(pulled, 110) - 50}px) rotate(${pulled * 3}deg)`; p.innerHTML = svg('refresh'); } }
+    if (y0 != null && !edge) { pulled = Math.max(0, t.clientY - y0); const p = ptr(); if (p && pulled > 10) { p.style.opacity = Math.min(1, pulled / 60); p.style.transform = `translateX(-50%) translateY(${Math.min(pulled, 110) - 50}px) rotate(${pulled * 3}deg)`; p.innerHTML = svg('refresh'); } }
   }, { passive: true });
   document.addEventListener('touchend', e => {
     const p = ptr(), t = e.changedTouches[0];
     if (edge && t.clientX - x0 > 80) { buzz(); location.hash = 'more'; }
-    if (y0 != null && pulled > 80) { buzz(12); if (p) p.innerHTML = '<span class="spin"></span>'; Promise.resolve(render()).finally(() => setTimeout(() => { if (p) p.style.transform = ''; }, 400)); }
-    else if (p) p.style.transform = '';
+    if (y0 != null && pulled > 80) { buzz(12); if (p) p.innerHTML = '<span class="spin"></span>'; Promise.resolve(refresh()).finally(() => setTimeout(() => { if (p) { p.style.transform = ''; p.style.opacity = ''; } }, 400)); }
+    else if (p) { p.style.transform = ''; p.style.opacity = ''; }
     y0 = null; edge = false;
   }, { passive: true });
 })();
@@ -299,7 +326,8 @@ function countUp(root) {
 }
 function render() {
   const f = { home: Home, money: Money, wallets: Wallets, users: Users, more: () => (sub ? { traffic: Traffic, site: Site, keys: Keys, health: Health }[sub]() : More()) }[tab];
-  const r = f(); Promise.resolve(r).then(() => countUp($('#app')));
+  const k = routeKey(), first = !SEEN.has(k); SEEN.add(k);
+  const r = f(); if (first) Promise.resolve(r).then(() => countUp($('#app')));
   return r;
 }
 const loading = title => { $('#app').innerHTML = header(title) + '<div class="sk" style="height:96px;margin-bottom:14px"></div><div class="g2" style="margin-bottom:14px"><div class="sk" style="height:84px"></div><div class="sk" style="height:84px"></div></div><div class="sk" style="height:180px"></div>'; };
@@ -345,17 +373,26 @@ async function Home() {
 async function Money() {
   loading('Money');
   let w, st; try { [w, st] = await Promise.all([api('/api/owner/wallet'), api('/api/owner/settings')]); w = w.wallet; st = st.settings; } catch (e) { return e.message === 'signed out' || errBox('Money', e); }
+  const sol = w.sol, inr = sol != null && w.inr ? sol * w.inr : null, sold = w.founderSold, max = w.founderMax || 1;
   $('#app').innerHTML = header('Money') + `
-  <div class="cd"><div class="hd"><span class="ht">Main wallet</span><span class="pl ${st.payments === '1' ? 'ok' : 'ne'}">${st.payments === '1' ? 'Receiving' : 'Payments off'}</span></div>
-   <div style="font-size:28px;font-weight:600">${w.sol == null ? '—' : w.sol.toLocaleString('en-IN', { maximumFractionDigits: 3 })} <span style="font-size:16px">SOL</span></div>
-   ${w.error ? `<div class="mu" style="color:var(--wa)">${esc(w.error)}</div>` : '<div class="mu">Live balance from Helius</div>'}
-   <div class="addr mt">${esc(w.address)}</div>
-   <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:10px">
-    <button class="bt" id="cp">Copy</button><a class="bt" style="text-decoration:none" target="_blank" rel="noopener" href="https://solscan.io/account/${esc(w.address)}">Solscan ↗</a><button class="bt" id="chg">Change</button></div></div>
-  <div class="cd"><div class="g2">
-    <div class="kp"><div class="mu">Founder spots sold</div><div class="kn">${w.founderSold} / ${w.founderMax}</div></div>
-    <div class="kp"><div class="mu">Prices</div><div style="font-weight:600;margin-top:4px">${PLANS_ORDER.map(k => st.prices[k]).join(' · ')} SOL</div></div></div></div>
-  <div class="cd"><div class="ht">Payments</div><p class="mu mb0">Payments made through the site will be listed here with their plan and user, once SOL payments are built (next step). Wrong amounts will be flagged for review.</p></div>`;
+  <div class="cd">
+   <div class="hd" style="margin-bottom:4px"><span class="mu" style="text-transform:uppercase;letter-spacing:.3px">Main wallet</span><span class="pl ${st.payments === '1' ? 'ok' : 'ne'}">${st.payments === '1' ? 'Receiving' : 'Payments off'}</span></div>
+   <div class="kn" style="font-size:36px">${sol == null ? '—' : sol.toLocaleString('en-IN', { maximumFractionDigits: 3 })} <span style="font-size:19px;color:var(--tx2);font-weight:600">SOL</span></div>
+   <div class="mu">${w.error ? `<span style="color:var(--wa)">${esc(w.error)}</span>` : (inr != null ? '≈ ₹' + Math.round(inr).toLocaleString('en-IN') + ' · ' : '') + 'live from Helius'}</div>
+   <button class="tap" id="cpa" style="width:100%;display:flex;align-items:center;justify-content:space-between;background:var(--card2);border:0;border-radius:10px;padding:10px 12px;margin-top:12px;color:var(--tx);cursor:pointer">
+    <span class="addr" style="word-break:normal">${esc(w.address.slice(0, 6) + '…' + w.address.slice(-5))}</span><span style="color:var(--acc);display:flex">${ICONS.copy}</span></button>
+   <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px">
+    <button class="bt mbt" id="cp">${ICONS.copy}<span>Copy</span></button>
+    <a class="bt mbt" target="_blank" rel="noopener" href="https://solscan.io/account/${esc(w.address)}">${ICONS.globe}<span>Solscan</span>${ICONS.ext}</a>
+    <button class="bt mbt" id="chg">${ICONS.edit}<span>Change</span></button></div></div>
+  <div class="g2 plain" style="margin-bottom:14px">
+   <div class="kp"><div class="mu">Founder spots</div><div class="kn">${sold} <span style="font-size:15px;color:var(--tx2)">/ ${max}</span></div>
+    <div class="meter"><div style="width:${Math.max(2, Math.round(100 * sold / max))}%;background:var(--pr)"></div></div></div>
+   <div class="kp"><div class="mu">Prices (SOL)</div><div style="font-size:14px;margin-top:6px;line-height:1.8">1m <b>${st.prices.m1}</b> · 3m <b>${st.prices.m3}</b> · 6m <b>${st.prices.m6}</b><br>12m <b>${st.prices.m12}</b> · Life <b>${st.prices.lifetime}</b></div></div></div>
+  <div class="sec">Payments</div>
+  <div class="cd" style="display:flex;gap:12px;align-items:center"><div class="sq" style="background:#30d158">${ICONS.receipt}</div>
+   <div class="rl"><div>No payments yet</div><div class="mu" style="white-space:normal">Each payment will show here with its plan and user. Wrong amounts get a Review tag.</div></div></div>`;
+  $('#cpa').onclick = () => copy(w.address, 'Address copied');
   $('#cp').onclick = () => copy(w.address, 'Address copied');
   $('#chg').onclick = () => editSetting('pay_wallet', 'Payment wallet', w.address, 'Only paste a wallet you control. For safety this needs a sign-in from the last 15 minutes.');
 }
@@ -621,7 +658,7 @@ async function lbLoad(more) {
       const sort = { pnl: 'realized', wr: 'win_percentage', roi: 'roi', trades: 'trades', vol: 'volume', days: 'days', coins: 'tokens' }[LBB.sort] || 'realized', f = LBB.f.st;
       const q = [['minWinRate', f.wr], ['minRoi', f.roi], ['minDays', f.days], ['minClosedTokens', f.closed], ['maxSingleTokenPct', f.one], ['minInvested', f.inv]].filter(([, v]) => +v > 0).map(([k, v]) => `&${k}=${+v}`).join('');
       const j = await stGet(`/v2/pnl/leaderboard/top?limit=100&days=${days}&sort=${sort}&direction=desc&excludeArbitrage=true&minTrades=10${q}${LBB.src === 'axiom' ? '&platform=axiom,axiom-flash' : ''}${more && LBB.more ? '&cursor=' + encodeURIComponent(LBB.more) : ''}`);
-      (j?.traders || []).forEach(t => { const id = t.identity || {}, w = t.wallet; if (!w || !B58.test(w) || have.has(w)) return; have.add(w); let last = t.timing?.lastTrade || null; if (last && last > 1e12) last /= 1000;
+      (j?.traders || []).forEach(t => { const id = t.identity || {}, w = t.wallet; if (!w || !B58.test(w) || have.has(w)) return; have.add(w); let last = t.timing?.lastTrade ?? t.timing?.lastTradeTime ?? t.timing?.last ?? t.lastTrade ?? null; if (typeof last === 'string') last = /^\d+$/.test(last) ? +last : Date.parse(last); if (!isFinite(last) || !last) last = null; if (last && last > 1e12) last /= 1000;
         let wr = t.winRate ?? t.period?.days?.winRate ?? null; if (wr != null && wr <= 1.0001) wr *= 100; const roi = t.period?.roi ?? null;
         const p = t.period || {}, pd = p.days || {}, td = p.tradingDays ?? null, real = p.realized ?? t.ending?.pnl?.realized ?? null, trades = t.counts?.trades ?? null;
         LBB.rows.push({ w, src: LBB.src, name: String(id.name || '').slice(0, 40), x: xHandle(id.twitter), av: id.avatar || '', pnl: real, cur: '$', wr, roi, trades, last,
@@ -655,21 +692,23 @@ async function lbLoad(more) {
   LBB.loading = false; lbDraw();
 }
 const onSite = w => (TRK && TRK.has(w)) || ADDED.has(w);
-function lbPass(r) {
+// returns '' when the wallet passes, otherwise the name of the filter that hid it
+function lbWhy(r) {
   const g = lbGrp(r.src), f = LBB.f[g], now = Date.now() / 1000;
-  if (f.tracked && TRK && TRK.has(r.w) && !ADDED.has(r.w)) return false;
-  if (f.bots && r.bot) return false; if (f.xOnly && !r.x) return false;
+  if (f.tracked && TRK && TRK.has(r.w) && !ADDED.has(r.w)) return 'already on site';
+  if (f.bots && r.bot) return 'bot'; if (f.xOnly && !r.x) return 'no X handle';
   const base = g === 'gm' && LBB.asOf ? LBB.asOf : now;   // snapshot: count "active" from the snapshot date, not today
-  if (+f.last > 0 && r.last && base - r.last > f.last * 86400) return false; if (+f.last > 0 && !r.last && g === 'gm') return false;
-  if (+f.tpd > 0 && r.tpd != null && r.tpd > f.tpd) return false;
-  if (g === 'st') { if (+f.buyMin > 0 && (r.avgBuy == null || r.avgBuy < f.buyMin)) return false; if (+f.buyMax > 0 && r.avgBuy != null && r.avgBuy > f.buyMax) return false; if (+f.pdays > 0 && r.pdays != null && r.pdays < f.pdays) return false; return true; }
-  if (g === 'pf') { if ((r.wins || 0) < (+f.minWin || 1)) return false; if (+f.pnl > 0 && (r.pnl || 0) < f.pnl) return false; if (+f.roi > 0 && (r.roi == null || r.roi < f.roi)) return false;
-    if (f.life !== '' && f.life != null && r.life != null && r.life < +f.life) return false; if (+f.buyMin > 0 && (r.avgBuy || 0) < f.buyMin) return false; if (+f.buyMax > 0 && (r.avgBuy || 0) > f.buyMax) return false;
-    if (+f.hold > 0 && r.hold != null && r.hold < f.hold * 60) return false; if (f.style && f.style !== 'all' && r.style !== f.style) return false; if (f.pre === 'yes' && !r.pre) return false; if (f.fresh && r.tt != null && r.tt <= 3) return false; return true; }
-  if (+f.pnl > 0 && (r.pnl == null || r.pnl < f.pnl)) return false; if (+f.wr > 0 && (r.wr == null || r.wr < f.wr)) return false;
-  if (+f.tMin > 0 && (r.trades == null || r.trades < f.tMin)) return false; if (+f.tMax > 0 && r.trades != null && r.trades > f.tMax) return false;
-  return true;
+  if (+f.last > 0 && r.last && base - r.last > f.last * 86400) return `no trade in ${f.last}d`; if (+f.last > 0 && !r.last && g === 'gm') return 'no last-trade date';
+  if (+f.tpd > 0 && r.tpd != null && r.tpd > f.tpd) return 'too many trades/day';
+  if (g === 'st') { if (+f.buyMin > 0 && (r.avgBuy == null || r.avgBuy < f.buyMin)) return 'buy too small'; if (+f.buyMax > 0 && r.avgBuy != null && r.avgBuy > f.buyMax) return 'buy too big'; if (+f.pdays > 0 && r.pdays != null && r.pdays < f.pdays) return 'few green days'; return ''; }
+  if (g === 'pf') { if ((r.wins || 0) < (+f.minWin || 1)) return 'too few winners'; if (+f.pnl > 0 && (r.pnl || 0) < f.pnl) return 'profit too low'; if (+f.roi > 0 && (r.roi == null || r.roi < f.roi)) return 'ROI too low';
+    if (f.life !== '' && f.life != null && r.life != null && r.life < +f.life) return 'lifetime too low'; if (+f.buyMin > 0 && (r.avgBuy || 0) < f.buyMin) return 'buy too small'; if (+f.buyMax > 0 && (r.avgBuy || 0) > f.buyMax) return 'buy too big';
+    if (+f.hold > 0 && r.hold != null && r.hold < f.hold * 60) return 'held too short'; if (f.style && f.style !== 'all' && r.style !== f.style) return 'other style'; if (f.pre === 'yes' && !r.pre) return 'not pre-migration'; if (f.fresh && r.tt != null && r.tt <= 3) return 'fresh wallet'; return ''; }
+  if (+f.pnl > 0 && (r.pnl == null || r.pnl < f.pnl)) return 'profit too low'; if (+f.wr > 0 && (r.wr == null || r.wr < f.wr)) return 'win rate too low';
+  if (+f.tMin > 0 && (r.trades == null || r.trades < f.tMin)) return 'too few trades'; if (+f.tMax > 0 && r.trades != null && r.trades > f.tMax) return 'too many trades';
+  return '';
 }
+const lbPass = r => !lbWhy(r);
 function lbShown() {
   const rows = LBB.rows.filter(lbPass), k = LBB.sort;
   if (LBB.src === 'pf') { const v = { wins: r => (r.wins || 0) * 1e9 + (r.pnl || 0), pnl: r => r.pnl || 0, roi: r => r.roi || 0, life: r => r.life ?? -1e15, early: r => -(r.medMc ?? 1e15) }[k] || (r => r.pnl || 0); return rows.sort((a, b) => v(b) - v(a)); }
@@ -719,6 +758,7 @@ function lbDraw() {
   const rows = lbShown(), nNew = rows.filter(r => !onSite(r.w)).length, snap = LBB.src === 'gmgn' || LBB.src === 'kolscan', src = LBS.find(x => x[0] === LBB.src);
   el.innerHTML = `${LBB.err ? `<div class="${LBB.src === 'pf' && !LBB.lab ? 'mu' : 'err'}" style="margin:8px 0">${esc(LBB.err)}</div>` : ''}
    ${snap && LBB.rows.length ? `<div class="mu3" style="margin:6px 0">📦 Saved snapshot of the ${src[1].replace(/^\S+\s/, '')} leaderboard${LBB.asOf ? ' · data up to ' + new Date(LBB.asOf * 1000).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : ''} — not live. “Last trade within” counts back from that date.</div>` : ''}
+   ${LBB.rows.length && rows.length < LBB.rows.length ? (() => { const c = {}; LBB.rows.forEach(r => { const w = lbWhy(r); if (w) c[w] = (c[w] || 0) + 1; }); return `<div class="mu" style="margin:0 2px 8px">Hidden by: ${Object.entries(c).sort((a, b) => b[1] - a[1]).map(([k, n]) => `<b style="color:var(--tx)">${fmt(n)}</b> ${esc(k)}`).join(' · ')}</div>`; })() : ''}
    ${LBB.rows.length ? `<div class="selbar"><span style="flex:1" class="mu"><b>${rows.length}</b> of ${fmt(LBB.rows.length)} match</span><button class="bt bp" id="lbAll" ${nNew ? '' : 'disabled'}>＋ Add all ${nNew}</button></div>` : ''}
    ${rows.slice(0, LBB.show).map(lbRowHTML).join('')}
    ${rows.length > LBB.show ? `<button class="bt wide mt" id="lbShowMore">Show ${Math.min(50, rows.length - LBB.show)} more · ${rows.length - LBB.show} left</button>` : ''}
@@ -852,7 +892,7 @@ function More() {
    <div class="sec">Account</div>
    <div class="cd" style="padding:2px 16px"><div class="row"><div class="sq" style="background:#5e5ce6;border-radius:50%">${esc((me.email || me.wallet || '?')[0].toUpperCase())}</div><div class="rl"><div>${esc(me.email || short(me.wallet))}</div><div class="mu">Owner</div></div></div>
     <div class="row tap" id="so" style="margin:0 -16px;padding:9px 16px;color:var(--er)"><div class="sq" style="background:#ff453a">${svg('out')}</div><span style="flex:1">Sign out</span></div></div>
-   <div class="mu3 center" style="margin-top:18px">Holder Scan owner · server v5</div>`;
+   <div class="mu3 center" style="margin-top:18px">Holder Scan owner · server v6</div>`;
   $('#so').onclick = signOut;
 }
 

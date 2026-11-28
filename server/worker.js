@@ -5,7 +5,7 @@
 // (no transaction, no fee), and the Worker checks the signature. Then it hands out a session token.
 // Owner dashboard: open <this worker's address>/owner
 
-const API_V = 5;
+const API_V = 6;
 // Owner wallet(s) — always allowed into the dashboard. More owners can be added in Site control.
 const OWNER_WALLETS = 'CZQkA9JszBPP7x2LescrtZwh1LGoxZwnW68wLbdFPz93';
 // Sites allowed to call this API from a browser
@@ -171,8 +171,8 @@ export default {
 async function handle(req, env, ctx) {
   if (req.method === 'OPTIONS') return new Response(null, { headers: cors(req) });
   const path = new URL(req.url).pathname.replace(/\/+$/, '') || '/';
-  if (path === '/owner') return ownerPage(OWNER_PAGE);
-  if (path === '/owner/lab') return ownerPage(LAB_PAGE);
+  if (path === '/owner') return ownerPage(OWNER_PAGE, ctx);
+  if (path === '/owner/lab') return ownerPage(LAB_PAGE, ctx);
   if (path === '/owner/hit.js') return new Response('', { headers: { 'content-type': 'text/javascript' } });
   if (path === '/owner/manifest.webmanifest') return new Response(JSON.stringify({ name: 'Holder Scan Owner', short_name: 'HS Owner', start_url: '/owner', scope: '/owner', display: 'standalone',
     background_color: '#000000', theme_color: '#000000', icons: [{ src: '/owner/icon.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' }, { src: '/owner/icon-180.png', sizes: '180x180', type: 'image/png' }] }),
@@ -305,15 +305,29 @@ async function handle(req, env, ctx) {
   return fail(req, 404, 'Not found');
 }
 
-async function ownerPage(url) {
-  let html = '';
-  try {
-    const r = await fetch(url + '?t=' + Math.floor(Date.now() / 60000), { cf: { cacheTtl: 60 } });
-    if (r.ok) html = await r.text();
-  } catch (e) { }
+// page cache: answer instantly from memory, refresh from GitHub in the background every 30 s
+const PAGE_CACHE = {};
+async function fetchPage(url) {
+  try { const r = await fetch(url + '?t=' + Math.floor(Date.now() / 30000)); if (r.ok) { const h = await r.text(); PAGE_CACHE[url] = { h, t: Date.now() }; return h; } } catch (e) { }
+  return '';
+}
+async function ownerPage(url, ctx) {
+  const c = PAGE_CACHE[url];
+  let html = c ? c.h : '';
+  if (!c) html = await fetchPage(url);
+  else if (Date.now() - c.t > 30000) { const p = fetchPage(url); if (ctx && ctx.waitUntil) ctx.waitUntil(p); }
   if (!html) html = '<!doctype html><meta name=viewport content="width=device-width"><p style="font:16px sans-serif;padding:20px">Could not load the dashboard page. Check your internet and reload.</p>';
   return new Response(html, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-frame-options': 'SAMEORIGIN', 'content-security-policy': "frame-ancestors 'self'",
     'referrer-policy': 'no-referrer', 'x-content-type-options': 'nosniff' } });
+}
+
+// SOL price (CoinGecko, no key) — remembered for 5 minutes
+let PX = { t: 0, inr: null, usd: null };
+async function solPrice() {
+  if (Date.now() - PX.t < 300000) return PX;
+  try { const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=inr,usd', { headers: { accept: 'application/json' } });
+    const j = r.ok ? await r.json() : null; if (j && j.solana) PX = { t: Date.now(), inr: j.solana.inr ?? null, usd: j.solana.usd ?? null }; } catch (e) { }
+  return PX;
 }
 
 // ---------- key tests ----------
@@ -363,28 +377,20 @@ async function owner(req, env, route, s, se) {
   const q = new URL(req.url).searchParams;
 
   if (route === 'home') {
-    const today = dayOf(t), yest = dayOf(t - 86400);
-    const one = async (sql, ...a) => { const r = await DB.prepare(sql).bind(...a).first(); return r ? Object.values(r)[0] || 0 : 0; };
-    const out = {
-      visitors: await one('SELECT COUNT(DISTINCT vid) FROM hits WHERE day = ?', today),
-      visitorsY: await one('SELECT COUNT(DISTINCT vid) FROM hits WHERE day = ?', yest),
-      online: await one('SELECT COUNT(DISTINCT vid) FROM hits WHERE ts > ?', t - 300),
-      signups: await one('SELECT COUNT(*) FROM users WHERE created >= ?', t - (t % 86400)),
-      signupsY: await one('SELECT COUNT(*) FROM users WHERE created >= ? AND created < ?', t - (t % 86400) - 86400, t - (t % 86400)),
-      users: await one('SELECT COUNT(*) FROM users'),
-      paid: await one("SELECT COUNT(*) FROM users WHERE plan != 'free' AND (plan = 'lifetime' OR plan_until > ?)", t),
-      active: await one('SELECT COUNT(*) FROM users WHERE last_seen > ?', t - 86400),
-      wallets: await one('SELECT COUNT(*) FROM site_wallets'),
-      expiring: await one("SELECT COUNT(*) FROM users WHERE plan NOT IN ('free','lifetime') AND plan_until > ? AND plan_until < ?", t, t + 7 * 86400),
-      errors: await one("SELECT COUNT(*) FROM events WHERE level = 'error' AND ts > ?", t - 86400),
-      warns: await one("SELECT COUNT(*) FROM events WHERE level = 'warn' AND ts > ?", t - 86400),
-      keysMissing: Object.keys(KEY_NAMES).length - await one('SELECT COUNT(*) FROM apikeys'),
-      keysBad: await one("SELECT COUNT(*) FROM apikeys WHERE status IN ('error','warn')"),
-      requests: await one('SELECT n FROM stats WHERE day = ? AND k = ?', today, 'req'),
-      settings: { site_live: s.site_live, signups: s.signups, alerts: s.alerts }
-    };
-    out.issues = (await DB.prepare("SELECT ts, level, src, msg, fix FROM events WHERE level = 'error' AND ts > ? ORDER BY id DESC LIMIT 3").bind(t - 86400).all()).results;
-    out.activity = (await DB.prepare('SELECT ts, level, src, msg FROM events ORDER BY id DESC LIMIT 8').all()).results;
+    const today = dayOf(t), yest = dayOf(t - 86400), mid = t - (t % 86400);
+    const q1 = [
+      ['visitors', 'SELECT COUNT(DISTINCT vid) n FROM hits WHERE day = ?', today], ['visitorsY', 'SELECT COUNT(DISTINCT vid) n FROM hits WHERE day = ?', yest],
+      ['online', 'SELECT COUNT(DISTINCT vid) n FROM hits WHERE ts > ?', t - 300], ['signups', 'SELECT COUNT(*) n FROM users WHERE created >= ?', mid],
+      ['signupsY', 'SELECT COUNT(*) n FROM users WHERE created >= ? AND created < ?', mid - 86400, mid], ['users', 'SELECT COUNT(*) n FROM users'],
+      ['paid', "SELECT COUNT(*) n FROM users WHERE plan != 'free' AND (plan = 'lifetime' OR plan_until > ?)", t], ['active', 'SELECT COUNT(*) n FROM users WHERE last_seen > ?', t - 86400],
+      ['wallets', 'SELECT COUNT(*) n FROM site_wallets'], ['expiring', "SELECT COUNT(*) n FROM users WHERE plan NOT IN ('free','lifetime') AND plan_until > ? AND plan_until < ?", t, t + 7 * 86400],
+      ['errors', "SELECT COUNT(*) n FROM events WHERE level = 'error' AND ts > ?", t - 86400], ['warns', "SELECT COUNT(*) n FROM events WHERE level = 'warn' AND ts > ?", t - 86400],
+      ['keys', 'SELECT COUNT(*) n FROM apikeys'], ['keysBad', "SELECT COUNT(*) n FROM apikeys WHERE status IN ('error','warn')"], ['requests', 'SELECT n FROM stats WHERE day = ? AND k = ?', today, 'req'],
+      ['issues', "SELECT ts, level, src, msg, fix FROM events WHERE level = 'error' AND ts > ? ORDER BY id DESC LIMIT 3", t - 86400], ['activity', 'SELECT ts, level, src, msg FROM events ORDER BY id DESC LIMIT 8']];
+    const res = await DB.batch(q1.map(([, sql, ...a]) => DB.prepare(sql).bind(...a)));   // one trip to the database
+    const out = { settings: { site_live: s.site_live, signups: s.signups, alerts: s.alerts } };
+    q1.forEach(([k], i) => { const rows = res[i].results || []; out[k] = k === 'issues' || k === 'activity' ? rows : (rows[0] ? rows[0].n || 0 : 0); });
+    out.keysMissing = Object.keys(KEY_NAMES).length - out.keys;
     return json(req, { ok: true, home: out });
   }
 
@@ -489,7 +495,8 @@ async function owner(req, env, route, s, se) {
       } catch (e) { err = 'Could not reach Helius'; }
     }
     const sold = await DB.prepare("SELECT COUNT(*) n FROM users WHERE plan = 'lifetime'").first();
-    return json(req, { ok: true, wallet: { address: w, sol, error: err, founderSold: sold ? sold.n : 0, founderMax: Number(s.founder_max) } });
+    const px = await solPrice();
+    return json(req, { ok: true, wallet: { address: w, sol, error: err, founderSold: sold ? sold.n : 0, founderMax: Number(s.founder_max), inr: px.inr, usd: px.usd } });
   }
 
   // ---- key-safe pass-through for the dashboard's leaderboards and Winner Lab (keys never leave the server) ----
@@ -655,24 +662,22 @@ async function owner(req, env, route, s, se) {
   // ---- traffic ----
   if (route === 'traffic') {
     const days = Math.min(90, Math.max(1, Number(q.get('days')) || 7));
-    const from = dayOf(t - (days - 1) * 86400);
-    const all = async (sql, ...a) => (await DB.prepare(sql).bind(...a).all()).results || [];
-    const one = async (sql, ...a) => { const r = await DB.prepare(sql).bind(...a).first(); return r ? Object.values(r)[0] || 0 : 0; };
-    const prevFrom = dayOf(t - (2 * days - 1) * 86400);
-    const uniq = await one('SELECT COUNT(DISTINCT day || vid) FROM hits WHERE day >= ?', from);
-    const uniqPrev = await one('SELECT COUNT(DISTINCT day || vid) FROM hits WHERE day >= ? AND day < ?', prevFrom, from);
-    const views = await one('SELECT COUNT(*) FROM hits WHERE day >= ?', from);
-    const visits = await all('SELECT COUNT(*) c, MAX(ts) - MIN(ts) d FROM hits WHERE day >= ? GROUP BY day, vid', from);
-    const bounce = visits.length ? Math.round(100 * visits.filter(v => v.c === 1).length / visits.length) : 0;
-    const time = visits.length ? Math.round(visits.reduce((a, v) => a + v.d, 0) / visits.length) : 0;
-    const perDay = await all('SELECT day, COUNT(DISTINCT vid) u, COUNT(*) v FROM hits WHERE day >= ? GROUP BY day ORDER BY day', from);
-    const top = async col => all(`SELECT ${col} k, COUNT(DISTINCT day || vid) n FROM hits WHERE day >= ? GROUP BY ${col} ORDER BY n DESC LIMIT 6`, from);
-    const inst = await one('SELECT COUNT(DISTINCT day || vid) FROM hits WHERE day >= ? AND inst = 1', from);
-    const signups = await one('SELECT COUNT(*) FROM users WHERE created >= ?', Date.parse(from) / 1000);
-    const paid = await one("SELECT COUNT(*) FROM users WHERE created >= ? AND plan != 'free' AND (plan = 'lifetime' OR plan_until > ?)", Date.parse(from) / 1000, t);
-    return json(req, { ok: true, traffic: { days, uniq, uniqPrev, views, bounce, time, live: await one('SELECT COUNT(DISTINCT vid) FROM hits WHERE ts > ?', t - 300),
-      perDay, sources: await top("CASE WHEN ref = '' THEN 'Direct' ELSE ref END"), countries: await top('country'), devices: await top('device'), pages: await top('path'),
-      installed: uniq ? Math.round(100 * inst / uniq) : 0, funnel: { visited: uniq, signedUp: signups, paid } } });
+    const from = dayOf(t - (days - 1) * 86400), prevFrom = dayOf(t - (2 * days - 1) * 86400), fromTs = Date.parse(from) / 1000;
+    const top = col => `SELECT ${col} k, COUNT(DISTINCT day || vid) n FROM hits WHERE day >= ? GROUP BY ${col} ORDER BY n DESC LIMIT 6`;
+    const Q = [
+      ['uniq', 'SELECT COUNT(DISTINCT day || vid) n FROM hits WHERE day >= ?', from], ['uniqPrev', 'SELECT COUNT(DISTINCT day || vid) n FROM hits WHERE day >= ? AND day < ?', prevFrom, from],
+      ['views', 'SELECT COUNT(*) n FROM hits WHERE day >= ?', from],
+      ['visits', 'SELECT COUNT(*) v, SUM(c = 1) b, SUM(d) d FROM (SELECT COUNT(*) c, MAX(ts) - MIN(ts) d FROM hits WHERE day >= ? GROUP BY day, vid)', from],
+      ['perDay', 'SELECT day, COUNT(DISTINCT vid) u, COUNT(*) v FROM hits WHERE day >= ? GROUP BY day ORDER BY day', from],
+      ['sources', top("CASE WHEN ref = '' THEN 'Direct' ELSE ref END"), from], ['countries', top('country'), from], ['devices', top('device'), from], ['pages', top('path'), from],
+      ['inst', 'SELECT COUNT(DISTINCT day || vid) n FROM hits WHERE day >= ? AND inst = 1', from], ['live', 'SELECT COUNT(DISTINCT vid) n FROM hits WHERE ts > ?', t - 300],
+      ['signups', 'SELECT COUNT(*) n FROM users WHERE created >= ?', fromTs], ['paid', "SELECT COUNT(*) n FROM users WHERE created >= ? AND plan != 'free' AND (plan = 'lifetime' OR plan_until > ?)", fromTs, t]];
+    const res = await DB.batch(Q.map(([, sql, ...a]) => DB.prepare(sql).bind(...a)));
+    const R = {}; Q.forEach(([k], i) => { R[k] = res[i].results || []; });
+    const n = k => (R[k][0] && R[k][0].n) || 0, V = R.visits[0] || {}, uniq = n('uniq');
+    return json(req, { ok: true, traffic: { days, uniq, uniqPrev: n('uniqPrev'), views: n('views'), bounce: V.v ? Math.round(100 * (V.b || 0) / V.v) : 0, time: V.v ? Math.round((V.d || 0) / V.v) : 0,
+      live: n('live'), perDay: R.perDay, sources: R.sources, countries: R.countries, devices: R.devices, pages: R.pages,
+      installed: uniq ? Math.round(100 * n('inst') / uniq) : 0, funnel: { visited: uniq, signedUp: n('signups'), paid: n('paid') } } });
   }
 
   return fail(req, 404, 'Not found');
