@@ -285,8 +285,8 @@ const HF0 = () => ({ b: { all: true, kol: true, smart: true }, stage: { bond: tr
 let HF = (() => { try { return { ...HF0(), ...JSON.parse(localStorage.getItem(HFK) || '{}') }; } catch (e) { return HF0(); } })();
 delete HF.minb;
 const HOT_WIN = [[900, '15m'], [3600, '1h'], [14400, '4h'], [86400, '24h']];
-const LPS = ['Pump.fun', 'Bonk.fun', 'Raydium LaunchLab', 'Bags', 'Moonit', 'Boop'];
-HF.lpOff = (HF.lpOff || []).filter(x => LPS.includes(x));
+const LPS0 = ['Pump.fun', 'Bonk.fun', 'Raydium LaunchLab', 'StonkFun', 'Bags', 'Moonit', 'Boop'];
+const LPSf = () => (SITE && Array.isArray(SITE.launchpads) && SITE.launchpads.length ? SITE.launchpads : LPS0);   // the launchpads the owner switched on
 const FREE_F = new Set(['b', 'stage', 'lpOff', 'age', 'mc', 'liq']);
 const isPro = () => !!(me && (me.isAdmin || (me.plan && me.plan !== 'free')));
 const marketMode = (o = HF) => !o.b.kol && !o.b.smart;
@@ -308,7 +308,7 @@ function activeList() {
   const L = [], d = HF0();
   if (!HF.b.kol || !HF.b.smart || !HF.b.all) L.push(['b', marketMode() ? 'Whole market' : [HF.b.all ? 'All' : '', HF.b.kol ? 'KOL' : '', HF.b.smart ? 'Smart' : ''].filter(Boolean).join(' + ')]);
   if (!HF.stage.bond || !HF.stage.mig) L.push(['stage', HF.stage.bond ? 'Bonding' : 'Migrated']);
-  if (HF.lpOff.length) L.push(['lpOff', `${LPS.length - HF.lpOff.length} launchpads`]);
+  if (HF.lpOff.length) L.push(['lpOff', `${LPSf().length - HF.lpOff.length} launchpads`]);
   if (HF.minsol) L.push(['minsol', HF.minsol + '+ SOL in']);
   if (HF.hold) L.push(['hold', HF.hold === 100 ? 'All holding' : HF.hold + '%+ holding']);
   if (HF.lastb) L.push(['lastb', 'Last buy ' + fDur(HF.lastb)]);
@@ -341,8 +341,8 @@ async function HotFeed(quiet) {
   if (!j.tokens.length) {
     const D = j.diag || {}, why = [];
     if (!D.checked) why.push(j.mode === 'market' ? 'No token list from Solana Tracker yet — try again in a minute' : 'No KOL or smart buys in this time (is live tracking on?)');
-    else { why.push(`Checked ${fmt(D.checked)} tokens`); if (D.noLp) why.push(`${fmt(D.noLp)} not from a launchpad${j.waiting ? ' yet' : ''}`); if (D.unsafe) why.push(`${fmt(D.unsafe)} unsafe`);
-      if (D.quiet) why.push(`${fmt(D.quiet)} no buying now`); if (D.noSpike) why.push(`${fmt(D.noSpike)} no sudden spike`); if (D.filters) why.push(`${fmt(D.filters)} hidden by your filters`); }
+    else { why.push(`Checked ${fmt(D.checked)} tokens`); if (D.noLp) why.push(`${fmt(D.noLp)} not from a launchpad${j.waiting ? ' yet' : ''}`); if (D.lpOff) why.push(`${fmt(D.lpOff)} from launchpads that are off`); if (D.unsafe) why.push(`${fmt(D.unsafe)} unsafe`);
+      if (D.rules) why.push(`${fmt(D.rules)} outside the site rules`); if (D.filters) why.push(`${fmt(D.filters)} hidden by your filters`); }
     $('#fl').innerHTML = `<div class="cd center mu" style="padding:24px 16px">${j.waiting ? 'Checking tokens — they show up here in a few seconds.' : 'No tokens match right now.'}<div class="mu3" style="margin-top:8px">${esc(why.join(' · '))}</div></div>`; return autoRefresh(Feed); }
   const fake = j.locked ? Array.from({ length: Math.min(4, j.locked) }, (_, i) => `<div class="tk"><div class="av">??</div><div class="tm"><div class="t1">$LOCKED${i + 1}</div><div class="t2">2 KOL · 1 smart · 12 SOL in</div></div><div class="tr"><div class="t1">$420K</div><div class="t2 up">+38%</div></div></div>`).join('') : '';
   $('#fl').innerHTML = `<div class="cd" style="padding:2px 16px">${j.tokens.map(hotRow).join('')}</div>` + (j.locked ? `<div class="lockwrap"><div class="cd blur" style="padding:2px 16px">${fake}</div><div class="unlock">${lockCard(j.locked, 'tokens')}</div></div>` : '');
@@ -360,6 +360,19 @@ function hotRow(t) {
    <div class="tm"><div class="t1">${esc(t.sym ? '$' + t.sym : short(t.mint))} <span class="pl sm ${fire}">🔥 ${t.hot}</span> <span class="mu" style="font-weight:400">${t.created ? ago(t.created) : ''}</span></div>
     <div class="t2">${esc(who)}</div><div class="t2">${l2}</div>${entry}</div>
    <div class="tr"><div class="t1">${t.mc != null ? usd(t.mc) : '—'}</div><div class="t2">${pct(t.ch1)}</div></div></div>`;
+}
+async function SpikeFeed() {
+  let j; try { j = await api('/api/feed?tab=spikes'); } catch (e) { if (e.message !== 'down' && $('#fl')) $('#fl').innerHTML = `<div class="cd err">${esc(e.message)}</div>`; return; }
+  if (tab !== 'feed' || FS.tab !== 'spikes' || !$('#fl')) return;
+  for (const t of j.tokens) META.set(t.mint, { t: Date.now(), d: { sym: t.sym, name: t.name, img: t.img, mc: t.mc, liq: t.liq, ch1: t.ch1, ch5: t.pc && t.pc['5m'], ch24: t.pc && t.pc['24h'], age: t.created ? t.created * 1000 : null, url: null } });
+  const r = j.spk || { min: 15, buys: 3 };
+  $('#fwin').innerHTML = `<span class="ch on">Last ${r.min} min</span>`;
+  $('#fnote').innerHTML = `<span class="live"></span>${r.buys}+ buys in ${r.min} minutes${r.market ? ' · whole market too' : ''} · ${fmt(j.count)} token${j.count === 1 ? '' : 's'}`;
+  if (!j.tokens.length) { $('#fl').innerHTML = '<div class="cd center mu" style="padding:28px 16px">No spikes right now.</div>'; return autoRefresh(Feed); }
+  const fake = j.locked ? Array.from({ length: Math.min(4, j.locked) }, (_, i) => `<div class="tk"><div class="av">??</div><div class="tm"><div class="t1">$LOCKED${i + 1}</div><div class="t2">3 KOL · 2 smart</div></div><div class="tr"><div class="t1">$420K</div></div></div>`).join('') : '';
+  $('#fl').innerHTML = `<div class="cd" style="padding:2px 16px">${j.tokens.map(hotRow).join('')}</div>` + (j.locked ? `<div class="lockwrap"><div class="cd blur" style="padding:2px 16px">${fake}</div><div class="unlock">${lockCard(j.locked, 'tokens')}</div></div>` : '');
+  $('#fl').querySelectorAll('.tk[data-m]').forEach(x => x.onclick = () => tokenSheet(x.dataset.m));
+  autoRefresh(Feed);
 }
 // ---------- the filter sheet ----------
 let HT = 'lp', HD = null, HE = null;   // open tab, draft filters, open editor
@@ -430,7 +443,7 @@ function drawH() {
   const mk = marketMode(HD); let h = '';
   const sw = (label, on, attr) => `<div class="row" style="min-height:44px"><span>${label}</span><button class="tg ${on ? 'on' : ''}" ${attr} aria-label="${esc(label)}"></button></div>`;
   if (HT === 'lp') h = sec('Stage') + `<div class="cd" style="padding:2px 16px;margin:0">${sw('Bonding', HD.stage.bond, 'data-stage="bond"')}${sw('Migrated', HD.stage.mig, 'data-stage="mig"')}</div>` + rangeRow('age')
-    + sec('Launchpads') + `<div class="cd" style="padding:2px 16px;margin:0">${sw('All launchpads', !HD.lpOff.length, 'data-lpall')}</div><div class="cd" style="padding:2px 16px;margin:8px 0 0">${LPS.map(n => sw(n, !HD.lpOff.includes(n), `data-lp="${esc(n)}"`)).join('')}</div>`;
+    + sec('Launchpads') + `<div class="cd" style="padding:2px 16px;margin:0">${sw('All launchpads', !HD.lpOff.length, 'data-lpall')}</div><div class="cd" style="padding:2px 16px;margin:8px 0 0">${LPSf().map(n => sw(n, !HD.lpOff.includes(n), `data-lp="${esc(n)}"`)).join('')}</div>`;
   if (HT === 'basic') h = sec('Buyers') + `<div class="seg" style="margin:0">${['all', 'kol', 'smart'].map(k => `<button class="${HD.b[k] ? 'on' : ''}" data-buy="${k}">${{ all: 'All', kol: 'KOL', smart: 'Smart' }[k]}</button>`).join('')}</div>`
     + segRow('minsol', 'Minimum SOL in', [0, 5, 10, 25, 50], v => String(v), true, mk) + segRow('hold', 'Still holding', [0, 50, 75, 100], v => v === 100 ? 'All' : v === 50 ? 'Half+' : v + '%+', true, mk)
     + segRow('lastb', 'Last buy within', [0, 300, 900, 3600], fDur, true)
@@ -444,8 +457,8 @@ function drawH() {
   body.innerHTML = h;
   const gate = (k, fn) => () => { if (!proOK(k)) return proToast(); fn(); drawH(); countH(); };
   body.querySelectorAll('[data-stage]').forEach(x => x.onclick = gate('stage', () => { const k = x.dataset.stage; HD.stage[k] = !HD.stage[k]; if (!HD.stage.bond && !HD.stage.mig) HD.stage[k] = true; }));
-  body.querySelectorAll('[data-lp]').forEach(x => x.onclick = gate('lpOff', () => { const n = x.dataset.lp, i = HD.lpOff.indexOf(n); if (i >= 0) HD.lpOff.splice(i, 1); else HD.lpOff.push(n); if (HD.lpOff.length >= LPS.length) HD.lpOff = LPS.filter(z => z !== n); }));
-  body.querySelectorAll('[data-lpall]').forEach(x => x.onclick = gate('lpOff', () => { HD.lpOff = HD.lpOff.length ? [] : LPS.slice(1); }));
+  body.querySelectorAll('[data-lp]').forEach(x => x.onclick = gate('lpOff', () => { const n = x.dataset.lp, i = HD.lpOff.indexOf(n); if (i >= 0) HD.lpOff.splice(i, 1); else HD.lpOff.push(n); if (HD.lpOff.length >= LPSf().length) HD.lpOff = LPSf().filter(z => z !== n); }));
+  body.querySelectorAll('[data-lpall]').forEach(x => x.onclick = gate('lpOff', () => { HD.lpOff = HD.lpOff.length ? [] : LPSf().slice(1); }));
   body.querySelectorAll('[data-buy]').forEach(x => x.onclick = gate('b', () => { const k = x.dataset.buy; const was = marketMode(HD); HD.b[k] = !HD.b[k]; if (!HD.b.kol && !HD.b.smart) HD.b.all = true; }));
   body.querySelectorAll('[data-set]').forEach(x => x.onclick = gate(x.dataset.set, () => { HD[x.dataset.set] = +x.dataset.v; HE = null; }));
   body.querySelectorAll('[data-ed]').forEach(x => x.onclick = () => { const k = x.dataset.ed; if (!proOK(k)) return proToast(); HE = HE === k ? null : k; drawH(); bindEd(); });
@@ -470,7 +483,7 @@ function countH() {
   countH.t = setTimeout(async () => { const keep = HF; HF = HD; const q = hotQuery('&dry=1'); HF = keep;
     try { const j = await api(q); if ($('#hshow')) $('#hshow').textContent = `Show ${fmt(j.count)} token${j.count === 1 ? '' : 's'}`; } catch (e) { } }, 450);
 }
-async function loadHotPrefs() { if (!me) return; try { const j = await api('/api/prefs'); if (j.prefs && j.prefs.hot) { HF = { ...HF0(), ...j.prefs.hot }; HF.lpOff = (HF.lpOff || []).filter(x => LPS.includes(x)); localStorage.setItem(HFK, JSON.stringify(HF)); } } catch (e) { } }
+async function loadHotPrefs() { if (!me) return; try { const j = await api('/api/prefs'); if (j.prefs && j.prefs.hot) { HF = { ...HF0(), ...j.prefs.hot }; HF.lpOff = (HF.lpOff || []).filter(x => typeof x === 'string'); localStorage.setItem(HFK, JSON.stringify(HF)); } } catch (e) { } }
 
 // ---------- Feed ----------
 const FS = { tab: 'hot', win: 3600 };
@@ -489,6 +502,7 @@ async function Feed(quiet) {
     $('#fwin').querySelectorAll('[data-w]').forEach(c => c.onclick = () => { FS.win = +c.dataset.w; Feed(); });
   }
   if (FS.tab === 'hot') return HotFeed(true);
+  if (FS.tab === 'spikes') return SpikeFeed();
   let j; try { j = await api(`/api/feed?tab=${FS.tab}&win=${FS.win}`); } catch (e) { if (e.message !== 'down' && $('#fl')) $('#fl').innerHTML = `<div class="cd err">${esc(e.message)}</div>`; return; }
   await meta(j.tokens.map(t => t.mint));
   if (tab !== 'feed' || !$('#fl')) return;

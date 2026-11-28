@@ -153,7 +153,7 @@ const ICON = {
   refresh: '<path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/>', back: '<path d="M15 5l-7 7 7 7"/>', dots: '<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>',
   search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>', plus: '<path d="M12 5v14M5 12h14"/>', traffic: '<path d="M4 19V10M10 19V5M16 19v-7M22 19H2"/>',
   site: '<path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/>', keys: '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3"/>',
-  health: '<path d="M3 12h4l2-5 4 10 2-5h6"/>', datatest: '<path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.7 3h10.6a2 2 0 0 0 1.7-3l-5-9V3M7.5 14h9"/>', out: '<path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h11"/>'
+  health: '<path d="M3 12h4l2-5 4 10 2-5h6"/>', datatest: '<path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.7 3h10.6a2 2 0 0 0 1.7-3l-5-9V3M7.5 14h9"/>', rules: '<path d="M4 6h16M4 12h10M4 18h6"/><circle cx="18" cy="12" r="2"/><circle cx="14" cy="18" r="2"/>', lps: '<path d="M12 3c3 2 5 5.5 5 9.5L15 17H9l-2-4.5C7 8.5 9 5 12 3zM9 17l-2 4M15 17l2 4"/><circle cx="12" cy="10" r="1.6"/>', out: '<path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h11"/>'
 };
 const ico = d => `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
 const ICONS = { copy: ico('<rect x="9" y="9" width="11" height="11" rx="2.5"/><path d="M5 15V6a2 2 0 0 1 2-2h8"/>'), globe: ico('<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.8 3 2.8 15 0 18M12 3c-2.8 3-2.8 15 0 18"/>'),
@@ -278,7 +278,7 @@ window.addEventListener('hashchange', () => { if (me && me.isAdmin) go(location.
 
 // ---------- shell ----------
 const TABS = [['home', 'Home'], ['money', 'Money'], ['wallets', 'Wallets'], ['users', 'Users'], ['more', 'More']];
-const SUBS = { traffic: 'Traffic', site: 'Site control', keys: 'API keys', health: 'Health and logs', datatest: 'Data test' };
+const SUBS = { traffic: 'Traffic', site: 'Site control', rules: 'Feed rules', lps: 'Launchpads', keys: 'API keys', health: 'Health and logs', datatest: 'Data test' };
 function go(where, fromHash) {
   closeSheet(); document.querySelectorAll('.as').forEach(m => m.remove());
   const [t, s] = where.split('/');
@@ -330,7 +330,7 @@ function countUp(root) {
   });
 }
 function render() {
-  const f = { home: Home, money: Money, wallets: Wallets, users: Users, more: () => (sub ? { traffic: Traffic, site: Site, keys: Keys, health: Health, datatest: DataTest }[sub]() : More()) }[tab];
+  const f = { home: Home, money: Money, wallets: Wallets, users: Users, more: () => (sub ? { traffic: Traffic, site: Site, keys: Keys, health: Health, datatest: DataTest, rules: FeedRules, lps: Launchpads }[sub]() : More()) }[tab];
   const k = routeKey(), first = !SEEN.has(k); SEEN.add(k);
   const r = f(); if (first) Promise.resolve(r).then(() => countUp($('#app')));
   return r;
@@ -986,14 +986,59 @@ function userSheet(u) {
 
 // ---------- More ----------
 function More() {
-  const col = { traffic: '#0a84ff', site: '#8e8e93', keys: '#ff9f0a', health: '#ff375f', datatest: '#30d158' };
+  const col = { traffic: '#0a84ff', site: '#8e8e93', rules: '#5e5ce6', lps: '#bf5af2', keys: '#ff9f0a', health: '#ff375f', datatest: '#30d158' };
   $('#app').innerHTML = header('More') + `<div class="cd" style="padding:2px 16px">
    ${Object.entries(SUBS).map(([k, l]) => `<div class="row tap" style="margin:0 -16px;padding:9px 16px" onclick="location.hash='more/${k}'"><div class="sq" style="background:${col[k]}">${svg(k)}</div><span style="flex:1">${l}</span><span class="chev">›</span></div>`).join('')}</div>
    <div class="sec">Account</div>
    <div class="cd" style="padding:2px 16px"><div class="row"><div class="sq" style="background:#5e5ce6;border-radius:50%">${esc((me.email || me.wallet || '?')[0].toUpperCase())}</div><div class="rl"><div>${esc(me.email || short(me.wallet))}</div><div class="mu">Owner</div></div></div>
     <div class="row tap" id="so" style="margin:0 -16px;padding:9px 16px;color:var(--er)"><div class="sq" style="background:#ff453a">${svg('out')}</div><span style="flex:1">Sign out</span></div></div>
-   <div class="mu3 center" style="margin-top:18px">Holder Scan owner · server v10</div>`;
+   <div class="mu3 center" style="margin-top:18px">Holder Scan owner · server v15</div>`;
   $('#so').onclick = signOut;
+}
+
+// ---------- Feed rules (owner only) ----------
+// Every rule the server uses for Hot and Spikes before people's own filters. Off = not used. Safety rules are always on.
+const RULE_META = {
+  hot: [['Always on — safety', [['Launchpad coins only', null, 'lock'], ['Block mint / freeze authority', null, 'lock']]],
+    ['Tracked wallets (KOL / Smart)', [['minBuySol', 'Smallest buy that counts', 'sol']]],
+    ['Whole market', [['listSize', 'Token list size', 'cnt', 'noswitch'], ['mk5Buys', 'Buys in last 5 min, at least', 'cnt'], ['mk5Vol', 'Volume in last 5 min, at least', 'usd'], ['mkPace', 'Faster than normal, at least', 'x'], ['mkDead', 'Hide dead: no buys in', 'min']]],
+    ['Quality (all modes)', [['qLiq', 'Liquidity at least', 'usd'], ['qHolders', 'Holders at least', 'cnt'], ['qBundler', 'Bundler at most', 'pct'], ['qTop10', 'Top 10 holders at most', 'pct']]]],
+  spk: [['Spikes tab', [['win', 'Time window', 'min', 'noswitch'], ['buys', 'Buys at least', 'cnt', 'noswitch'], ['minBuySol', 'Smallest buy that counts', 'sol'], ['market', 'Count whole market too', null], ['mBuys', 'Whole market: buys in window, at least', 'cnt']]],
+    ['Quality', [['qLiq', 'Liquidity at least', 'usd'], ['qBundler', 'Bundler at most', 'pct']]]]
+};
+const RU_FMT = { sol: v => v + ' SOL', cnt: v => fmt(v), usd: v => '$' + Number(v).toLocaleString('en-US'), x: v => v + '×', min: v => v + ' min', pct: v => v + '%' };
+let RTAB = 'hot', RUL = null;
+async function FeedRules() {
+  loading('Feed rules');
+  try { RUL = (await api('/api/owner/rules')).rules; } catch (e) { return e.message === 'signed out' || errBox('Feed rules', e); }
+  drawRules();
+}
+function drawRules() {
+  $('#app').innerHTML = header('Feed rules', 'Rules the server uses for Hot and Spikes before people\'s own filters. Off = not used.') +
+   `<div class="seg" id="rtab">${[['hot', 'Hot'], ['spk', 'Spikes']].map(([k, l]) => `<button class="${RTAB === k ? 'on' : ''}" data-t="${k}">${l}</button>`).join('')}</div>` +
+   RULE_META[RTAB].map(([title, rows]) => `<div class="sec">${esc(title)}</div><div class="cd" style="padding:2px 16px">${rows.map(r => {
+     if (r[2] === 'lock') return `<div class="row"><span class="rl">${esc(r[0])}</span><span class="mu">Always on 🔒</span></div>`;
+     const [k, label, unit, opt] = r, x = RUL[RTAB][k] || {}, on = opt === 'noswitch' ? true : !!x.on;
+     return `<div class="row" style="${on ? '' : 'opacity:.55'}"><span class="rl">${esc(label)}</span>${unit ? `<button class="ch" data-v="${k}" style="margin-right:6px">${RU_FMT[unit](x.v)} ✎</button>` : ''}${opt === 'noswitch' ? '' : `<button class="tg ${x.on ? 'on' : ''}" data-s="${k}" aria-label="${esc(label)}"></button>`}</div>`; }).join('')}</div>`).join('') +
+   '<div class="mu3 center" style="margin-top:12px">Changes apply to everyone within a minute.</div>';
+  $('#rtab').querySelectorAll('button').forEach(b => b.onclick = () => { RTAB = b.dataset.t; drawRules(); });
+  const save = async (k, patch) => { const body = { rules: { [RTAB]: { [k]: { ...RUL[RTAB][k], ...patch } } } }; RUL = (await api('/api/owner/rules', { body })).rules; drawRules(); toast('Saved'); };
+  $('#app').querySelectorAll('[data-s]').forEach(b => b.onclick = () => act(b, () => save(b.dataset.s, { on: !RUL[RTAB][b.dataset.s].on })));
+  $('#app').querySelectorAll('[data-v]').forEach(b => b.onclick = () => { const k = b.dataset.v, row = RULE_META[RTAB].flatMap(g => g[1]).find(r => r[0] === k);
+    sheet(`<h3>${esc(row[1])}</h3><div class="field"><input type="number" id="rv" inputmode="decimal" value="${esc(RUL[RTAB][k].v)}"><div class="err" id="re" style="min-height:18px;margin-top:6px"></div></div><div class="g2"><button class="bt" onclick="closeSheet()">Cancel</button><button class="bt bp" id="rs">Save</button></div>`, bg => {
+      bg.querySelector('#rs').onclick = e => { const v = Number(bg.querySelector('#rv').value); if (!(bg.querySelector('#rv').value !== '' && isFinite(v) && v >= 0)) { bg.querySelector('#re').textContent = 'Enter a number, 0 or more'; return; } act(e.target, async () => { closeSheet(); await save(k, { v, on: row[3] === 'noswitch' ? 1 : 1 }); }); };
+    }); });
+}
+
+// ---------- Launchpads (owner only) ----------
+async function Launchpads() {
+  loading('Launchpads');
+  let j; try { j = await api('/api/owner/launchpads'); } catch (e) { return e.message === 'signed out' || errBox('Launchpads', e); }
+  const row = (x, extra) => `<div class="row" style="min-height:48px"><div class="rl"><div>${esc(x.name)}</div>${extra ? `<div class="mu">${extra}</div>` : ''}</div><button class="tg ${x.on ? 'on' : ''}" data-n="${esc(x.name)}" aria-label="${esc(x.name)}"></button></div>`;
+  $('#app').innerHTML = header('Launchpads', 'Only coins from launchpads switched on show in Scan Holders. New launchpads are added here automatically, switched off.') +
+   `<div class="sec">Known launchpads · ${j.known.filter(x => x.on).length} of ${j.known.length} on</div><div class="cd" style="padding:2px 16px">${j.known.map(x => row(x)).join('')}</div>
+    <div class="sec">New ones seen</div><div class="cd" style="padding:2px 16px">${j.seen.length ? j.seen.map(x => row(x, `first seen ${ago(x.first)} · e.g. ${short(x.example || '')}`)).join('') : '<div class="row mu">None yet — new launchpad names show up here by themselves</div>'}</div>`;
+  $('#app').querySelectorAll('[data-n]').forEach(b => b.onclick = () => act(b, async () => { const on = !b.classList.contains('on'); await api('/api/owner/launchpads', { body: { set: { [b.dataset.n]: on } } }); b.classList.toggle('on', on); toast(on ? 'Switched on' : 'Switched off'); }));
 }
 
 // ---------- Data test (owner only) ----------
@@ -1035,6 +1080,7 @@ function drawDT() {
     return `<div class="sec" style="display:flex;justify-content:space-between;align-items:center;text-transform:none"><span>${esc(t.symbol ? '$' + t.symbol : short(t.mint))} · ${short(t.mint)}</span><a class="lk" style="font-size:14px" href="https://gmgn.ai/sol/token/${esc(t.mint)}" target="_blank" rel="noopener">GMGN ↗</a></div>
      <div class="cd" style="padding:2px 16px">
       ${t.status.info !== 200 || t.status.stats !== 200 ? `<div class="row"><span class="err">Solana Tracker answered ${t.status.info} / ${t.status.stats}</span></div>` : ''}
+      ${(t.pools || []).map(p => `<div class="row"><span class="mu">Pool</span><span style="text-align:right">${esc(p.market || '—')}${p.launchpad ? ' · ' + esc(typeof p.launchpad === 'string' ? p.launchpad : JSON.stringify(p.launchpad)) : ''}<div class="mu3" style="word-break:break-all">${esc(p.fields)}</div></span></div>`).join('')}
       <div class="row"><span style="font-weight:600">Fees</span><span class="mu">${fees.length ? '' : 'not given'}</span></div>
       ${fees.map(([k, v]) => `<div class="row"><span class="mu">${esc(k)}</span><span>${esc(typeof v === 'number' ? (Math.round(v * 10000) / 10000).toLocaleString('en-US') : JSON.stringify(v))}</span></div>`).join('')}
       <div class="row"><span style="font-weight:600">Price change</span><span class="mu" style="display:flex;gap:14px"><span style="width:62px;text-align:right">Tracker</span><span style="width:62px;text-align:right">DexScr.</span></span></div>

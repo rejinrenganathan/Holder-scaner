@@ -9,7 +9,7 @@
 // the plan price to the payment wallet with that key attached. The server finds the transfer by the key on Helius, checks recipient,
 // exact amount, confirmation and that the signature was never used before, then turns the plan on. A cron re-checks every 5 minutes.
 
-const API_V = 14;
+const API_V = 15;
 // Owner wallet(s) — always allowed into the dashboard. More owners can be added in Site control.
 const OWNER_WALLETS = 'CZQkA9JszBPP7x2LescrtZwh1LGoxZwnW68wLbdFPz93';
 // Sites allowed to call this API from a browser
@@ -32,7 +32,7 @@ const DEFAULTS = {
   prices: JSON.stringify({ m1: 2, m3: 5, m6: 9, m12: 15, lifetime: 30 }), founder_max: '100',
   free_tokens: '4', free_wallets: '10', paid_wallets: '4000',
   pay_wallet: OWNER_WALLETS.split(',')[0], owner_wallets: OWNER_WALLETS, owner_emails: '', google_client_id: '',
-  hook_id: '', hook_secret: '', hook_url: '', hook_count: '0', hook_synced: '0', hook_err: '', hook_dirty: '0'
+  hook_id: '', hook_secret: '', hook_url: '', hook_count: '0', hook_synced: '0', hook_err: '', hook_dirty: '0', lps: '{}', lp_seen: '{}', rules: '{}'
 };
 const PUBLIC_KEYS = ['site_live', 'signups', 'payments', 'founder', 'alerts', 'announce', 'prices', 'founder_max', 'free_tokens', 'free_wallets', 'paid_wallets', 'pay_wallet'];
 const SENSITIVE = ['pay_wallet', 'owner_wallets', 'owner_emails', 'google_client_id'];
@@ -228,6 +228,7 @@ async function handle(req, env, ctx) {
     out.prices = JSON.parse(s.prices);
     const sold = await env.DB.prepare("SELECT COUNT(*) n FROM users WHERE plan = 'lifetime'").first();
     out.founderLeft = Math.max(0, Number(s.founder_max) - (sold ? sold.n : 0));
+    const L = await lpState(env, s); out.launchpads = Object.keys(L.on).filter(k => L.on[k] && (LP_KEY[k.toLowerCase()] || L.seen[k]));
     return json(req, { ok: true, site: out });
   }
   // sign-in options for the owner page
@@ -457,15 +458,45 @@ async function solPrice() {
 //  • DexScreener (free, 30 tokens per call): market cap, liquidity, volume, price change, buys/sells, boosts, paid profile, socials
 //  • Solana Tracker (your key, paced one call at a time): launchpad pool, safety (bundlers, snipers, top 10, dev), fees, holders, unique buyers
 //  • DexScreener orders (paced): ads — only when someone uses the Ads filter
+// Launchpad list: the owner turns each one on/off in the dashboard (More → Launchpads).
+// A coin's launchpad is found from Solana Tracker's launchpad name, then the mint ending, then the pool type.
+// Names nobody has seen before are added to the dashboard list automatically, switched off, so no launchpad is ever missed.
+const LP_REG = [
+  ['Pump.fun', 1, ['pumpfun', 'pump.fun', 'pump', 'pumpfun-amm', 'pumpswap', 'pump-amm', 'pump_mayhem', 'pumpmayhem', 'pump_agent', 'pump_mayhem_agent']],
+  ['Bonk.fun', 1, ['letsbonk', 'letsbonk.fun', 'bonk', 'bonk.fun', 'bonkfun']], ['Bonkers', 1, ['bonkers']],
+  ['Raydium LaunchLab', 1, ['raydium-launchpad', 'launchlab', 'raydium-launchlab', 'raydiumlaunchlab']], ['StonkFun', 1, ['stonk', 'stonkfun', 'stonk.fun', 'launchonsf']],
+  ['Bags', 1, ['bags', 'bags.fm']], ['Moonit', 1, ['moonshot', 'moonit', 'moonshot_app', 'moonshot-app']], ['Boop', 1, ['boop', 'boop.fun']],
+  ['Sugar', 1, ['sugar']], ['Memoo', 1, ['memoo']], ['Liquid', 1, ['liquid']], ['GoFundMeme', 1, ['gofundmeme']], ['Daos.fun', 1, ['daos.fun', 'daosfun', 'daos']],
+  ['Rise', 1, ['rise']], ['Printr', 1, ['printr']], ['Anoncoin', 1, ['anoncoin']], ['YeetLaunch', 1, ['yeetlaunch', 'yeet']], ['Wavebreak', 1, ['wavebreak']],
+  ['Cooking.City', 1, ['cooking.city', 'cookingcity']], ['TokenMill', 1, ['tokenmill', 'tokenmill-v2']], ['Time.fun', 1, ['time.fun', 'timefun']],
+  ['Believe', 0, ['believe', 'believeapp']], ['Jupiter Studio', 0, ['jupiter-studio', 'jup_studio', 'jupstudio', 'jup-studio', 'jupiter studio']], ['Heaven', 0, ['heaven', 'heavenamm', 'heavendex']],
+  ['Meteora DBC (other)', 0, ['meteora-curve', 'meteora-dbc', 'dbc', 'dynamic-bonding-curve']], ['Zora', 0, ['zora', 'zora solana']], ['Virtuals', 0, ['virtuals']], ['MetaDAO', 0, ['metadao']]];
+const LP_KEY = {}; for (const [name, , keys] of LP_REG) { LP_KEY[name.toLowerCase()] = name; for (const k of keys) LP_KEY[k] = name; }
+const normLp = x => String(x || '').trim().toLowerCase().replace(/\s+/g, ' ');
 const SUFFIX_LP = [[/pump$/, 'Pump.fun'], [/bonk$/, 'Bonk.fun'], [/BAGS$/, 'Bags'], [/boop$/, 'Boop']];
-const MARKET_LP = { pumpfun: 'Pump.fun', 'pumpfun-amm': 'Pump.fun', pumpswap: 'Pump.fun', 'raydium-launchpad': 'Raydium LaunchLab', launchlab: 'Raydium LaunchLab',
-  moonshot: 'Moonit', moonit: 'Moonit', boop: 'Boop', bags: 'Bags',
-  // Meteora DBC coins (Believe, Jupiter Studio, Heaven…) are never shown: their curve can change trading fees (owner decision 28 Nov 2026). Bags is kept (found by its BAGS ending).
-  'meteora-curve': 'BLOCKED', 'meteora-dbc': 'BLOCKED', believe: 'BLOCKED', 'jupiter-studio': 'BLOCKED', heaven: 'BLOCKED' };
+// pool types that are still on a launchpad's curve (not migrated)
 const CURVE_MARKETS = new Set(['pumpfun', 'raydium-launchpad', 'launchlab', 'moonshot', 'moonit', 'boop', 'meteora-curve', 'meteora-dbc', 'heaven', 'bags']);
-const LP_NAMES = ['Pump.fun', 'Bonk.fun', 'Raydium LaunchLab', 'Bags', 'Moonit', 'Boop'];
+const AMM_MARKETS = new Set(['raydium', 'raydium-cpmm', 'raydium-amm', 'raydium-clmm', 'meteora', 'meteora-damm', 'meteora-damm-v2', 'meteora-dlmm', 'orca', 'pumpswap', 'pumpfun-amm', 'pump-amm']);
+const lpDefaults = () => Object.fromEntries(LP_REG.map(([n, on]) => [n, !!on]));
+async function lpState(env, s) {   // { name: on } for every known + seen launchpad
+  let saved = {}, seen = {}; try { saved = JSON.parse(s.lps || '{}'); } catch (e) { } try { seen = JSON.parse(s.lp_seen || '{}'); } catch (e) { }
+  const st = { ...lpDefaults() }; for (const k of Object.keys(seen)) if (!(k in st)) st[k] = false;
+  for (const [k, v] of Object.entries(saved)) if (k in st) st[k] = !!v;
+  return { on: st, seen };
+}
+// the Feed rules screen: every rule the server uses before user filters; off = not used (owner decision: no hidden rules)
+const RULES0 = {
+  hot: { minBuySol: { on: 1, v: 0.1 }, listSize: { on: 1, v: 1500 }, mk5Buys: { on: 0, v: 15 }, mk5Vol: { on: 0, v: 3000 }, mkPace: { on: 0, v: 2 }, mkDead: { on: 0, v: 15 },
+    qLiq: { on: 0, v: 5000 }, qHolders: { on: 0, v: 50 }, qBundler: { on: 0, v: 10 }, qTop10: { on: 0, v: 30 } },
+  spk: { win: { on: 1, v: 15 }, buys: { on: 1, v: 3 }, minBuySol: { on: 1, v: 0.1 }, market: { on: 0 }, mBuys: { on: 0, v: 50 }, qLiq: { on: 0, v: 5000 }, qBundler: { on: 0, v: 10 } } };
+function rulesOf(s) {
+  let r = {}; try { r = JSON.parse(s.rules || '{}'); } catch (e) { }
+  const out = JSON.parse(JSON.stringify(RULES0));
+  for (const g of ['hot', 'spk']) for (const k of Object.keys(out[g])) { const x = r[g] && r[g][k]; if (x && typeof x === 'object') { out[g][k].on = x.on ? 1 : 0; if ('v' in out[g][k] && isFinite(+x.v) && +x.v >= 0) out[g][k].v = +x.v; } }
+  return out;
+}
+const R = (r, k) => r[k] && r[k].on ? r[k].v : null;   // rule value when on, else null
 const sleep = ms => new Promise(r => setTimeout(r, globalThis.__FAST_TEST ? 0 : ms));   // tests skip the pauses
-const SEEN_MARKETS = new Set(Object.keys(MARKET_LP).concat(['raydium', 'raydium-cpmm', 'raydium-amm', 'raydium-clmm', 'meteora', 'meteora-damm', 'meteora-damm-v2', 'orca', 'pumpswap']));
 function classifyLinks(urls) {
   const s = { x: false, tg: false, web: false, ig: false, tt: false };
   for (const u0 of urls) { const u = String(u0 || '').toLowerCase(); if (!u) continue;
@@ -489,7 +520,8 @@ function stMeta(ti) {
   const sec = main.security || {}, ext = { ...(tk.extensions || {}), ...(tk.strictSocials || {}) };
   let ct = tk.creation && tk.creation.created_time; if (ct > 1e12) ct = Math.floor(ct / 1000);
   const pct = o => o && typeof o.totalPercentage === 'number' ? o.totalPercentage : null;
-  return { symS: tk.symbol, nameS: tk.name, imgS: tk.image, markets, created: ct || null, liqS: main.liquidity ? main.liquidity.usd ?? null : null, mcS: main.marketCap ? main.marketCap.usd ?? null : null,
+  const lpNames = [...new Set([tk.launchpad, ti.launchpad, ...pools.map(p => p && (p.launchpad || p.launchpadName || p.platform))].map(x => x && typeof x === 'object' ? (x.name || x.id || '') : x).filter(x => typeof x === 'string' && x).map(normLp))];
+  return { symS: tk.symbol, nameS: tk.name, imgS: tk.image, markets, lpNames, created: ct || null, liqS: main.liquidity ? main.liquidity.usd ?? null : null, mcS: main.marketCap ? main.marketCap.usd ?? null : null,
     freeze: 'freezeAuthority' in sec ? sec.freezeAuthority : undefined, mintA: 'mintAuthority' in sec ? sec.mintAuthority : undefined, curve: typeof main.curvePercentage === 'number' ? main.curvePercentage : null,
     bundlers: pct(r.bundlers), snipers: pct(r.snipers), top10: typeof r.top10 === 'number' ? r.top10 : null, dev: r.dev && typeof r.dev.percentage === 'number' ? r.dev.percentage : null,
     fees: r.fees && typeof r.fees.total === 'number' ? r.fees.total : null, holders: typeof ti.holders === 'number' ? ti.holders : null,
@@ -557,7 +589,6 @@ async function stWork(env, mints, wantOrders) {
       if (b.j) { const ub = {}; for (const k of ['15m', '30m', '1h', '24h']) if (b.j[k] && typeof b.j[k].buyers === 'number') ub[k] = b.j[k].buyers;
         patch.ub = ub; if (b.j['30m'] && typeof b.j['30m'].priceChangePercentage === 'number') patch.pc30 = b.j['30m'].priceChangePercentage; }
       await metaPut(env, { [m]: patch }, 'st'); n++;
-      for (const mk of patch.markets || []) if (!SEEN_MARKETS.has(mk)) { SEEN_MARKETS.add(mk); await logEvent(env, 'info', 'launchpads', `New pool type seen: ${mk} (token ${short4(m)})`, 'Tell Claude so it can be named in the Launchpads list'); }
       await sleep(1050);
     }
     if (wantOrders) for (const m of mints.filter(m => !metas[m] || now() - (metas[m]._ot || 0) > 900).slice(0, 15)) {
@@ -572,7 +603,7 @@ async function stWork(env, mints, wantOrders) {
   return n;
 }
 // whole-market candidates (KOL and Smart both off): Solana Tracker's latest / graduating / graduated launchpad tokens, refreshed once a minute for everyone
-async function marketMints(env) {
+async function marketMints(env, size) {
   const DB = env.DB, c = await DB.prepare("SELECT v FROM settings WHERE k = 'mkt'").first();
   let cache = null; try { cache = c ? JSON.parse(c.v) : null; } catch (e) { }
   if (cache && now() - cache.t < 60) return cache.m;
@@ -582,7 +613,7 @@ async function marketMints(env) {
     const get = async p => { const r = await fetch('https://data.solanatracker.io' + p, { headers: { 'x-api-key': key, accept: 'application/json' } }); await bump(env, 'call_stracker');
       const j = r.ok ? await r.json().catch(() => null) : null; if (!r.ok) await logEvent(env, 'error', 'hot', `Solana Tracker ${p.split('?')[0]} answered ${r.status}`, r.status === 429 ? 'Too many calls — it retries next minute' : r.status === 401 || r.status === 403 ? 'Check the Solana Tracker key / plan' : 'It retries next minute'); return j; };
     let list = [];
-    const j = await get('/tokens/multi/all?limit=100');
+    const j = await get('/tokens/multi/all?limit=' + Math.max(50, Math.min(500, Math.ceil((size || 1500) / 3))));
     if (j && typeof j === 'object' && !Array.isArray(j)) list = [...(j.latest || []), ...(j.graduating || []), ...(j.graduated || [])];
     if (!list.length) { await sleep(1100); const tr = await get('/tokens/trending/5m'); if (Array.isArray(tr)) list = tr; }
     if (!list.length) { await sleep(1100); const la = await get('/tokens/latest'); if (Array.isArray(la)) list = la; }
@@ -596,15 +627,17 @@ async function marketMints(env) {
   } catch (e) { return cache ? cache.m : []; }
 }
 // ---- reading a token's numbers (one place, so every filter reads the same value) ----
-function lpOf(mint, m) {
-  for (const [re, name] of SUFFIX_LP) if (re.test(mint)) return name;
-  for (const mk of m.markets || []) if (MARKET_LP[mk]) return MARKET_LP[mk];
-  if (MARKET_LP[m.dexId]) return MARKET_LP[m.dexId];
-  return null;
+function lpOf(mint, m) {   // → { name, known }  (name null = not a launchpad coin as far as we can tell)
+  for (const n of m.lpNames || []) return { name: LP_KEY[n] || n, known: !!LP_KEY[n] };
+  for (const [re, name] of SUFFIX_LP) if (re.test(mint)) return { name, known: true };
+  for (const mk of m.markets || []) if (LP_KEY[mk]) return { name: LP_KEY[mk], known: true };
+  if (LP_KEY[m.dexId]) return { name: LP_KEY[m.dexId], known: true };
+  const curve = (m.markets || []).find(x => !AMM_MARKETS.has(x));   // an unknown curve-type pool → new launchpad to show in the dashboard
+  return curve ? { name: curve, known: false } : { name: null, known: false };
 }
 function stageOf(m) {
   const mk = m.markets || [];
-  if (mk.length) return mk.some(x => !CURVE_MARKETS.has(x)) ? 'mig' : 'bond';
+  if (mk.length) return mk.some(x => AMM_MARKETS.has(x)) ? 'mig' : 'bond';
   if (m.dexId) return CURVE_MARKETS.has(m.dexId) ? 'bond' : 'mig';
   return null;
 }
@@ -613,7 +646,8 @@ const ubKey = w => w <= 900 ? '15m' : w <= 3600 ? '1h' : '24h';
 function view(mint, m, win) {
   const st = stageOf(m), k = winKey(win), tx = (m.tx || {})[k], vol = (m.vol || {})[k] ?? null;
   const soc = m.socD || {}, so = m.socS || {};
-  return { lp: lpOf(mint, m), stage: st, created: m.created || m.pairAt || null,
+  const lp = lpOf(mint, m);
+  return { lp: lp.name, lpKnown: lp.known, stage: st, created: m.created || m.pairAt || null,
     mc: m.mcD ?? m.mcS ?? null, liq: st === 'bond' ? (m.liqS ?? m.liqD ?? null) : (m.liqD ?? m.liqS ?? null),
     vol, buys: tx ? tx.b : null, sells: tx ? tx.s : null, bs: tx && tx.s ? tx.b / tx.s : tx && tx.b ? tx.b : null,
     ub: m.ub ? m.ub[ubKey(win)] ?? null : null, fees: m.fees ?? null, holders: m.holders ?? null,
@@ -632,7 +666,7 @@ function parseFilters(raw, full) {
   const b = f.b || {}, out = { b: { all: b.all !== false, kol: b.kol !== false, smart: b.smart !== false } };
   if (!out.b.kol && !out.b.smart) out.b.all = true;
   out.stage = { bond: !f.stage || f.stage.bond !== false, mig: !f.stage || f.stage.mig !== false }; if (!out.stage.bond && !out.stage.mig) out.stage = { bond: true, mig: true };
-  out.lpOff = Array.isArray(f.lpOff) ? f.lpOff.filter(x => LP_NAMES.includes(x)) : []; if (out.lpOff.length >= LP_NAMES.length) out.lpOff = [];
+  out.lpOff = Array.isArray(f.lpOff) ? f.lpOff.filter(x => typeof x === 'string' && x.length <= 60).slice(0, 80) : [];
   out.age = range(f.age, 1e9); out.mc = range(f.mc, 1e13); out.liq = range(f.liq, 1e12);
   out.minb = 0;   // Minimum buyers filter removed (owner decision 28 Nov 2026)
   if (!full) { out.sort = 'hot'; return out; }
@@ -648,39 +682,45 @@ function parseFilters(raw, full) {
 // 15 buys in 5 min ≈ 30, 200 ≈ 60, 1,000+ with a strong spike ≈ 90+
 const mktScore = (b5, ratio) => Math.max(1, Math.min(99, Math.round(25 * Math.log10(1 + (b5 || 0)) + 6 * Math.min(5, ratio || 0))));
 const inR = (v, r) => !r || (v != null && (r.min == null || v >= r.min) && (r.max == null || v <= r.max));   // filter on + no data → hidden
-async function hotFeed(req, env, s, u, full, later, q) {
+async function hotFeed(req, env, s, u, full, later, q, spikes) {
   const DB = env.DB, t = now(), uid = u ? u.id : -1, follow = !u || u.follow !== 0;
-  const win = [900, 3600, 14400, 86400].includes(+q.get('win')) ? +q.get('win') : 3600;
-  const f = parseFilters(q.get('f'), full), tracked = f.b.kol || f.b.smart, FREE = Math.max(1, +s.free_tokens || 4);
+  const RU = rulesOf(s), rh = spikes ? RU.spk : RU.hot, LPS = await lpState(env, s);
+  const win = spikes ? Math.max(60, (R(RU.spk, 'win') || 15) * 60) : [900, 3600, 14400, 86400].includes(+q.get('win')) ? +q.get('win') : 3600;
+  const f = spikes ? parseFilters(JSON.stringify({ b: { all: false, kol: true, smart: true } }), full) : parseFilters(q.get('f'), full);
+  const tracked = f.b.kol || f.b.smart, FREE = Math.max(1, +s.free_tokens || 4);
+  const minBuy = R(rh, 'minBuySol') || 0;
   const kinds = [f.b.kol ? 'kol' : null, f.b.smart ? 'smart' : null].filter(Boolean);
   let toks = [];
   if (tracked) {
     // one row per token + wallet: buys in the window (0.1 SOL or more), token amounts for "still holding", last buy
     const rows = (await DB.prepare(`SELECT t.mint, t.wallet, COALESCE(sw.kind, uw.kind, 'smart') kind, sw.name, sw.handle, uw.name uname,
-        SUM(CASE WHEN t.side = 'buy' AND t.ts > ?1 AND t.sol >= 0.1 THEN t.sol ELSE 0 END) bsol,
-        SUM(CASE WHEN t.side = 'buy' AND t.ts > ?1 AND t.sol >= 0.1 THEN 1 ELSE 0 END) bn,
-        MIN(CASE WHEN t.side = 'buy' AND t.ts > ?1 AND t.sol >= 0.1 THEN t.ts END) bfirst,
-        MAX(CASE WHEN t.side = 'buy' AND t.sol >= 0.1 THEN t.ts END) blast,
+        SUM(CASE WHEN t.side = 'buy' AND t.ts > ?1 AND t.sol >= ?4 THEN t.sol ELSE 0 END) bsol,
+        SUM(CASE WHEN t.side = 'buy' AND t.ts > ?1 AND t.sol >= ?4 THEN 1 ELSE 0 END) bn,
+        MIN(CASE WHEN t.side = 'buy' AND t.ts > ?1 AND t.sol >= ?4 THEN t.ts END) bfirst,
+        MAX(CASE WHEN t.side = 'buy' AND t.sol >= ?4 THEN t.ts END) blast,
         SUM(CASE WHEN t.side = 'buy' THEN t.amt ELSE 0 END) bamt, SUM(CASE WHEN t.side = 'buy' AND t.amt > 0 THEN t.sol ELSE 0 END) bsolA,
         SUM(CASE WHEN t.side = 'sell' THEN t.amt ELSE 0 END) samt, SUM(CASE WHEN t.side = 'sell' THEN 1 ELSE 0 END) sn
       FROM trades t LEFT JOIN site_wallets sw ON sw.wallet = t.wallet AND sw.hidden = 0 LEFT JOIN user_wallets uw ON uw.wallet = t.wallet AND uw.user_id = ?2
       WHERE t.ts > ?3 AND (sw.wallet IS NOT NULL OR uw.wallet IS NOT NULL)${follow ? '' : ' AND uw.wallet IS NOT NULL'}
-      GROUP BY t.mint, t.wallet HAVING bn > 0 LIMIT 6000`).bind(t - win, uid, t - 48 * 3600).all()).results || [];
+      GROUP BY t.mint, t.wallet HAVING bn > 0 LIMIT 6000`).bind(t - win, uid, t - 48 * 3600, minBuy).all()).results || [];
     const by = {};
     for (const r of rows) {
       if (!kinds.includes(r.kind)) continue;
       const holding = r.bamt > 0 ? (r.bamt - r.samt) / r.bamt > 0.5 : r.sn === 0;
       const age = t - r.blast, fresh = age < 900 ? 1 : age < 3600 ? 0.7 : age < 14400 ? 0.4 : 0.2;
-      const x = by[r.mint] = by[r.mint] || { mint: r.mint, kol: 0, smart: 0, buyers: 0, solIn: 0, holding: 0, first: Infinity, last: 0, raw: 0, sold: 0, w: [], entrySol: 0, entryAmt: 0, firstPx: null, firstTs: Infinity };
-      x[r.kind]++; x.buyers++; x.solIn += r.bsol; if (holding) x.holding++; else x.sold++;
+      const x = by[r.mint] = by[r.mint] || { mint: r.mint, nb: 0, kol: 0, smart: 0, buyers: 0, solIn: 0, holding: 0, first: Infinity, last: 0, raw: 0, sold: 0, w: [], entrySol: 0, entryAmt: 0, firstPx: null, firstTs: Infinity };
+      x[r.kind]++; x.buyers++; x.nb += r.bn; x.solIn += r.bsol; if (holding) x.holding++; else x.sold++;
       x.first = Math.min(x.first, r.bfirst); x.last = Math.max(x.last, r.blast);
       x.raw += (r.kind === 'kol' ? 3 : 2) * fresh * (holding ? 1 : 0.3);
       if (r.bamt > 0 && r.bsolA > 0) { x.entrySol += r.bsolA; x.entryAmt += r.bamt; if (r.bfirst < x.firstTs) { x.firstTs = r.bfirst; x.firstPx = r.bsolA / r.bamt; } }
       x.w.push({ w: r.wallet, kind: r.kind, name: r.name || r.uname || '', x: r.handle || '', sol: Math.round(r.bsol * 100) / 100, ts: r.bfirst, holding });
     }
-    toks = Object.values(by).map(x => { x.raw += Math.log2(1 + x.solIn) * 0.5; return x; }).sort((a, b) => b.raw - a.raw).slice(0, 150);
+    toks = Object.values(by).map(x => { x.raw += Math.log2(1 + x.solIn) * 0.5; return x; });
+    if (spikes) toks = toks.filter(x => x.nb >= (R(RU.spk, 'buys') || 1));
+    toks = toks.sort((a, b) => b.raw - a.raw).slice(0, 150);
+    if (spikes && RU.spk.market.on) { const have = new Set(toks.map(x => x.mint)); for (const mint of await marketMints(env, R(RU.hot, 'listSize') || 1500)) if (!have.has(mint)) toks.push({ mint, market: true, spikeMkt: true }); }
   } else {
-    toks = (await marketMints(env)).map(mint => ({ mint, market: true }));
+    toks = (await marketMints(env, R(rh, 'listSize') || 1500)).map(mint => ({ mint, market: true }));
   }
   const mints = toks.map(x => x.mint), metas = await metaGet(env, mints);
   await dexRefresh(env, mints, metas);
@@ -688,26 +728,34 @@ async function hotFeed(req, env, s, u, full, later, q) {
   if (needST.length || f.ads) later(stWork(env, tracked ? mints.slice(0, 60) : needST, f.ads).catch(() => 0));
   const px = await solPrice();
   let waiting = 0;
-  const pass = [], D = { checked: toks.length, noLp: 0, unsafe: 0, quiet: 0, noSpike: 0, filters: 0 };
+  const pass = [], D = { checked: toks.length, noLp: 0, lpOff: 0, unsafe: 0, rules: 0, filters: 0 }, newLp = {};
   for (const x of toks) {
     const m = metas[x.mint] || {}, v = view(x.mint, m, win);
-    if (!v.lp || v.lp === 'BLOCKED') { if (!v.lp && !v.hasST) waiting++; D.noLp++; continue; }   // launchpad tokens only (unknown → wait for Solana Tracker)
-    if (v.unsafe) { D.unsafe++; continue; }                                                     // mint or freeze authority still on → never shown
+    if (!v.lp) { if (!v.hasST) waiting++; D.noLp++; continue; }                     // safety (always on): launchpad coins only
+    if (!v.lpKnown && !(v.lp in LPS.on)) newLp[v.lp] = x.mint;                        // new launchpad name → dashboard list (off)
+    if (!LPS.on[v.lp]) { D.lpOff++; continue; }                                       // owner switched this launchpad off
+    if (v.unsafe) { D.unsafe++; continue; }                                            // safety (always on): mint or freeze authority still set
     if (!f.stage[v.stage === 'bond' ? 'bond' : 'mig'] && v.stage) continue;
     if (!v.stage && !(f.stage.bond && f.stage.mig)) continue;
     if (f.lpOff.includes(v.lp)) continue;
     const ageS = v.created ? t - v.created : null;
     if (!inR(ageS, f.age) || !inR(v.mc, f.mc) || !inR(v.liq, f.liq)) continue;
     let hot, buyersN, sol;
+    // owner's Feed rules (only the ones switched on)
+    const q1 = R(rh, 'qLiq'), q2 = R(rh, 'qHolders'), q3 = R(rh, 'qBundler'), q4 = R(rh, 'qTop10');
+    if ((q1 != null && !(v.liq >= q1)) || (q2 != null && !(v.holders >= q2)) || (q3 != null && !(v.bundlers != null && v.bundlers <= q3)) || (q4 != null && !(v.top10 != null && v.top10 <= q4))) { D.rules++; continue; }
     if (x.market) {
-      // whole market: sudden buying only, no dead tokens
       const t5 = (m.tx || {}).m5, t1 = (m.tx || {}).h1, v5 = (m.vol || {}).m5;
-      if (!t5 || !(v5 >= 500)) { D.quiet++; continue; }
-      const ratio = t1 && t1.b ? t5.b / Math.max(1, t1.b / 12) : t5.b ? 5 : 0;
-      if (!(t5.b >= 15 && v5 >= 3000 && ratio >= 2)) { D.noSpike++; continue; }
+      const ratio = t5 && t1 && t1.b ? t5.b / Math.max(1, t1.b / 12) : t5 && t5.b ? 5 : 0;
+      if (x.spikeMkt) { const tx = (m.tx || {})[winKey(win)]; if (!(tx && tx.b >= (R(RU.spk, 'mBuys') || 0))) { D.rules++; continue; } }
+      else {
+        const a = R(rh, 'mk5Buys'), b2 = R(rh, 'mk5Vol'), c = R(rh, 'mkPace'), d = R(rh, 'mkDead');
+        if ((a != null && !(t5 && t5.b >= a)) || (b2 != null && !(v5 >= b2)) || (c != null && !(ratio >= c))) { D.rules++; continue; }
+        if (d != null) { const k = d <= 5 ? 'm5' : d <= 60 ? 'h1' : d <= 360 ? 'h6' : 'h24'; const tx = (m.tx || {})[k]; if (!(tx && tx.b > 0)) { D.rules++; continue; } }
+      }
       buyersN = v.buys; sol = null;
-      hot = mktScore(t5.b, ratio);
-      x.spike = Math.round(ratio * 10) / 10;
+      hot = t5 ? mktScore(t5.b, ratio) : 1;
+      x.spike = ratio ? Math.round(ratio * 10) / 10 : null;
     } else {
       buyersN = x.buyers; sol = x.solIn;
       const own = Math.min(99, Math.round(x.raw * 8));
@@ -737,10 +785,13 @@ async function hotFeed(req, env, s, u, full, later, q) {
   }
   const key = { hot: z => z.hot, new: z => z.created || 0, buyers: z => z.buyers || 0, sol: z => z.solIn ?? z.vol ?? 0, mc: z => z.mc || 0, vol: z => z.vol || 0, fees: z => z.fees || 0 }[f.sort] || (z => z.hot);
   pass.sort((a, b) => key(b) - key(a) || (b.last || 0) - (a.last || 0));
-  D.filters = Math.max(0, D.checked - D.noLp - D.unsafe - D.quiet - D.noSpike - pass.length);
+  D.filters = Math.max(0, D.checked - D.noLp - D.lpOff - D.unsafe - D.rules - pass.length);
+  if (Object.keys(newLp).length) later((async () => { const s2 = await getSettings(env); let seen = {}; try { seen = JSON.parse(s2.lp_seen || '{}'); } catch (e) { }
+    let added = 0; for (const [k, mint] of Object.entries(newLp)) if (!seen[k]) { seen[k] = { first: now(), example: mint }; added++; await logEvent(env, 'info', 'launchpads', `New launchpad seen: ${k} (token ${short4(mint)})`, 'More → Launchpads → switch it on if you want it'); }
+    if (added) await setSetting(env, 'lp_seen', JSON.stringify(seen)); })().catch(() => { }));
   const count = pass.length, vis = full ? pass.slice(0, 60) : pass.slice(0, FREE);
   const plan = u ? (isOwner(u, s) ? 'owner' : planActive(u) ? u.plan : 'free') : 'guest';
-  return json(req, { ok: true, tab: 'hot', win, plan, mode: tracked ? (f.b.all ? 'mixed' : 'tracked') : 'market', limit: full ? null : FREE, count, tokens: q.get('dry') ? [] : vis, locked: count - vis.length, waiting, filters: f, diag: D });
+  return json(req, { ok: true, tab: spikes ? 'spikes' : 'hot', spk: spikes ? { min: Math.round(win / 60), buys: R(RU.spk, 'buys') || 1, market: !!RU.spk.market.on } : undefined, win, plan, mode: tracked ? (f.b.all ? 'mixed' : 'tracked') : 'market', limit: full ? null : FREE, count, tokens: q.get('dry') ? [] : vis, locked: count - vis.length, waiting, filters: f, diag: D });
 }
 
 // ---------- public app API ----------
@@ -751,7 +802,7 @@ async function publicApi(req, env, path, s, u, full, later) {
   const plan = u ? (isOwner(u, s) ? 'owner' : planActive(u) ? u.plan : 'free') : 'guest';
   const scope = follow ? '' : ' AND uw.wallet IS NOT NULL';   // "follow site KOLs" off → only the user's own wallets
 
-  if (path === '/api/feed' && q.get('tab') === 'hot') return hotFeed(req, env, s, u, full, later, q);
+  if (path === '/api/feed' && (q.get('tab') === 'hot' || q.get('tab') === 'spikes')) return hotFeed(req, env, s, u, full, later, q, q.get('tab') === 'spikes');
   if (path === '/api/feed') {
     const tab = ['hot', 'kol', 'smart', 'spikes', 'mine'].includes(q.get('tab')) ? q.get('tab') : 'hot';
     const win = tab === 'spikes' ? 900 : Math.min(86400, Math.max(900, +q.get('win') || 14400));
@@ -1286,6 +1337,24 @@ async function owner(req, env, route, s, se, later) {
     // body is streamed through untouched (no parsing = little server time); the real status rides in a header
     return new Response(upstream.body, { status: 200, headers: { 'content-type': 'application/json', 'cache-control': 'no-store', 'x-up': String(upstream.status), ...cors(req) } });
   }
+  // ---- Feed rules + Launchpads (owner) ----
+  if (route === 'rules' && req.method === 'GET') return json(req, { ok: true, rules: rulesOf(s) });
+  if (route === 'rules' && req.method === 'POST') {
+    const cur = rulesOf(s), inp = b.rules || {};
+    for (const g of ['hot', 'spk']) for (const k of Object.keys(cur[g])) { const x = inp[g] && inp[g][k]; if (!x) continue; cur[g][k].on = x.on ? 1 : 0; if ('v' in cur[g][k] && x.v != null) { const n = +x.v; if (!(isFinite(n) && n >= 0 && n <= 1e9)) return fail(req, 400, 'Enter a number for ' + k); cur[g][k].v = n; } }
+    await setSetting(env, 'rules', JSON.stringify(cur)); await logEvent(env, 'info', 'rules', 'Feed rules changed');
+    return json(req, { ok: true, rules: cur });
+  }
+  if (route === 'launchpads' && req.method === 'GET') {
+    const L = await lpState(env, s);
+    return json(req, { ok: true, known: LP_REG.map(([n]) => ({ name: n, on: !!L.on[n] })), seen: Object.entries(L.seen).filter(([k]) => !LP_KEY[k.toLowerCase()]).map(([k, v]) => ({ name: k, on: !!L.on[k], first: v.first, example: v.example })) });
+  }
+  if (route === 'launchpads' && req.method === 'POST') {
+    const L = await lpState(env, s); let saved = {}; try { saved = JSON.parse(s.lps || '{}'); } catch (e) { }
+    for (const [k, v] of Object.entries(b.set || {})) if (k in L.on) saved[k] = !!v;
+    await setSetting(env, 'lps', JSON.stringify(saved));
+    return json(req, { ok: true });
+  }
   // ---- data test: compare Solana Tracker fees + price-change time frames with DexScreener on real tokens ----
   if (route === 'datatest' && req.method === 'POST') {
     const key = await getKey(env, 'stracker');
@@ -1313,7 +1382,7 @@ async function owner(req, env, route, s, se, later) {
       out.push({ mint: m, symbol: (info.token && info.token.symbol) || (d && d.baseToken && d.baseToken.symbol) || '', status: { info: ti.status, stats: ss.status },
         fees: info.risk && info.risk.fees != null ? info.risk.fees : null, poolFees: (info.pools || []).map(p => p && p.fees).filter(x => x != null).slice(0, 3),
         events: ev, stats: sv, dex: d && d.priceChange ? { '5m': d.priceChange.m5 ?? null, '1h': d.priceChange.h1 ?? null, '6h': d.priceChange.h6 ?? null, '24h': d.priceChange.h24 ?? null } : null,
-        volume24h: d && d.volume ? d.volume.h24 : null });
+        volume24h: d && d.volume ? d.volume.h24 : null, pools: (info.pools || []).slice(0, 3).map(p => ({ market: p && p.market || '', launchpad: p && (p.launchpad || p.launchpadName || p.platform) || '', fields: p ? Object.keys(p).join(', ') : '' })), tokenFields: info.token ? Object.keys(info.token).join(', ') : '' });
     }
     await logEvent(env, 'info', 'datatest', `Data test run on ${out.length} token${out.length > 1 ? 's' : ''}`);
     return json(req, { ok: true, source, tokens: out });
