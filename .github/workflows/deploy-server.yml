@@ -2,7 +2,7 @@
 # Needs 3 repository secrets (Settings → Secrets and variables → Actions):
 #   CLOUDFLARE_API_TOKEN  – token from Cloudflare (template "Edit Cloudflare Workers")
 #   CLOUDFLARE_ACCOUNT_ID – Account ID shown on the Cloudflare Workers overview page
-#   D1_DATABASE_ID        – Database ID of holderscan-users (Storage & Databases → D1)
+#   D1_DATABASE_ID        – optional: Database ID of holderscan-users. If missing, it is looked up with the token.
 name: Deploy server
 on:
   push:
@@ -24,10 +24,22 @@ jobs:
         run: |
           [ -n "$T" ] || { echo "::error::Add the CLOUDFLARE_API_TOKEN secret"; exit 1; }
           [ -n "$A" ] || { echo "::error::Add the CLOUDFLARE_ACCOUNT_ID secret"; exit 1; }
-          [ -n "$D" ] || { echo "::error::Add the D1_DATABASE_ID secret"; exit 1; }
+      - name: Find the database ID
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          D: ${{ secrets.D1_DATABASE_ID }}
+        run: |
+          if [ -z "$D" ]; then
+            D=$(curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/d1/database?name=holderscan-users" \
+              | jq -r '[.result[]? | select(.name=="holderscan-users") | .uuid][0] // empty')
+          fi
+          [ -n "$D" ] || { echo "::error::Could not find the holderscan-users database — check the token has D1 Edit and the account ID is right"; exit 1; }
+          echo "Database found: ${D:0:8}…"
+          echo "D1_ID=$D" >> "$GITHUB_ENV"
       - name: Write the Cloudflare config
         env:
-          D: ${{ secrets.D1_DATABASE_ID }}
+          D: ${{ env.D1_ID }}
         run: |
           mkdir -p deploy && cp server/worker.js deploy/worker.js
           cat > deploy/wrangler.toml <<TOML
