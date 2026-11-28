@@ -1,0 +1,50 @@
+# Deploys the Holder Scan server (server/worker.js) to Cloudflare whenever it changes on main.
+# Needs 3 repository secrets (Settings → Secrets and variables → Actions):
+#   CLOUDFLARE_API_TOKEN  – token from Cloudflare (template "Edit Cloudflare Workers")
+#   CLOUDFLARE_ACCOUNT_ID – Account ID shown on the Cloudflare Workers overview page
+#   D1_DATABASE_ID        – Database ID of holderscan-users (Storage & Databases → D1)
+name: Deploy server
+on:
+  push:
+    branches: [main]
+    paths: ['server/worker.js', '.github/workflows/deploy-server.yml']
+  workflow_dispatch:
+concurrency: deploy-server
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the secrets are there
+        env:
+          T: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          A: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          D: ${{ secrets.D1_DATABASE_ID }}
+        run: |
+          [ -n "$T" ] || { echo "::error::Add the CLOUDFLARE_API_TOKEN secret"; exit 1; }
+          [ -n "$A" ] || { echo "::error::Add the CLOUDFLARE_ACCOUNT_ID secret"; exit 1; }
+          [ -n "$D" ] || { echo "::error::Add the D1_DATABASE_ID secret"; exit 1; }
+      - name: Write the Cloudflare config
+        env:
+          D: ${{ secrets.D1_DATABASE_ID }}
+        run: |
+          mkdir -p deploy && cp server/worker.js deploy/worker.js
+          cat > deploy/wrangler.toml <<TOML
+          name = "holder-scan-api"
+          main = "worker.js"
+          compatibility_date = "2025-01-01"
+          workers_dev = true
+
+          [[d1_databases]]
+          binding = "DB"
+          database_name = "holderscan-users"
+          database_id = "$D"
+          TOML
+      - name: Deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: deploy
+          command: deploy

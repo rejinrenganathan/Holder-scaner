@@ -61,6 +61,16 @@ ol{padding-left:20px;margin:8px 0}li{margin:4px 0}
 <li>Bookmark it. It's not linked from the public site.</li></ol>
 <div class="note">Google sign-in: once you've created a Google sign-in ID, paste it in Site control → Owner access, together with your Gmail.</div></div>
 
+<div class="card"><div><span class="n">★</span><b>Auto-update the server (no more pasting)</b></div>
+<div class="note">One-time. After this, every server update deploys by itself.</div>
+<ol><li><b>Make a token:</b> Cloudflare → profile icon (top right) → <b>My Profile</b> → <b>API Tokens</b> → <b>Create Token</b> → template <b>Edit Cloudflare Workers</b> → <b>Use template</b>. Under Account Resources pick your account → <b>Continue to summary</b> → <b>Create Token</b>. Copy it (it's shown once).</li>
+<li><b>Account ID:</b> Cloudflare → <b>Workers &amp; Pages</b> → Overview. The <b>Account ID</b> is on the right side (or bottom on phones). Copy it.</li>
+<li><b>Database ID:</b> Cloudflare → <b>Storage &amp; Databases → D1</b> → <code>holderscan-users</code>. Copy the <b>Database ID</b>.</li>
+<li>Open <a href="https://github.com/rejinrenganathan/Holder-scaner/settings/secrets/actions/new" target="_blank" rel="noopener">GitHub → New repository secret</a> and add three secrets, one at a time (Name exactly as written, then paste the value, then <b>Add secret</b>):<br>
+<code>CLOUDFLARE_API_TOKEN</code> · <code>CLOUDFLARE_ACCOUNT_ID</code> · <code>D1_DATABASE_ID</code></li>
+<li>Tell Claude it's done — the first auto-deploy will be checked from here.</li></ol>
+<div class="note">The token can only edit Workers on your account. Never paste it anywhere else. You can delete it in Cloudflare any time.</div></div>
+
 <div class="card"><div><span class="n">7</span><b>Turn on visitor counting</b></div>
 <div class="note">Send your server address to Claude. It gets added to the site pages so every visit is counted for Traffic (no cookies, IDs change daily).</div></div>
 </div>
