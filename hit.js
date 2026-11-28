@@ -2,7 +2,7 @@
 // No cookies and nothing stored on the phone. The server turns the visit into an ID that changes every day.
 // HS_API: your server address, e.g. https://holder-scan-api.yourname.workers.dev (set once the server is live).
 (function () {
-  var HS_API = '';
+  var HS_API = 'https://holder-scan-api.rejinrenganathan.workers.dev';
   try {
     var api = HS_API || localStorage.getItem('hs_api') || '';
     if (!/^https:\/\/[^/]+$/.test(api)) return;

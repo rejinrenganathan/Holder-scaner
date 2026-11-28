@@ -5,7 +5,7 @@
 // (no transaction, no fee), and the Worker checks the signature. Then it hands out a session token.
 // Owner dashboard: open <this worker's address>/owner
 
-const API_V = 2;
+const API_V = 3;
 // Owner wallet(s) — always allowed into the dashboard. More owners can be added in Site control.
 const OWNER_WALLETS = 'CZQkA9JszBPP7x2LescrtZwh1LGoxZwnW68wLbdFPz93';
 // Sites allowed to call this API from a browser
@@ -53,9 +53,9 @@ const csv = s => String(s || '').split(/[\s,]+/).map(x => x.trim()).filter(Boole
 
 // the exact text the wallet signs — rebuilt on the server from the stored nonce, never trusted from the app
 function signInMessage(wallet, nonce, issued) {
-  return `Holder Scan wants you to sign in with your Solana account:\n${wallet}\n\n` +
-    `Sign in to Holder Scan. This costs nothing and sends no transaction.\n\n` +
-    `URI: ${APP_URI}\nNonce: ${nonce}\nIssued At: ${new Date(issued * 1000).toISOString()}`;
+  // plain text on purpose: Phantom strictly checks messages written in the "Sign in with Solana" format
+  return `Sign in to Holder Scan\n\nWallet: ${wallet}\nNonce: ${nonce}\nTime: ${new Date(issued * 1000).toISOString()}\n\n` +
+    `This only proves you own this wallet. It costs nothing and sends no transaction.`;
 }
 async function verifyEd25519(pubBytes, sigBytes, msgBytes) {
   for (const alg of [{ name: 'Ed25519' }, { name: 'NODE-ED25519', namedCurve: 'NODE-ED25519' }]) {

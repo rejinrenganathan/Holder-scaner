@@ -429,7 +429,7 @@ function More() {
   $('#app').innerHTML = header('More') + `<div class="cd">
    ${Object.entries(SUBS).map(([k, l]) => `<div class="row" style="cursor:pointer" onclick="location.hash='more/${k}'"><span>${l}</span><span class="mu3">›</span></div>`).join('')}</div>
    <div class="cd"><div class="row"><div class="rl"><div>Signed in as</div><div class="mu">${esc(me.email || short(me.wallet))}</div></div><button class="bt" id="so">Sign out</button></div></div>
-   <div class="mu3 center">Owner dashboard · server v${'2'}</div>`;
+   <div class="mu3 center">Owner dashboard · server v3</div>`;
   $('#so').onclick = signOut;
 }
 
