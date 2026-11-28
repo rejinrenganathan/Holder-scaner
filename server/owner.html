@@ -280,19 +280,36 @@ async function Wallets() {
   $('#wtop').onclick = e => menu(e.target, [['Export all (.txt)', exportW], ['Delete hidden wallets', () => delW({ hidden: true }, 'all hidden wallets')], ['Delete all…', delAll, true]]);
   loadW();
 }
+// big lists go up in small batches (Cloudflare's free plan allows very little time per request)
+const CHUNK = 200;
+const chunksOf = text => { const seen = new Set(), lines = String(text).split(/\r?\n/).filter(l => { if (!l.trim()) return false; const w = (l.match(/[1-9A-HJ-NP-Za-km-z]{32,44}/) || [])[0]; if (!w) return true; if (seen.has(w)) return false; seen.add(w); return true; }); const out = []; for (let i = 0; i < lines.length; i += CHUNK) out.push(lines.slice(i, i + CHUNK).join('\n')); return out; };
+let previewRun = 0;
 async function previewAdd() {
-  const text = $('#wt').value, wp = $('#wp'), ws = $('#ws');
+  const text = $('#wt').value, wp = $('#wp'), ws = $('#ws'), run = ++previewRun;
   if (!text.trim()) { wp.textContent = 'Paste wallets to see a preview'; ws.disabled = true; return; }
+  const parts = chunksOf(text), p = { add: 0, kol: 0, smart: 0, dup: 0, bad: 0 };
   try {
-    const p = (await api('/api/owner/wallets/add', { body: { text, dry: true } })).preview;
-    wp.innerHTML = `<span style="color:var(--ok)">${fmt(p.add)} new</span> · ${p.kol} KOL · ${p.smart} smart` + (p.dup ? ` · <span style="color:var(--wa)">${p.dup} already there</span>` : '') + (p.bad ? ` · <span style="color:var(--er)">${p.bad} not valid</span>` : '');
+    for (let i = 0; i < parts.length; i++) {
+      if (run !== previewRun) return;
+      if (parts.length > 1) wp.innerHTML = `<span class="spin"></span> Checking ${fmt(Math.min((i + 1) * CHUNK, text.split(/\r?\n/).filter(l => l.trim()).length))}…`;
+      const r = (await api('/api/owner/wallets/add', { body: { text: parts[i], dry: true } })).preview;
+      for (const k in p) p[k] += r[k] || 0;
+    }
+    if (run !== previewRun) return;
+    wp.innerHTML = `<span style="color:var(--ok)">${fmt(p.add)} new</span> · ${fmt(p.kol)} KOL · ${fmt(p.smart)} smart` + (p.dup ? ` · <span style="color:var(--wa)">${fmt(p.dup)} already there</span>` : '') + (p.bad ? ` · <span style="color:var(--er)">${fmt(p.bad)} not valid</span>` : '');
     ws.disabled = !p.add; ws.textContent = p.add ? `Save ${fmt(p.add)}` : 'Save';
   } catch (e) { wp.textContent = e.message; }
 }
 async function saveAdd() {
-  const r = (await api('/api/owner/wallets/add', { body: { text: $('#wt').value, source: $('#wt').dataset.src || 'manual' } })).result;
+  const parts = chunksOf($('#wt').value), src = $('#wt').dataset.src || 'manual', wp = $('#wp'), tot = { add: 0, dup: 0 };
+  for (let i = 0; i < parts.length; i++) {
+    if (parts.length > 1) wp.innerHTML = `<span class="spin"></span> Saving batch ${i + 1} of ${parts.length} · ${fmt(tot.add)} added so far — keep this page open`;
+    let r, tries = 0;
+    while (true) { try { r = (await api('/api/owner/wallets/add', { body: { text: parts[i], source: src } })).result; break; } catch (e) { if (++tries >= 3) { wp.innerHTML = `<span class="err">Stopped at batch ${i + 1} of ${parts.length}: ${esc(e.message)}. ${fmt(tot.add)} were saved — tap Save again to continue (saved ones are skipped).</span>`; loadW(); throw e; } await new Promise(res => setTimeout(res, 2000 * tries)); } }
+    tot.add += r.add; tot.dup += r.dup;
+  }
   $('#wt').value = ''; delete $('#wt').dataset.src; $('#wp').textContent = 'Paste wallets to see a preview'; $('#ws').disabled = true; $('#ws').dataset.t = 'Save';
-  toast(`${fmt(r.add)} wallet${r.add === 1 ? '' : 's'} added`); WS.shown = 10; loadW();
+  toast(`${fmt(tot.add)} wallet${tot.add === 1 ? '' : 's'} added` + (tot.dup ? ` · ${fmt(tot.dup)} already there` : '')); WS.shown = 10; loadW();
 }
 async function loadW() {
   const p = new URLSearchParams({ kind: WS.kind, sort: WS.sort, q: WS.q, limit: WS.shown });
