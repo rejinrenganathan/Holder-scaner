@@ -9,7 +9,7 @@
 // the plan price to the payment wallet with that key attached. The server finds the transfer by the key on Helius, checks recipient,
 // exact amount, confirmation and that the signature was never used before, then turns the plan on. A cron re-checks every 5 minutes.
 
-const API_V = 17;
+const API_V = 18;
 // Owner wallet(s) — always allowed into the dashboard. More owners can be added in Site control.
 const OWNER_WALLETS = 'CZQkA9JszBPP7x2LescrtZwh1LGoxZwnW68wLbdFPz93';
 // Sites allowed to call this API from a browser
@@ -1360,6 +1360,33 @@ async function owner(req, env, route, s, se, later) {
     for (const [k, v] of Object.entries(b.set || {})) if (k in L.on) saved[k] = !!v;
     await setSetting(env, 'lps', JSON.stringify(saved));
     return json(req, { ok: true });
+  }
+  // ---- past trades: fill the feed with KOL / smart trades from before live tracking was on (phone loops until done) ----
+  if (route === 'backfill' && req.method === 'POST') {
+    const key = await getKey(env, 'helius'); if (!key) return fail(req, 400, 'Add your Helius key first (More → API keys)');
+    const hours = [6, 24, 48].includes(+b.hours) ? +b.hours : 24, from = Math.max(0, +b.offset || 0) | 0, N = 8, since = now() - hours * 3600;
+    const all = ((await env.DB.prepare('SELECT wallet FROM site_wallets WHERE hidden = 0 ORDER BY wallet').all()).results || []).map(x => x.wallet);
+    const part = all.slice(from, from + N), st = env.DB.prepare('INSERT OR IGNORE INTO trades(ts, wallet, mint, side, sol, sig, amt) VALUES(?, ?, ?, ?, ?, ?, ?)');
+    let found = 0, saved = 0, calls = 0; const errs = [];
+    for (const w of part) {
+      let before = '', rows = [];
+      for (let pg = 0; pg < 3; pg++) {                                                       // up to 300 newest transactions per wallet
+        if (calls) await sleep(550);                                                         // free plan: 2 calls a second
+        const u = `https://mainnet.helius-rpc.com/v0/addresses/${w}/transactions?api-key=${encodeURIComponent(key)}&limit=100&sort-order=desc&gte-time=${since}` + (before ? '&before-signature=' + before : '');
+        let list = null, code = 0;
+        try { const r = await fetch(u); calls++; code = r.status; list = r.ok ? await r.json() : null; } catch (e) { code = -1; }
+        if (!Array.isArray(list)) { if (code === 429) { await sleep(1500); pg--; if (calls > 40) break; continue; } errs.push(`${short4(w)}: Helius answered ${code}`); break; }
+        for (const tx of list) { if (!tx || !tx.signature || tx.transactionError || (tx.timestamp || 0) < since) continue; const tr = parseTrade(tx, w);
+          if (tr) rows.push([tx.timestamp, w, tr.m, tr.side, Math.round(tr.sol * 1000) / 1000, tx.signature, tr.amt || 0]); }
+        if (list.length < 100) break; before = list[list.length - 1].signature;
+      }
+      found += rows.length;
+      if (rows.length) { const res = await env.DB.batch(rows.map(r => st.bind(...r))); saved += res.reduce((a, x) => a + ((x.meta && x.meta.changes) || 0), 0); }
+    }
+    await bump(env, 'call_helius', calls);
+    const next = from + part.length, done = next >= all.length;
+    if (done) await logEvent(env, 'info', 'tracking', `Past trades loaded (${hours}h) for ${all.length} wallets`);
+    return json(req, { ok: true, hours, total: all.length, next, done, found, saved, errors: errs.slice(0, 5) });
   }
   // ---- data test: compare Solana Tracker fees + price-change time frames with DexScreener on real tokens ----
   if (route === 'datatest' && req.method === 'POST') {

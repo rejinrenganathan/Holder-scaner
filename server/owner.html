@@ -992,7 +992,7 @@ function More() {
    <div class="sec">Account</div>
    <div class="cd" style="padding:2px 16px"><div class="row"><div class="sq" style="background:#5e5ce6;border-radius:50%">${esc((me.email || me.wallet || '?')[0].toUpperCase())}</div><div class="rl"><div>${esc(me.email || short(me.wallet))}</div><div class="mu">Owner</div></div></div>
     <div class="row tap" id="so" style="margin:0 -16px;padding:9px 16px;color:var(--er)"><div class="sq" style="background:#ff453a">${svg('out')}</div><span style="flex:1">Sign out</span></div></div>
-   <div class="mu3 center" style="margin-top:18px">Holder Scan owner · server v17</div>`;
+   <div class="mu3 center" style="margin-top:18px">Holder Scan owner · server v18</div>`;
   $('#so').onclick = signOut;
 }
 
@@ -1119,6 +1119,28 @@ async function Traffic() {
   document.querySelectorAll('[data-d]').forEach(c => c.onclick = () => { TD = Number(c.dataset.d); Traffic(); });
 }
 
+// ---------- Past trades (backfill): server does 8 wallets per call, the phone keeps calling until done ----------
+let BFH = 24, BF_RUN = false;
+async function backfill() {
+  if (BF_RUN) return; BF_RUN = true; buzz(10);
+  const btn = $('#bfGo'), out = () => $('#bfOut'); let off = 0, found = 0, saved = 0, total = 0, errs = [], tries = 0;
+  const draw = (msg, cls) => { const o = out(); if (!o) return; const pc = total ? Math.round(100 * off / total) : 0;
+    o.innerHTML = `<div class="row"><span>${msg}</span><span>${pc}%</span></div><div style="height:6px;background:var(--card2);border-radius:3px;overflow:hidden"><div style="height:100%;width:${pc}%;background:var(--${cls || 'acc'})"></div></div>
+     <div class="mu mt">${fmt(found)} trades found · ${fmt(saved)} new</div>${errs.length ? `<div class="err mt">${errs.slice(-3).map(esc).join('<br>')}</div>` : ''}`; };
+  if (btn) { btn.disabled = true; btn.textContent = 'Loading…'; }
+  draw('Starting…');
+  try {
+    while (true) {
+      let r; try { r = await api('/api/owner/backfill', { body: { hours: BFH, offset: off } }); tries = 0; }
+      catch (e) { if (e.message === 'signed out') throw e; if (++tries > 3) throw e; await new Promise(z => setTimeout(z, 3000)); continue; }
+      total = r.total; off = r.next; found += r.found; saved += r.saved; errs.push(...(r.errors || []));
+      if (!total) { draw('No KOL or smart wallets yet'); break; }
+      if (r.done) { draw(`Done · ${fmt(total)} wallets`, 'ok'); toast(`Past trades loaded · ${fmt(saved)} new`); break; }
+      draw(`Wallet ${fmt(off)} of ${fmt(total)}`);
+    }
+  } catch (e) { draw('Stopped: ' + e.message + ' — tap again to carry on', 'er'); }
+  BF_RUN = false; const b2 = $('#bfGo'); if (b2) { b2.disabled = false; b2.textContent = 'Load past trades'; }
+}
 // ---------- Site control ----------
 const SW = [['site_live', 'Site live', 'Off shows a “back soon” page'], ['signups', 'New sign-ups', 'Off stops new accounts (owners can still sign in)'],
   ['payments', 'Payments', 'Turn on once SOL payments are built'], ['founder', 'Founder offer', 'Lifetime plan for the first buyers'], ['alerts', 'Live alerts', 'Wallet alerts for users']];
@@ -1136,6 +1158,12 @@ async function Site() {
    ${hk.err ? `<div class="err">${esc(hk.err)}</div>` : ''}
    <div class="g2 mt"><button class="bt ${hk.on ? '' : 'bp'}" id="hkSync">${hk.on ? 'Sync now' : 'Turn on'}</button>${hk.on ? '<button class="bt bd" id="hkOff">Turn off</button>' : '<span></span>'}</div>
    <div class="mu3 mt">Needs Workers Paid ($5/month): with thousands of wallets the free 100,000 requests a day run out.</div></div>
+  <div class="cd"><div class="hd"><span class="ht">Past trades</span></div>
+   <div class="mu" style="margin-bottom:8px">Fill the feed with KOL and smart trades from before live tracking was switched on.</div>
+   <div class="seg" id="bfH">${[6, 24, 48].map(h => `<button class="${BFH === h ? 'on' : ''}" data-h="${h}">${h}h</button>`).join('')}</div>
+   <button class="bt bp wide" id="bfGo">Load past trades</button>
+   <div id="bfOut" class="mt"></div>
+   <div class="mu3 mt">One Helius call per wallet (more for busy wallets). Safe to run again — trades already saved are skipped. Keep this screen open until it says Done.</div></div>
   <div class="cd"><div class="hd"><span class="ht">Switches</span></div>
    ${SW.map(([k, l, d]) => `<div class="row"><div class="rl"><div>${l}</div><div class="mu">${d}</div></div><button class="tg ${s[k] === '1' ? 'on' : ''}" data-k="${k}"></button></div>`).join('')}</div>
   <div class="cd"><div class="hd"><span class="ht">Content and limits</span></div>
@@ -1150,6 +1178,8 @@ async function Site() {
    <div class="row"><div class="rl"><div>Google sign-in ID</div><div class="mu">${s.google_client_id ? esc(s.google_client_id.slice(0, 14)) + '…' : 'Not set — Google button hidden'}</div></div><button class="lk" id="e_gc">Edit</button></div>
    <div class="row"><div class="rl"><div>Payment wallet</div><div class="mu">${short(s.pay_wallet)}</div></div><button class="lk" id="e_pa">Edit</button></div>
    ${fresh ? '' : '<div class="mu3">For safety, these four need a sign-in from the last 15 minutes. Sign out (More) and sign in again first.</div>'}</div>`;
+  $('#bfH').querySelectorAll('[data-h]').forEach(x => x.onclick = () => { if (BF_RUN) return; BFH = +x.dataset.h; $('#bfH').querySelectorAll('button').forEach(y => y.classList.toggle('on', y === x)); });
+  $('#bfGo').onclick = () => backfill();
   $('#hkSync').onclick = e => act(e.target, async () => { const r = (await api('/api/owner/hook', { body: { action: 'sync' } })).result; toast(`Tracking ${fmt(r.count)} wallets`); Site(); });
   const hOff = $('#hkOff'); if (hOff) hOff.onclick = () => menu(null, [['Turn off live tracking', () => act(null, async () => { await api('/api/owner/hook', { body: { action: 'off' } }); toast('Live tracking off'); Site(); }), true]], 'The public feed stops getting new trades');
   document.querySelectorAll('.tg[data-k]').forEach(b => b.onclick = async () => { buzz(10);
