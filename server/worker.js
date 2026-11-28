@@ -9,7 +9,7 @@
 // the plan price to the payment wallet with that key attached. The server finds the transfer by the key on Helius, checks recipient,
 // exact amount, confirmation and that the signature was never used before, then turns the plan on. A cron re-checks every 5 minutes.
 
-const API_V = 15;
+const API_V = 16;
 // Owner wallet(s) — always allowed into the dashboard. More owners can be added in Site control.
 const OWNER_WALLETS = 'CZQkA9JszBPP7x2LescrtZwh1LGoxZwnW68wLbdFPz93';
 // Sites allowed to call this API from a browser
@@ -511,7 +511,7 @@ function dexMeta(p) {
   return { sym: p.baseToken && p.baseToken.symbol, name: p.baseToken && p.baseToken.name, img: info && info.imageUrl || null, mcD: n(p.marketCap) ?? n(p.fdv), liqD: p.liquidity ? n(p.liquidity.usd) : null,
     price: n(+p.priceUsd), vol: { m5: n(v.m5), h1: n(v.h1), h6: n(v.h6), h24: n(v.h24) }, pc: { m5: n(pc.m5), h1: n(pc.h1), h6: n(pc.h6), h24: n(pc.h24) },
     tx: { m5: txo(tx.m5), h1: txo(tx.h1), h6: txo(tx.h6), h24: txo(tx.h24) }, pairAt: p.pairCreatedAt ? Math.floor(p.pairCreatedAt / 1000) : null, dexId: String(p.dexId || '').toLowerCase(),
-    boosts: (p.boosts && +p.boosts.active) || 0, dexPaid: !!(info && (info.imageUrl || (info.socials || []).length || (info.websites || []).length)), socD: classifyLinks(links), url: p.url || '' };
+    boosts: (p.boosts && +p.boosts.active) || 0, dexPaid: !!(info && (info.imageUrl || (info.socials || []).length || (info.websites || []).length)), socD: classifyLinks(links), url: p.url || '', pair: p.pairAddress || '' };
 }
 function stMeta(ti) {
   const tk = ti.token || {}, pools = Array.isArray(ti.pools) ? ti.pools : [], r = ti.risk || {}, ev = ti.events || {};
@@ -647,7 +647,7 @@ function view(mint, m, win) {
   const st = stageOf(m), k = winKey(win), tx = (m.tx || {})[k], vol = (m.vol || {})[k] ?? null;
   const soc = m.socD || {}, so = m.socS || {};
   const lp = lpOf(mint, m);
-  return { lp: lp.name, lpKnown: lp.known, stage: st, created: m.created || m.pairAt || null,
+  return { lp: lp.name, lpKnown: lp.known, stage: st, created: m.created || m.pairAt || null, url: m.url || null, pair: m.pair || null,
     mc: m.mcD ?? m.mcS ?? null, liq: st === 'bond' ? (m.liqS ?? m.liqD ?? null) : (m.liqD ?? m.liqS ?? null),
     vol, buys: tx ? tx.b : null, sells: tx ? tx.s : null, bs: tx && tx.s ? tx.b / tx.s : tx && tx.b ? tx.b : null,
     ub: m.ub ? m.ub[ubKey(win)] ?? null : null, fees: m.fees ?? null, holders: m.holders ?? null,
@@ -777,7 +777,7 @@ async function hotFeed(req, env, s, u, full, later, q, spikes) {
     if (f.ads && v.ads !== true) { if (v.ads === null) waiting++; continue; }
     const supply = v.price && v.mc ? v.mc / v.price : null;
     const entry = !x.market && supply && px.usd && x.firstPx ? Math.round(x.firstPx * px.usd * supply) : null;
-    pass.push({ mint: x.mint, sym: v.sym, name: v.name, img: v.img, mc: v.mc, liq: v.liq, ch1: v.pc.h1, pc: v.pc, hot, market: !!x.market,
+    pass.push({ mint: x.mint, sym: v.sym, name: v.name, img: v.img, url: v.url, pair: v.pair, mc: v.mc, liq: v.liq, ch1: v.pc.h1, pc: v.pc, hot, market: !!x.market,
       kol: x.kol || 0, smart: x.smart || 0, buyers: buyersN, solIn: sol != null ? Math.round(sol * 100) / 100 : null, first: x.first === Infinity ? null : x.first, last: x.last || null,
       holding: full && !x.market ? x.holding : undefined, sold: full && !x.market ? x.sold : undefined,
       buys: v.buys, vol: v.vol, spike: x.spike || null, stage: v.stage, lp: v.lp, created: v.created, fees: v.fees, holders: v.holders,

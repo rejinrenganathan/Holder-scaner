@@ -47,7 +47,7 @@ button,input,textarea{font:inherit;color:inherit}
 .ok{background:var(--okbg);color:var(--ok)}.wa{background:var(--wabg);color:var(--wa)}.er{background:var(--erbg);color:var(--er)}.ac{background:var(--accbg);color:var(--acc)}.pr{background:var(--prbg);color:var(--pr)}.ne{background:var(--card2);color:var(--tx2)}
 .sm{font-size:10.5px;padding:1px 5px;border-radius:5px}
 .bt{border:0;background:var(--card2);color:var(--acc);border-radius:12px;padding:11px 14px;font-size:16px;font-weight:500;cursor:pointer;text-align:center;min-height:44px;text-decoration:none;display:inline-block}
-.bt:active{transform:scale(.97);opacity:.8}.bp{background:var(--acc);color:#fff}.bd{color:var(--er)}.bt[disabled]{opacity:.4}.wide{width:100%;display:block}
+.trd{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}.trd .bt{display:flex;align-items:center;justify-content:center;gap:8px;color:var(--tx,#fff);font-weight:600}.trd img,.trd .lg{width:22px;height:22px;border-radius:6px;flex:none}.trd .lg{display:inline-flex;align-items:center;justify-content:center;background:var(--card);font-size:12px;font-weight:700}.trd .ar{opacity:.5;font-size:13px}.bt:active{transform:scale(.97);opacity:.8}.bp{background:var(--acc);color:#fff}.bd{color:var(--er)}.bt[disabled]{opacity:.4}.wide{width:100%;display:block}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .kp{background:var(--card2);border-radius:12px;padding:10px 12px}.kn{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums}
 .seg{display:flex;background:var(--card);border-radius:10px;padding:2px;margin-bottom:10px}
@@ -164,7 +164,7 @@ async function meta(mints) {
       const list = r.ok ? await r.json() : [];
       const best = {};
       for (const p of Array.isArray(list) ? list : []) { const a = p.baseToken && p.baseToken.address; if (!a || !part.includes(a)) continue; if (!best[a] || ((p.liquidity || {}).usd || 0) > ((best[a].liquidity || {}).usd || 0)) best[a] = p; }
-      for (const m of part) { const p = best[m]; META.set(m, { t: Date.now(), d: p ? { sym: p.baseToken.symbol, name: p.baseToken.name, img: p.info && p.info.imageUrl, mc: p.marketCap || p.fdv, liq: p.liquidity && p.liquidity.usd, ch5: p.priceChange && p.priceChange.m5, ch1: p.priceChange && p.priceChange.h1, ch24: p.priceChange && p.priceChange.h24, age: p.pairCreatedAt, url: p.url, price: p.priceUsd } : null }); }
+      for (const m of part) { const p = best[m]; META.set(m, { t: Date.now(), d: p ? { sym: p.baseToken.symbol, name: p.baseToken.name, img: p.info && p.info.imageUrl, mc: p.marketCap || p.fdv, liq: p.liquidity && p.liquidity.usd, ch5: p.priceChange && p.priceChange.m5, ch1: p.priceChange && p.priceChange.h1, ch24: p.priceChange && p.priceChange.h24, age: p.pairCreatedAt, url: p.url, pair: p.pairAddress, price: p.priceUsd } : null }); }
     } catch (e) { }
   }
 }
@@ -336,7 +336,7 @@ async function HotFeed(quiet) {
   }
   let j; try { j = await api(hotQuery()); } catch (e) { if (e.message !== 'down' && $('#fl')) $('#fl').innerHTML = `<div class="cd err">${esc(e.message)}</div>`; return; }
   if (tab !== 'feed' || FS.tab !== 'hot' || !$('#fl')) return;
-  for (const t of j.tokens) META.set(t.mint, { t: Date.now(), d: { sym: t.sym, name: t.name, img: t.img, mc: t.mc, liq: t.liq, ch1: t.ch1, ch5: t.pc && t.pc['5m'], ch24: t.pc && t.pc['24h'], age: t.created ? t.created * 1000 : null, url: null } });
+  for (const t of j.tokens) META.set(t.mint, { t: Date.now(), d: { sym: t.sym, name: t.name, img: t.img, mc: t.mc, liq: t.liq, ch1: t.ch1, ch5: t.pc && t.pc['5m'], ch24: t.pc && t.pc['24h'], age: t.created ? t.created * 1000 : null, url: t.url || null, pair: t.pair || null } });
   $('#fnote').innerHTML = `<span class="live"></span>${j.mode === 'market' ? 'Sudden buying across the market' : j.mode === 'mixed' ? 'Tokens our wallets bought · ranked by all buyers' : 'Ranked by Hot score'} · ${fmt(j.count)} token${j.count === 1 ? '' : 's'}${j.waiting ? ` · checking ${j.waiting} more` : ''}`;
   if (!j.tokens.length) {
     const D = j.diag || {}, why = [];
@@ -364,7 +364,7 @@ function hotRow(t) {
 async function SpikeFeed() {
   let j; try { j = await api('/api/feed?tab=spikes'); } catch (e) { if (e.message !== 'down' && $('#fl')) $('#fl').innerHTML = `<div class="cd err">${esc(e.message)}</div>`; return; }
   if (tab !== 'feed' || FS.tab !== 'spikes' || !$('#fl')) return;
-  for (const t of j.tokens) META.set(t.mint, { t: Date.now(), d: { sym: t.sym, name: t.name, img: t.img, mc: t.mc, liq: t.liq, ch1: t.ch1, ch5: t.pc && t.pc['5m'], ch24: t.pc && t.pc['24h'], age: t.created ? t.created * 1000 : null, url: null } });
+  for (const t of j.tokens) META.set(t.mint, { t: Date.now(), d: { sym: t.sym, name: t.name, img: t.img, mc: t.mc, liq: t.liq, ch1: t.ch1, ch5: t.pc && t.pc['5m'], ch24: t.pc && t.pc['24h'], age: t.created ? t.created * 1000 : null, url: t.url || null, pair: t.pair || null } });
   const r = j.spk || { min: 15, buys: 3 };
   $('#fwin').innerHTML = `<span class="ch on">Last ${r.min} min</span>`;
   $('#fnote').innerHTML = `<span class="live"></span>${r.buys}+ buys in ${r.min} minutes${r.market ? ' · whole market too' : ''} · ${fmt(j.count)} token${j.count === 1 ? '' : 's'}`;
@@ -524,9 +524,16 @@ function tokenRow(t) {
 }
 
 // ---------- Token sheet ----------
+const gmgnUrl = mint => 'https://gmgn.ai/sol/token/' + encodeURIComponent(mint);
+// Axiom pages are keyed by the pool (pair) address; the DexScreener pair URL ends with it.
+const axiomUrl = (mint, d) => { const pair = d ? (d.pair || (d.url ? String(d.url).split('?')[0].split('/').filter(Boolean).pop() : '')) : '';
+  return 'https://axiom.trade/meme/' + encodeURIComponent(pair && /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(pair) ? pair : mint) + '?chain=sol'; };
+const tradeBtn = (name, logo, href) => `<a class="bt" href="${esc(href)}" target="_blank" rel="noopener" data-trade="${esc(name)}"><img src="${esc(logo)}" alt="" onerror="this.outerHTML='<span class=lg>${name[0]}</span>'">${esc(name)}<span class="ar">↗</span></a>`;
 async function tokenSheet(mint) {
   buzz(6); await meta([mint]); const d = M(mint);
   sheet(`<div style="display:flex;gap:12px;align-items:center;margin-bottom:12px">${av(d, mint)}<div style="min-width:0;flex:1"><div class="ht">${esc(d ? '$' + d.sym : short(mint))}</div><div class="mu" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(d ? d.name : 'No market data yet')}</div></div></div>
+   <div class="mu" style="margin:0 0 6px 4px">Trade on</div>
+   <div class="trd">${tradeBtn('GMGN', 'https://gmgn.ai/favicon.ico', gmgnUrl(mint))}${tradeBtn('Axiom', 'https://axiom.trade/favicon.ico', axiomUrl(mint, d))}</div>
    <div class="g3"><div class="kp"><div class="mu">Mkt cap</div><div class="kn" style="font-size:17px">${d ? usd(d.mc) : '—'}</div></div><div class="kp"><div class="mu">Liquidity</div><div class="kn" style="font-size:17px">${d ? usd(d.liq) : '—'}</div></div><div class="kp"><div class="mu">Age</div><div class="kn" style="font-size:17px">${d && d.age ? ago(Math.floor(d.age / 1000)) : '—'}</div></div></div>
    ${d ? `<div class="mu mt">5m ${pct(d.ch5) || '—'} · 1h ${pct(d.ch1) || '—'} · 24h ${pct(d.ch24) || '—'}</div>` : ''}
    <div class="g3 mt"><button class="bt" id="tcp">Copy CA</button><a class="bt" href="${esc(d && d.url ? d.url : 'https://dexscreener.com/solana/' + mint)}" target="_blank" rel="noopener">Chart</a><a class="bt" href="https://solscan.io/token/${esc(mint)}" target="_blank" rel="noopener">Solscan</a></div>
