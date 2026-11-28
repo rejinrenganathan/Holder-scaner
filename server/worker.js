@@ -9,7 +9,7 @@
 // the plan price to the payment wallet with that key attached. The server finds the transfer by the key on Helius, checks recipient,
 // exact amount, confirmation and that the signature was never used before, then turns the plan on. A cron re-checks every 5 minutes.
 
-const API_V = 19;
+const API_V = 20;
 // Owner wallet(s) — always allowed into the dashboard. More owners can be added in Site control.
 const OWNER_WALLETS = 'CZQkA9JszBPP7x2LescrtZwh1LGoxZwnW68wLbdFPz93';
 // Sites allowed to call this API from a browser
@@ -674,7 +674,7 @@ function parseFilters(raw, full) {
   out.minsol = num(f.minsol, 0, 1e7) || 0; out.hold = num(f.hold, 0, 100) || 0; out.lastb = num(f.lastb, 0, 86400 * 7) || 0;
   if (f.pc && (f.pc.dir === 'up' || f.pc.dir === 'down')) out.pc = { dir: f.pc.dir, min: num(f.pc.min, 0, 1e6) || 0, tf: ['5m', '30m', '6h', '24h'].includes(f.pc.tf) ? f.pc.tf : '5m' };
   for (const k of ['bun', 'snp', 'top', 'dev']) out[k] = range(f[k], 100);
-  out.vol = range(f.vol, 1e13); out.fee = range(f.fee, 1e9); out.ubr = range(f.ubr, 1e9); out.bsr = range(f.bsr, 1e6); out.hld = range(f.hld, 1e9);
+  out.vol = range(f.vol, 1e13); out.fee = range(f.fee, 1e9); out.ubr = range(f.ubr, 1e9); out.bsr = range(f.bsr, 1e6); out.hld = range(f.hld, 1e9); out.btx = range(f.btx, 1e9); out.stx = range(f.stx, 1e9);
   out.soc = Array.isArray(f.soc) ? f.soc.filter(x => ['x', 'web', 'ig', 'tt', 'tg'].includes(x)) : [];
   out.paid = !!f.paid; out.boost = !!f.boost; out.ads = !!f.ads;
   out.sort = ['hot', 'new', 'buyers', 'sol', 'mc', 'vol', 'fees'].includes(f.sort) ? f.sort : 'hot';
@@ -686,7 +686,7 @@ const inR = (v, r) => !r || (v != null && (r.min == null || v >= r.min) && (r.ma
 async function hotFeed(req, env, s, u, full, later, q, spikes) {
   const DB = env.DB, t = now(), uid = u ? u.id : -1, follow = !u || u.follow !== 0;
   const RU = rulesOf(s), rh = spikes ? RU.spk : RU.hot, LPS = await lpState(env, s);
-  const win = spikes ? Math.max(60, (R(RU.spk, 'win') || 15) * 60) : [900, 3600, 14400, 86400].includes(+q.get('win')) ? +q.get('win') : 3600;
+  const win = spikes ? Math.max(60, (R(RU.spk, 'win') || 15) * 60) : [300, 900, 3600, 14400, 86400].includes(+q.get('win')) ? +q.get('win') : 3600;
   const f = spikes ? parseFilters(JSON.stringify({ b: { all: false, kol: true, smart: true } }), full) : parseFilters(q.get('f'), full);
   // Buyers: All = whole market + every KOL and smart wallet coin, ranked equally. Otherwise KOL / Smart / both.
   const ALL = !spikes && f.b.all, tOnly = f.b.kol || f.b.smart;
@@ -776,7 +776,7 @@ async function hotFeed(req, env, s, u, full, later, q, spikes) {
     } else if (f.lastb) { const k = f.lastb <= 300 ? 'm5' : f.lastb <= 3600 ? 'h1' : f.lastb <= 21600 ? 'h6' : 'h24'; const tx = (m.tx || {})[k]; if (!(tx && tx.b > 0)) continue; }
     if (f.pc) { const pv = v.pc[f.pc.tf]; if (pv == null) continue; if (f.pc.dir === 'up' ? !(pv > 0 && pv >= f.pc.min) : !(pv < 0 && -pv >= f.pc.min)) continue; }
     if (!inR(v.bundlers, f.bun) || !inR(v.snipers, f.snp) || !inR(v.top10, f.top) || !inR(v.dev, f.dev)) continue;
-    if (!inR(v.vol, f.vol) || !inR(v.fees, f.fee) || !inR(v.ub, f.ubr) || !inR(v.bs, f.bsr) || !inR(v.holders, f.hld)) continue;
+    if (!inR(v.buys, f.btx) || !inR(v.sells, f.stx) || !inR(v.vol, f.vol) || !inR(v.fees, f.fee) || !inR(v.ub, f.ubr) || !inR(v.bs, f.bsr) || !inR(v.holders, f.hld)) continue;
     if (f.soc && f.soc.length && !f.soc.every(k => v.soc[k])) continue;
     if (f.paid && !v.paid) continue;
     if (f.boost && !v.boosted) continue;
