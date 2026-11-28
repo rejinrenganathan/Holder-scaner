@@ -250,22 +250,25 @@ async function Money() {
 
 // ---------- Wallets ----------
 const WS = { kind: 'all', sort: 'new', q: '', shown: 10, sel: null, rows: [], total: 0, summary: {}, bal: {} };
+let WVIEW = 'manage';
 async function Wallets() {
-  $('#app').innerHTML = header('Wallets', 'The KOL and smart wallets that power the site') + `
+  const seg = `<div class="g2" style="background:var(--soft);padding:4px;border-radius:12px;margin-bottom:10px">${[['manage', 'Manage'], ['find', 'Find wallets']].map(([k, l]) => `<button class="bt ${WVIEW === k ? 'bp' : ''}" style="border:0;${WVIEW === k ? '' : 'background:transparent'}" data-wv="${k}">${l}</button>`).join('')}</div>`;
+  const bindSeg = () => document.querySelectorAll('[data-wv]').forEach(b => b.onclick = () => { WVIEW = b.dataset.wv; Wallets(); });
+  if (WVIEW === 'find') { TRK = null; $('#app').innerHTML = header('Wallets', 'Leaderboards · added wallets go straight to the site') + seg + '<div id="fw"></div>'; bindSeg(); FindWallets($('#fw')); return; }
+  $('#app').innerHTML = header('Wallets', 'The KOL and smart wallets that power the site') + seg + `
   <div class="cd" id="wsum"><span class="spin"></span></div>
   <div class="cd"><div class="hd"><span class="ht">Add wallets</span><label class="lk">⬆ Upload .txt / .csv<input type="file" id="wf" accept=".txt,.csv,text/plain" hidden></label></div>
    <textarea id="wt" placeholder="7xKp…3fQa Ansem @blknoiz06&#10;Hq2m…9LwE Cupsey&#10;9fRt…kL2p"></textarea>
    <div class="mu mt">One per line: wallet, name, @handle. With @handle = KOL, without = smart. Add the word kol or smart to force it.</div>
    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;gap:8px"><span class="mu" id="wp">Paste wallets to see a preview</span><button class="bt bp" id="ws" disabled>Save</button></div></div>
-  <div class="cd"><div class="hd"><span class="ht">Find wallets</span></div>
-   <div class="row"><div class="rl"><div>Leaderboards</div><div class="mu">Kolscan · GMGN · Birdeye · ST · Pump.fun</div></div><a class="lk" href="https://rejinrenganathan.github.io/Holder-scaner/" target="_blank" rel="noopener">Open app ›</a></div>
-   <div class="row"><div class="rl"><div>Winner Lab</div><div class="mu">Profit overlap on winning coins</div></div><a class="lk" href="https://rejinrenganathan.github.io/Holder-scaner/lab.html" target="_blank" rel="noopener">Run ›</a></div>
-   <div class="mu3">Download the .txt there, then upload it above.</div></div>
+  <div class="cd"><div class="row" style="cursor:pointer" id="gofind"><div class="rl"><div>Find wallets</div><div class="mu">Axiom · Solana Tracker · Pump.fun winners · Birdeye · GMGN · Kolscan</div></div><span class="lk">Open ›</span></div></div>
   <div class="cd"><div class="hd"><span class="ht">All wallets</span><div style="display:flex;gap:10px;align-items:center"><button class="lk" id="wsel">Select</button><span><button class="dots" id="wtop">⋮</button></span></div></div>
    <input id="wq" placeholder="Search wallet, name, @handle" value="${esc(WS.q)}">
    <div class="chips mt" id="wk"></div>
    <select id="wso" style="margin-bottom:6px"><option value="new">Sort: newest first</option><option value="old">Sort: oldest first</option><option value="name">Sort: name A–Z</option><option value="kind">Sort: KOL first</option></select>
    <div id="wl"><span class="spin"></span></div></div>`;
+  $('#gofind').onclick = () => { WVIEW = 'find'; Wallets(); window.scrollTo(0, 0); };
+  bindSeg();
   $('#wso').value = WS.sort;
   $('#wso').onchange = e => { WS.sort = e.target.value; WS.shown = 10; loadW(); };
   let qt; $('#wq').oninput = e => { clearTimeout(qt); qt = setTimeout(() => { WS.q = e.target.value.trim(); WS.shown = 10; loadW(); }, 300); };
@@ -377,6 +380,279 @@ async function exportW() {
   } catch (e) { toast(e.message); }
 }
 
+// ---------- Find wallets: the app's 6 leaderboards, run here with the keys on your server ----------
+const usd = v => v == null || !isFinite(v) ? '–' : (v < 0 ? '-' : '') + (Math.abs(v) >= 1e9 ? '$' + (Math.abs(v) / 1e9).toFixed(2) + 'B' : Math.abs(v) >= 1e6 ? '$' + (Math.abs(v) / 1e6).toFixed(2) + 'M' : Math.abs(v) >= 1e3 ? '$' + (Math.abs(v) / 1e3).toFixed(1) + 'K' : '$' + Math.round(Math.abs(v)));
+const num = (v, d) => v == null || !isFinite(v) ? '–' : Number(v).toLocaleString('en-IN', { maximumFractionDigits: d == null ? 1 : d });
+const B58 = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+const LB_GMGN = 'https://raw.githubusercontent.com/nirholas/kol-quest/main/solwallets.json';
+const LB_KOLSCAN = 'https://raw.githubusercontent.com/nirholas/kol-quest/main/output/kolscan-leaderboard.json';
+const BOT_RX = /snip|bot|fresh|arbitrage|mev|sandwich|bundl|copy/i;
+const pick = (o, ...ks) => { for (const k of ks) { const v = k.split('.').reduce((a, x) => a == null ? a : a[x], o); if (v != null && v !== '' && !isNaN(+v)) return +v; } return null; };
+const LBC = {}; async function lbFetch(u) { const c = LBC[u]; if (c && Date.now() - c.t < 30 * 60e3) return c.j; const r = await fetch(u); if (!r.ok) throw new Error('HTTP ' + r.status); const j = await r.json(); LBC[u] = { t: Date.now(), j }; return j; }
+async function proxy(body) {
+  const r = await fetch(API + '/api/owner/proxy', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + token }, body: JSON.stringify(body) });
+  const up = r.headers.get('x-up');
+  if (!up) { let j = null; try { j = await r.json(); } catch (e) { } throw new Error((j && j.error) || 'Your server answered ' + r.status); }
+  return { status: +up, json: () => r.json() };
+}
+async function stGet(path) {
+  const r = await proxy({ svc: 'st', path });
+  if (r.status === 401 || r.status === 403) throw new Error('Solana Tracker rejected the key — check More → API keys');
+  if (r.status === 429) throw new Error('Solana Tracker limit reached (free plan: 2,500 calls a month, 3 per second)');
+  if (r.status >= 400) throw new Error('Solana Tracker answered ' + r.status);
+  return r.json();
+}
+async function beGet(path) {
+  const r = await proxy({ svc: 'be', path });
+  if (r.status === 401 || r.status === 403) throw new Error('Birdeye rejected the key, or your Birdeye plan does not include the trader leaderboard — GMGN still works without it');
+  if (r.status === 429) throw new Error('Birdeye rate limit — try again in a minute');
+  if (r.status >= 400) throw new Error('Birdeye answered ' + r.status);
+  return r.json();
+}
+function collectWallets(j) {
+  const out = {};
+  const walk = (n, cat, d) => { if (!n || d > 9) return; if (Array.isArray(n)) { n.forEach(x => walk(x, cat, d + 1)); return; } if (typeof n !== 'object') return;
+    const w = n.wallet_address || n.address || n.wallet;
+    if (typeof w === 'string' && B58.test(w) && ['winrate_7d', 'realized_profit_7d', 'last_active', 'name', 'twitter_username', 'twitter', 'profit', 'wins'].some(k => n[k] != null)) {
+      const o = out[w] || (out[w] = { w, cats: new Set(), tags: new Set(), raw: {} }); if (cat) o.cats.add(cat); (Array.isArray(n.tags) ? n.tags : []).forEach(t => o.tags.add(String(t))); Object.assign(o.raw, n); return; }
+    for (const k in n) if (n[k] && typeof n[k] === 'object') walk(n[k], Array.isArray(n[k]) ? k : cat, d + 1); };
+  walk(j, '', 0); return Object.values(out);
+}
+const xHandle = v => typeof v === 'string' ? v.replace(/^https?:\/\/(www\.)?(x|twitter)\.com\//i, '').replace(/^@+/, '').split(/[/?#]/)[0].replace(/[^A-Za-z0-9_]/g, '').slice(0, 15) : '';
+function lbRow(o, src, per) {
+  const r = o.raw || {}, days = per === '30d' ? 30 : 7;
+  let wr = pick(r, 'winrate_' + per, 'winrate', 'win_rate'); if (wr != null && wr <= 1.0001) wr *= 100;
+  if (wr == null) { const wn = pick(r, 'wins'), ls = pick(r, 'losses'); if (wn != null && ls != null && wn + ls > 0) wr = wn / (wn + ls) * 100; }
+  const buys = pick(r, 'buy_' + per), sells = pick(r, 'sell_' + per);
+  const trades = pick(r, 'txs_' + per, 'trade_count', 'trades') ?? (buys != null || sells != null ? (buys || 0) + (sells || 0) : null);
+  return { w: o.w, src, cats: [...(o.cats || [])], tags: [...(o.tags || [])], name: String(r.twitter_name || r.nickname || r.name || '').trim().slice(0, 40), x: xHandle(r.twitter_username || r.twitter || ''),
+    wr, profit: pick(r, 'realized_profit_' + per, 'realized_pnl', 'profit', 'pnl'), trades, tpd: trades != null ? trades / days : null, hold: pick(r, 'avg_holding_period_' + per), last: pick(r, 'last_active'),
+    av: [r.avatar, r.twitter_avatar, r.profile_image, r.avatar_url, r.image].find(u => typeof u === 'string' && /^https:\/\//.test(u)) || '' };
+}
+const lbBot = (tags, extra) => !!extra || (tags || []).some(t => BOT_RX.test(String(t)));
+const LBS = [['axiom', '⚡ Axiom traders', 'Solana Tracker'], ['st', '🌐 All Solana traders', 'Solana Tracker'], ['pf', '🟢 Pump.fun winners', 'Winner Lab'], ['birdeye', '🦅 Birdeye top', 'Birdeye key'], ['gmgn', '🟢 GMGN', 'snapshot'], ['kolscan', '👑 Kolscan KOLs', 'snapshot']];
+const lbGrp = s => s === 'axiom' || s === 'st' ? 'st' : s === 'pf' ? 'pf' : s === 'birdeye' ? 'be' : s === 'gmgn' ? 'gm' : 'ks';
+const LB_PRE = {
+  st: { consistent: ['🎯 Consistent', { wr: 55, roi: 20, days: 10, closed: 20, one: 40, inv: 500, buyMin: 50, buyMax: 2000, tpd: 100, last: 3, pdays: 50, xOnly: 0, bots: 1, tracked: 1 }],
+    copy: ['🐟 Copyable size', { wr: 0, roi: 0, days: 3, closed: 0, one: 0, inv: 0, buyMin: 50, buyMax: 1000, tpd: 50, last: 3, pdays: 0, xOnly: 0, bots: 1, tracked: 1 }],
+    hot: ['🔥 Hot this week', { wr: 0, roi: 0, days: 0, closed: 0, one: 0, inv: 0, buyMin: 0, buyMax: 0, tpd: 100, last: 1, pdays: 0, xOnly: 0, bots: 1, tracked: 1 }, { per: '7d', sort: 'roi' }],
+    whales: ['🐋 Whales', { wr: 0, roi: 0, days: 0, closed: 0, one: 0, inv: 0, buyMin: 5000, buyMax: 0, tpd: 0, last: 7, pdays: 0, xOnly: 0, bots: 1, tracked: 1 }, { sort: 'pnl' }] },
+  pf: { repeat: ['🧠 Repeat winners', { minWin: 2, pnl: 1000, roi: 3, life: 0, buyMin: 50, buyMax: 5000, hold: 10, style: 'all', pre: 'any', fresh: 1, tracked: 1 }, { sort: 'wins' }],
+    curve: ['📈 Curve buyers', { minWin: 1, pnl: 500, roi: 2, life: 0, buyMin: 50, buyMax: 5000, hold: 10, style: 'curve', pre: 'yes', fresh: 1, tracked: 1 }, { sort: 'pnl' }],
+    momentum: ['🚀 Momentum', { minWin: 1, pnl: 500, roi: 2, life: 0, buyMin: 50, buyMax: 0, hold: 60, style: 'momentum', pre: 'any', fresh: 1, tracked: 1 }, { sort: 'pnl' }],
+    big: ['💰 Big single hits', { minWin: 1, pnl: 20000, roi: 2, life: 0, buyMin: 0, buyMax: 0, hold: 0, style: 'all', pre: 'any', fresh: 1, tracked: 1 }, { sort: 'pnl' }] },
+  be: {}, gm: {}, ks: {} };
+const LB_DEF = { be: { pnl: 10000, tMin: 10, tMax: 2000, tracked: 1 }, gm: { pnl: 5000, wr: 50, tMin: 10, tMax: 1500, last: 3, tpd: 100, xOnly: 0, bots: 1, tracked: 1 }, ks: { pnl: 50, wr: 50, tMin: 10, tMax: 1000, xOnly: 1, tracked: 1 } };
+const LB_F = {
+  st: [['wr', 'Win rate at least', '%', 'Performance (Solana Tracker)'], ['roi', 'ROI at least', '%', 'Performance (Solana Tracker)'], ['days', 'Active days at least', 'n', 'Performance (Solana Tracker)'], ['closed', 'Closed coins at least', 'n', 'Performance (Solana Tracker)'], ['one', 'Max profit from one coin', '%', 'Performance (Solana Tracker)'], ['inv', 'Invested at least', '$', 'Performance (Solana Tracker)'],
+    ['buyMin', 'Average buy from', '$', 'Trading style'], ['buyMax', 'Average buy up to', '$', 'Trading style'], ['tpd', 'Trades per day at most', 'n', 'Trading style'], ['pdays', 'Profitable days at least', '%', 'Trading style'],
+    ['last', 'Last trade within (days)', 'sel:0,1,3,7', 'Activity and type'], ['xOnly', 'Only with X handle', 'tog', 'Activity and type'], ['bots', 'Hide bots', 'tog', 'Activity and type'], ['tracked', 'Hide wallets already on the site', 'tog', 'Activity and type']],
+  pf: [['minWin', 'Top earner in at least (winners)', 'sel:1,2,3,4', 'Results'], ['pnl', 'Profit on winners at least', '$', 'Results'], ['roi', 'ROI at least (×)', 'x', 'Results'], ['life', 'Lifetime profit at least', '$', 'Results'],
+    ['buyMin', 'Buy per coin from', '$', 'Trading style'], ['buyMax', 'Buy per coin up to', '$', 'Trading style'], ['hold', 'Held at least (min)', 'n', 'Trading style'], ['style', 'Style', 'sel:all,sniper,curve,momentum', 'Trading style'], ['pre', 'Bought before migration', 'sel:any,yes', 'Trading style'],
+    ['fresh', 'Hide fresh wallets (1–3 coins ever)', 'tog', 'Type'], ['tracked', 'Hide wallets already on the site', 'tog', 'Type']],
+  be: [['pnl', 'Profit at least', '$', 'Filters'], ['tMin', 'Trades from', 'n', 'Filters'], ['tMax', 'Trades up to', 'n', 'Filters'], ['tracked', 'Hide wallets already on the site', 'tog', 'Filters']],
+  gm: [['pnl', 'Profit at least', '$', 'Performance'], ['wr', 'Win rate at least', '%', 'Performance'], ['tMin', 'Trades from', 'n', 'Performance'], ['tMax', 'Trades up to', 'n', 'Performance'],
+    ['last', 'Last trade within (days)', 'sel:0,1,3,7', 'Activity and type'], ['tpd', 'Trades per day at most', 'n', 'Activity and type'], ['xOnly', 'Only with X handle', 'tog', 'Activity and type'], ['bots', 'Hide bots', 'tog', 'Activity and type'], ['tracked', 'Hide wallets already on the site', 'tog', 'Activity and type']],
+  ks: [['pnl', 'Profit at least (SOL)', 'n', 'Filters'], ['wr', 'Win rate at least', '%', 'Filters'], ['tMin', 'Trades from', 'n', 'Filters'], ['tMax', 'Trades up to', 'n', 'Filters'], ['xOnly', 'Only with X handle', 'tog', 'Filters'], ['tracked', 'Hide wallets already on the site', 'tog', 'Filters']] };
+const LB_SRVF = ['wr', 'roi', 'days', 'closed', 'one', 'inv'];
+const STY = { sniper: '🎯 Sniper', curve: '📈 Curve buyer', momentum: '🚀 Momentum' };
+const lsGet = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } };
+let LBB = { src: 'axiom', per: '7d', sort: 'pnl', as: 'auto', pre: { st: 'consistent', pf: 'repeat' }, f: {}, ...lsGet('hso_lbb', {}) };
+if (!LBB.pre) LBB.pre = { st: 'consistent', pf: 'repeat' }; if (!LBB.f) LBB.f = {};
+['st', 'pf'].forEach(g => { if (!LBB.f[g]) LBB.f[g] = { ...LB_PRE[g][LBB.pre[g] || Object.keys(LB_PRE[g])[0]][1] }; });
+['be', 'gm', 'ks'].forEach(g => { if (!LBB.f[g]) LBB.f[g] = { ...LB_DEF[g] }; });
+LBB.rows = []; LBB.more = null; LBB.err = ''; LBB.asOf = 0; LBB.loading = false; LBB.show = 50;
+const saveLBB = () => { const { src, per, sort, as, pre, f } = LBB; lsSet('hso_lbb', { src, per, sort, as, pre, f }); };
+let TRK = null;   // wallets already on the site
+const ADDED = new Map();   // added during this visit → 'kol' | 'smart'
+async function loadTracked() { try { TRK = new Set((await api('/api/owner/wallets/ids')).ids); } catch (e) { TRK = TRK || new Set(); } }
+function labRead() { return new Promise(res => { try { const q = indexedDB.open('hslab', 1); q.onupgradeneeded = () => { try { q.result.createObjectStore('kv'); } catch (e) { } };
+  q.onsuccess = () => { try { const g = q.result.transaction('kv').objectStore('kv').get('last'); g.onsuccess = () => res(g.result || null); g.onerror = () => res(null); } catch (e) { res(null); } }; q.onerror = () => res(null); } catch (e) { res(null); } }); }
+async function lbLoad(more) {
+  if (LBB.loading) return; LBB.loading = true; LBB.err = ''; if (!more) { LBB.rows = []; LBB.more = null; LBB.asOf = 0; LBB.show = 50; } lbDraw();
+  const days = { '1d': 1, '7d': 7, '30d': 30, '90d': 90 }[LBB.per] || 7, have = new Set(LBB.rows.map(r => r.w));
+  try {
+    if (!TRK) await loadTracked();
+    if (LBB.src === 'axiom' || LBB.src === 'st') {
+      const sort = { pnl: 'realized', wr: 'win_percentage', roi: 'roi', trades: 'trades', vol: 'volume', days: 'days', coins: 'tokens' }[LBB.sort] || 'realized', f = LBB.f.st;
+      const q = [['minWinRate', f.wr], ['minRoi', f.roi], ['minDays', f.days], ['minClosedTokens', f.closed], ['maxSingleTokenPct', f.one], ['minInvested', f.inv]].filter(([, v]) => +v > 0).map(([k, v]) => `&${k}=${+v}`).join('');
+      const j = await stGet(`/v2/pnl/leaderboard/top?limit=100&days=${days}&sort=${sort}&direction=desc&excludeArbitrage=true&minTrades=10${q}${LBB.src === 'axiom' ? '&platform=axiom,axiom-flash' : ''}${more && LBB.more ? '&cursor=' + encodeURIComponent(LBB.more) : ''}`);
+      (j?.traders || []).forEach(t => { const id = t.identity || {}, w = t.wallet; if (!w || !B58.test(w) || have.has(w)) return; have.add(w); let last = t.timing?.lastTrade || null; if (last && last > 1e12) last /= 1000;
+        let wr = t.winRate ?? t.period?.days?.winRate ?? null; if (wr != null && wr <= 1.0001) wr *= 100; const roi = t.period?.roi ?? null;
+        const p = t.period || {}, pd = p.days || {}, td = p.tradingDays ?? null, real = p.realized ?? t.ending?.pnl?.realized ?? null, trades = t.counts?.trades ?? null;
+        LBB.rows.push({ w, src: LBB.src, name: String(id.name || '').slice(0, 40), x: xHandle(id.twitter), av: id.avatar || '', pnl: real, cur: '$', wr, roi, trades, last,
+          days: td, avgBuy: t.averages?.buy ?? null, one: real > 0 && pd.maxSinglePnl != null ? pd.maxSinglePnl / real * 100 : null, closed: t.tokens?.closed ?? null,
+          pdays: (pd.profitable || 0) + (pd.losing || 0) ? pd.profitable / (pd.profitable + pd.losing) * 100 : null, tpd: td && trades != null ? trades / td : null,
+          bot: lbBot(id.tags, id.bot?.name || id.exchange?.name || id.pool?.program || id.hacker?.label || id.spamDusting?.label || /bot|mev|arb/i.test(id.type || '')) }); });
+      LBB.more = j?.pagination?.hasMore ? j.pagination.nextCursor : null;
+    } else if (LBB.src === 'pf') {
+      const R = await labRead(); LBB.lab = R ? { at: R.at, coins: (R.coins || []).length, wallets: (R.wallets || []).length, cfg: R.cfg || null } : null;
+      if (!R || !Array.isArray(R.wallets)) throw new Error('No Winner Lab results yet — tap ↻ Scan to find top earners on recent pump.fun winners.');
+      LBB.rows = R.wallets.map(o => ({ w: o.w, src: 'pf', name: String(o.name || '').slice(0, 40), x: xHandle(o.tw || ''), av: '', pnl: o.pnl, cur: '$', wr: null, roi: o.roi, trades: null, last: null,
+        wins: o.n, coins: o.coins || [], life: o.lt, style: o.style || '', medMc: o.medMc, hold: o.medHold, pre: o.pre || 0, tt: o.tt, avgBuy: o.n ? o.inv / o.n : null, bot: false }));
+    } else if (LBB.src === 'birdeye') {
+      const off = more ? LBB.rows.length : 0, type = { '1d': 'today', '7d': '1W', '30d': '30d' }[LBB.per] || '1W';
+      const j = await beGet(`/trader/gainers-losers?type=${type}&sort_by=${LBB.sort === 'rpnl' ? 'realized_pnl' : 'PnL'}&sort_type=desc&offset=${off}&limit=100`);
+      const it = j?.data?.items || []; it.forEach(t => { if (!t.address || !B58.test(t.address) || have.has(t.address)) return; have.add(t.address); LBB.rows.push({ w: t.address, src: 'birdeye', name: '', x: '', av: '', pnl: pick(t, 'pnl', 'realized_pnl'), cur: '$', wr: null, roi: null, trades: pick(t, 'trade_count'), last: null, bot: false }); });
+      LBB.more = it.length >= 100 && off < 900 ? 1 : null;
+    } else {
+      if (!LBB.all) {
+        const per = LBB.per === '90d' ? '30d' : LBB.per;
+        if (LBB.src === 'gmgn') LBB.all = collectWallets(await lbFetch(LB_GMGN)).map(o => { const r = lbRow(o, 'gmgn', per); return { w: r.w, src: 'gmgn', name: r.name, x: r.x, av: r.av, pnl: r.profit, cur: '$', wr: r.wr, roi: null, trades: r.trades, last: r.last, tpd: r.tpd, bot: lbBot([...r.cats, ...r.tags], r.tpd != null && r.tpd > 300 || r.hold != null && r.hold < 60) }; });
+        else { const j = await lbFetch(LB_KOLSCAN), arr = Array.isArray(j) ? j : collectWallets(j).map(o => o.raw), tf = days, has = arr.some(e => +e.timeframe === tf);
+          const by = {}; arr.filter(e => !has || +e.timeframe === tf).forEach(e => { const w = e.wallet_address || e.address || e.wallet; if (!w || !B58.test(w)) return; const wn = +e.wins || 0, ls = +e.losses || 0;
+            by[w] = { w, src: 'kolscan', name: String(e.name || '').slice(0, 40), x: xHandle(e.twitter), av: '', pnl: e.profit != null ? +e.profit : null, cur: 'SOL', wr: wn + ls ? wn / (wn + ls) * 100 : null, roi: null, trades: wn + ls || null, last: null, bot: false }; });
+          LBB.all = Object.values(by); }
+        LBB.asOf = Math.max(0, ...LBB.all.map(r => r.last || 0));
+      }
+      LBB.rows = LBB.all.slice(); LBB.more = null;
+    }
+  } catch (e) { if (e.message !== 'signed out') LBB.err = e.message; }
+  LBB.loading = false; lbDraw();
+}
+const onSite = w => (TRK && TRK.has(w)) || ADDED.has(w);
+function lbPass(r) {
+  const g = lbGrp(r.src), f = LBB.f[g], now = Date.now() / 1000;
+  if (f.tracked && TRK && TRK.has(r.w) && !ADDED.has(r.w)) return false;
+  if (f.bots && r.bot) return false; if (f.xOnly && !r.x) return false;
+  if (+f.last > 0 && r.last && now - r.last > f.last * 86400) return false; if (+f.last > 0 && !r.last && g === 'gm') return false;
+  if (+f.tpd > 0 && r.tpd != null && r.tpd > f.tpd) return false;
+  if (g === 'st') { if (+f.buyMin > 0 && (r.avgBuy == null || r.avgBuy < f.buyMin)) return false; if (+f.buyMax > 0 && r.avgBuy != null && r.avgBuy > f.buyMax) return false; if (+f.pdays > 0 && r.pdays != null && r.pdays < f.pdays) return false; return true; }
+  if (g === 'pf') { if ((r.wins || 0) < (+f.minWin || 1)) return false; if (+f.pnl > 0 && (r.pnl || 0) < f.pnl) return false; if (+f.roi > 0 && (r.roi == null || r.roi < f.roi)) return false;
+    if (f.life !== '' && f.life != null && r.life != null && r.life < +f.life) return false; if (+f.buyMin > 0 && (r.avgBuy || 0) < f.buyMin) return false; if (+f.buyMax > 0 && (r.avgBuy || 0) > f.buyMax) return false;
+    if (+f.hold > 0 && r.hold != null && r.hold < f.hold * 60) return false; if (f.style && f.style !== 'all' && r.style !== f.style) return false; if (f.pre === 'yes' && !r.pre) return false; if (f.fresh && r.tt != null && r.tt <= 3) return false; return true; }
+  if (+f.pnl > 0 && (r.pnl == null || r.pnl < f.pnl)) return false; if (+f.wr > 0 && (r.wr == null || r.wr < f.wr)) return false;
+  if (+f.tMin > 0 && (r.trades == null || r.trades < f.tMin)) return false; if (+f.tMax > 0 && r.trades != null && r.trades > f.tMax) return false;
+  return true;
+}
+function lbShown() {
+  const rows = LBB.rows.filter(lbPass), k = LBB.sort;
+  if (LBB.src === 'pf') { const v = { wins: r => (r.wins || 0) * 1e9 + (r.pnl || 0), pnl: r => r.pnl || 0, roi: r => r.roi || 0, life: r => r.life ?? -1e15, early: r => -(r.medMc ?? 1e15) }[k] || (r => r.pnl || 0); return rows.sort((a, b) => v(b) - v(a)); }
+  if (LBB.src === 'gmgn' || LBB.src === 'kolscan') { const key = { pnl: 'pnl', wr: 'wr', trades: 'trades' }[k] || 'pnl'; return rows.sort((a, b) => (b[key] ?? -1e18) - (a[key] ?? -1e18)); }
+  return rows;
+}
+const asKol = r => LBB.as !== 'smart' && !!r.x;
+function lineOf(r) { return [r.w, (r.name || '').replace(/[,;|\t@]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 40), asKol(r) ? '@' + r.x : 'smart'].filter(Boolean).join(' '); }
+async function lbAddRows(rows) {
+  rows = rows.filter(r => !onSite(r.w)); if (!rows.length) return { add: 0, kol: 0, smart: 0 };
+  const j = await api('/api/owner/wallets/add', { body: { text: rows.map(lineOf).join('\n'), source: 'leaderboard' } });
+  rows.forEach(r => ADDED.set(r.w, asKol(r) ? 'kol' : 'smart')); return j.result;
+}
+function lbRowHTML(r, i) {
+  const st = ADDED.get(r.w) || (TRK && TRK.has(r.w) ? 'site' : null);
+  const pn = r.pnl == null ? '' : r.cur === 'SOL' ? num(r.pnl, 1) + ' SOL' : usd(Math.abs(r.pnl));
+  const bits = [];
+  if (r.src === 'pf') { bits.push(`<b style="color:var(--ok)">${r.wins}</b> winner${r.wins > 1 ? 's' : ''}`); if (pn) bits.push(`<span style="color:var(--${r.pnl >= 0 ? 'ok' : 'er'})">${r.pnl >= 0 ? '+' : '-'}${pn}</span>`); if (r.roi != null) bits.push(num(r.roi, 1) + '×');
+    if (r.medMc != null) bits.push('entry ' + usd(r.medMc)); if (r.hold != null) bits.push('held ' + (r.hold < 3600 ? Math.round(r.hold / 60) + 'm' : (r.hold / 3600).toFixed(1) + 'h')); if (r.life != null) bits.push('life ' + (r.life >= 0 ? '+' : '-') + usd(Math.abs(r.life))); }
+  else { if (pn) bits.push(`<span style="color:var(--${r.pnl >= 0 ? 'ok' : 'er'})">${r.pnl >= 0 ? '+' : '-'}${pn}</span>`); if (r.wr != null) bits.push('WR ' + num(r.wr, 0) + '%'); if (r.roi != null) bits.push('ROI ' + num(r.roi, 0) + '%'); if (r.days != null) bits.push(r.days + ' days'); if (r.trades != null) bits.push(num(r.trades, 0) + ' trades'); }
+  const sub = r.src === 'pf' ? (r.coins || []).slice(0, 3).map(c => esc(c.sym ? '$' + c.sym : short(c.m)) + ' ' + (c.pnl >= 0 ? '+' : '-') + usd(Math.abs(c.pnl))).join(' · ')
+    : [r.avgBuy != null ? 'avg buy ' + usd(r.avgBuy) : '', r.one != null ? Math.round(r.one) + '% from one coin' : '', r.last ? 'last trade ' + ago(r.last) : ''].filter(Boolean).join(' · ');
+  const ini = esc((r.name || r.x || r.w).replace(/[^A-Za-z0-9]/g, '').slice(0, 2).toUpperCase() || '?');
+  return `<div class="row" style="align-items:flex-start"><span class="mu3" style="width:20px;padding-top:2px">${i + 1}</span>
+   <div style="width:34px;height:34px;border-radius:50%;background:var(--soft);flex:none;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--tx2)">${r.av ? `<img src="${esc(r.av)}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover" onerror="this.remove()">` : ini}</div>
+   <div class="rl"><div style="white-space:normal">${esc(r.name || (r.x ? '@' + r.x : short(r.w)))}${r.bot ? ' <span class="pl er">BOT</span>' : ''}${r.style ? ` <span class="pl ne">${STY[r.style] || esc(r.style)}</span>` : ''}${r.tt != null && r.tt <= 3 ? ' <span class="pl wa">fresh</span>' : ''}</div>
+    <div class="mu">${r.x ? '@' + esc(r.x) + ' · ' : ''}<a style="color:var(--acc);text-decoration:none" href="https://gmgn.ai/sol/address/${r.w}" target="_blank" rel="noopener">${short(r.w)} ↗</a></div>
+    <div style="font-size:12px;margin-top:2px;white-space:normal">${bits.join(' · ')}</div>${sub ? `<div class="mu3" style="white-space:normal">${sub}</div>` : ''}</div>
+   ${st ? `<span class="pl ${st === 'site' ? 'ne' : 'ok'}">${st === 'site' ? 'On site' : '✓ ' + (st === 'kol' ? 'KOL' : 'Smart')}</span>` : `<button class="bt" style="padding:5px 9px" data-la="${r.w}">＋ ${asKol(r) ? 'KOL' : 'Smart'}</button>`}</div>`;
+}
+const lbNum = v => { const m = String(v ?? '').trim().toLowerCase().replace(/[$,%×x\s]|sol/g, '').match(/^(-?\d*\.?\d+)([kmb]?)$/); return m ? +m[1] * ({ k: 1e3, m: 1e6, b: 1e9 }[m[2]] || 1) : 0; };
+const lbFmt = (v, k) => !+v ? '' : k === '$' ? (v >= 1e6 ? +(v / 1e6).toFixed(2) + 'M' : v >= 1e3 ? +(v / 1e3).toFixed(1) + 'K' : String(v)) : String(v);
+function lbChips() {
+  const g = lbGrp(LBB.src), f = LBB.f[g], o = [], $k = v => '$' + lbFmt(v, '$'), on = k => +f[k] > 0;
+  if (on('wr')) o.push('WR ≥' + f.wr + '%'); if (g === 'st' && on('roi')) o.push('ROI ≥' + f.roi + '%'); if (g === 'pf' && on('roi')) o.push('≥' + f.roi + '×');
+  if (on('days')) o.push(f.days + '+ days'); if (on('closed')) o.push(f.closed + '+ coins'); if (on('one')) o.push('≤' + f.one + '% one coin'); if (on('inv')) o.push('invested ≥' + $k(f.inv));
+  if (on('buyMin') || on('buyMax')) o.push('buy ' + (on('buyMin') ? $k(f.buyMin) : '$0') + '–' + (on('buyMax') ? $k(f.buyMax) : 'any'));
+  if (on('tpd')) o.push('≤' + f.tpd + ' trades/day'); if (on('pdays')) o.push('≥' + f.pdays + '% green days'); if (on('last')) o.push('active ' + f.last + 'd');
+  if (+f.minWin > 1) o.push(f.minWin + '+ winners'); if (g !== 'st' && on('pnl')) o.push('≥' + (g === 'ks' ? f.pnl + ' SOL' : $k(f.pnl)));
+  if (on('hold')) o.push('held ' + f.hold + 'm+'); if (f.style && f.style !== 'all') o.push((STY[f.style] || f.style).replace(/^\S+\s/, '').toLowerCase()); if (f.pre === 'yes') o.push('pre-migration');
+  if (on('tMin') || on('tMax')) o.push('trades ' + (+f.tMin || 0) + '–' + (on('tMax') ? f.tMax : 'any'));
+  if (f.xOnly) o.push('X handle only'); if (f.bots) o.push('no bots'); if (f.fresh) o.push('no fresh'); if (f.tracked) o.push('hide on-site');
+  return o;
+}
+function lbDraw() {
+  const el = $('#lbList'); if (!el) return;
+  const rows = lbShown(), nNew = rows.filter(r => !onSite(r.w)).length, snap = LBB.src === 'gmgn' || LBB.src === 'kolscan', src = LBS.find(x => x[0] === LBB.src);
+  el.innerHTML = `${LBB.err ? `<div class="${LBB.src === 'pf' && !LBB.lab ? 'mu' : 'err'}" style="margin:8px 0">${esc(LBB.err)}</div>` : ''}
+   ${snap && LBB.rows.length ? `<div class="mu3" style="margin:6px 0">📦 Saved snapshot of the ${src[1].replace(/^\S+\s/, '')} leaderboard${LBB.asOf ? ' · data up to ' + new Date(LBB.asOf * 1000).toLocaleDateString('en-IN') : ''} — not live.</div>` : ''}
+   ${LBB.rows.length ? `<div class="selbar"><span style="flex:1" class="mu"><b>${rows.length}</b> of ${fmt(LBB.rows.length)} match</span><button class="bt bp" id="lbAll" ${nNew ? '' : 'disabled'}>＋ Add all ${nNew}</button></div>` : ''}
+   ${rows.slice(0, LBB.show).map(lbRowHTML).join('')}
+   ${rows.length > LBB.show ? `<button class="bt wide mt" id="lbShowMore">Show ${Math.min(50, rows.length - LBB.show)} more · ${rows.length - LBB.show} left</button>` : ''}
+   ${LBB.loading ? '<div class="center mu" style="padding:18px 0"><span class="spin"></span> Loading…</div>' : (LBB.rows.length && !rows.length ? '<div class="mu" style="padding:12px 0">No wallet matches these filters — loosen them in Filters.</div>' : '')}
+   ${LBB.more && !LBB.loading ? '<button class="bt wide mt" id="lbMore">Load 100 more</button>' : ''}`;
+  el.querySelectorAll('[data-la]').forEach(b => b.onclick = () => act(b, async () => { const r = LBB.rows.find(x => x.w === b.dataset.la); if (!r) return; await lbAddRows([r]); lbDraw(); toast(`Added as ${asKol(r) ? 'KOL' : 'Smart'}`); }));
+  const all = $('#lbAll'); if (all) all.onclick = () => {
+    const list = lbShown().filter(r => !onSite(r.w));
+    sheet(`<h3>Add ${list.length} wallets to the site?</h3><p class="mu">${list.filter(asKol).length} as KOL (have an X handle) · ${list.filter(r => !asKol(r)).length} as Smart. Wallets already on the site are skipped.</p>
+     <div class="g2"><button class="bt" onclick="closeSheet()">Cancel</button><button class="bt bp" id="lbAllGo">Add ${list.length}</button></div>`, bg => bg.querySelector('#lbAllGo').onclick = e => act(e.target, async () => {
+      let n = 0; for (let i = 0; i < list.length; i += 500) n += (await lbAddRows(list.slice(i, i + 500))).add; closeSheet(); toast(`${fmt(n)} wallets added`); lbDraw(); }));
+  };
+  const mo = $('#lbMore'); if (mo) mo.onclick = () => lbLoad(true);
+  const sm = $('#lbShowMore'); if (sm) sm.onclick = () => { LBB.show += 50; lbDraw(); };
+  const sc = $('#lbScanInfo'); if (sc) sc.innerHTML = lbScanInfo();
+}
+function lbScanInfo() {
+  const L = LBB.lab; if (!L) return '<span class="mu">No scan yet</span>';
+  return `<b>Last scan ${ago(L.at / 1000)}</b><div class="mu">${L.coins} winners · ${fmt(L.wallets)} top earners${L.cfg ? ` · launched ${L.cfg.d1}–${L.cfg.d2}d ago · ATH ${usd(L.cfg.wMin)}–${usd(L.cfg.wMax)}` : ''}</div>`;
+}
+function openLab() {
+  closeSheet();
+  const bg = document.createElement('div'); bg.id = 'labov';
+  bg.style.cssText = 'position:fixed;inset:0;z-index:40;background:var(--bg);display:flex;flex-direction:column';
+  bg.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line)"><b>Winner Lab</b><button class="bt" id="labx">✕ Close</button></div>
+    <iframe src="${API}/owner/lab?auto=1" style="flex:1;border:0;width:100%;background:var(--bg)"></iframe>`;
+  document.body.appendChild(bg);
+  const close = () => { bg.remove(); window.removeEventListener('message', onMsg); TRK = null; if (LBB.src === 'pf' && tab === 'wallets') lbLoad(); };
+  const onMsg = e => { if (e.origin !== location.origin || !e.data || !e.data.hs) return; if (e.data.hs === 'lab-done' || e.data.hs === 'lab-close') close(); if (e.data.hs === 'lab-added') toast(`${fmt(e.data.n)} wallets added from Winner Lab`); };
+  window.addEventListener('message', onMsg); bg.querySelector('#labx').onclick = close;
+}
+function FindWallets(box) {
+  const g = lbGrp(LBB.src), f = LBB.f[g], pres = LB_PRE[g] || {}, live = g === 'st', pf = g === 'pf';
+  const dd = (id, label, cur, opts) => `<div class="field" style="margin:0"><label>${label}</label><select id="${id}">${opts.map(([a, b]) => `<option value="${a}" ${String(cur) === String(a) ? 'selected' : ''}>${b}</option>`).join('')}</select></div>`;
+  const pers = LBB.src === 'birdeye' || LBB.src === 'gmgn' || LBB.src === 'kolscan' ? [['1d', '1 day'], ['7d', '7 days'], ['30d', '30 days']] : [['1d', '1 day'], ['7d', '7 days'], ['30d', '30 days'], ['90d', '90 days']];
+  const ranks = pf ? [['wins', 'Winners'], ['pnl', 'Profit'], ['roi', 'ROI'], ['life', 'Lifetime'], ['early', 'Earliest entry']] : LBB.src === 'birdeye' ? [['pnl', 'Total profit'], ['rpnl', 'Realized profit']] : live ? [['pnl', 'Profit'], ['wr', 'Win rate'], ['roi', 'ROI'], ['trades', 'Trades'], ['vol', 'Volume'], ['days', 'Active days'], ['coins', 'Coins']] : [['pnl', 'Profit'], ['wr', 'Win rate'], ['trades', 'Trades']];
+  if (!ranks.some(x => x[0] === LBB.sort)) LBB.sort = ranks[0][0]; if (!pf && !pers.some(x => x[0] === LBB.per)) LBB.per = '7d';
+  const lc = lsGet('hslab_cfg5', { d1: 1, d2: 15, wMin: 3e5, wMax: 1e7, n: 25, lp: ['pump', 'launchlab', 'dbc', 'boop', 'moon'] });
+  const groups = []; LB_F[g].forEach(fd => { let x = groups.find(y => y[0] === fd[3]); if (!x) groups.push(x = [fd[3], []]); x[1].push(fd); });
+  const fld = ([k, l, kind]) => kind === 'tog' ? `<div class="row"><span>${l}</span><button class="tg ${f[k] ? 'on' : ''}" data-lf="${k}" data-tog="1"></button></div>`
+    : kind.startsWith('sel:') ? `<div class="row"><span>${l}</span><select data-lf="${k}" style="width:auto;min-width:110px">${kind.slice(4).split(',').map(o => `<option value="${o}" ${String(f[k]) === o ? 'selected' : ''}>${o === '0' || o === 'any' ? 'any' : o === 'all' ? 'all' : k === 'last' ? o + ' day' + (o === '1' ? '' : 's') : k === 'style' ? STY[o] : k === 'minWin' ? o + (o === '4' ? '+' : '') : o}</option>`).join('')}</select></div>`
+    : `<div class="row"><span>${l}</span><input data-lf="${k}" inputmode="decimal" style="width:110px;text-align:right" value="${k === 'life' ? (f.life === '' || f.life == null ? '' : (+f.life < 0 ? '-' : '') + (+f.life === 0 ? '0' : lbFmt(Math.abs(+f.life), '$'))) : kind === '$' ? lbFmt(f[k], '$') : (+f[k] ? f[k] : '')}" placeholder="off"></div>`;
+  box.innerHTML = `<div class="cd">
+   <div class="field"><label>Source</label><select id="lbSrc">${LBS.map(([k, l, d]) => `<option value="${k}" ${LBB.src === k ? 'selected' : ''}>${l} · ${d}</option>`).join('')}</select></div>
+   ${pf ? `<div class="cd" style="background:var(--soft);border:0;margin:0 0 10px"><div class="hd"><div id="lbScanInfo">${lbScanInfo()}</div><button class="bt bp" id="lbScan">↻ Scan</button></div>
+     <div class="g2">${dd('lbsD', 'Launched', lc.d1 + '-' + lc.d2, [['1-7', '1–7 days ago'], ['1-15', '1–15 days ago'], ['1-30', '1–30 days ago']])}${dd('lbsA', 'Winner ATH', lc.wMin + '-' + lc.wMax, [['100000-5000000', '100K–5M'], ['300000-10000000', '300K–10M'], ['1000000-50000000', '1M–50M']])}
+     ${dd('lbsN', 'Winners to scan', lc.n, [['10', '10'], ['25', '25'], ['50', '50']])}${dd('lbsL', 'Launchpads', (lc.lp || []).length >= 4 ? 'all' : (lc.lp || []).join(','), [['pump,launchlab', 'Pump.fun + Bonk'], ['pump', 'Pump.fun'], ['all', 'All launchpads']])}</div>
+     <div class="mu3 mt">The scan runs here in Winner Lab (≈ ${Math.min(30, lc.d2 - lc.d1 + 1) + lc.n * 3} Solana Tracker calls; coins scanned before are free). Keep this page open while it runs.</div></div>` : ''}
+   <div class="g2">
+     ${Object.keys(pres).length ? dd('lbPre', 'Preset', LBB.pre[g] || 'custom', [...Object.entries(pres).map(([k, v]) => [k, v[0]]), ['custom', 'Custom']]) : ''}
+     ${pf ? '' : dd('lbPer', 'Period', LBB.per, pers)}
+     ${dd('lbSort', 'Rank by', LBB.sort, ranks)}
+     ${dd('lbAs', 'Add as', LBB.as, [['auto', 'Auto (handle → KOL)'], ['smart', 'All as Smart']])}
+   </div>
+   <button class="bt wide mt" id="lbFb" style="display:flex;justify-content:space-between"><span>⚙ Filters · ${lbChips().length} on</span><span id="lbFc">▾</span></button>
+   <div class="chips mt" style="flex-wrap:wrap">${lbChips().map(c => `<span class="pl ne">${esc(c)}</span>`).join('')}</div>
+   <div id="lbFp" style="display:none">${groups.map(([name, fs]) => `<div class="mu" style="font-weight:600;margin-top:10px">${name}</div>${fs.map(fld).join('')}`).join('')}
+     <div class="g2 mt"><button class="bt" id="lbFr">${Object.keys(pres).length ? 'Reset to preset' : 'Reset'}</button><button class="bt bp" id="lbFa">Apply</button></div></div>
+   </div><div class="cd" id="lbList"></div>`;
+  const redraw = () => { saveLBB(); FindWallets(box); };
+  $('#lbSrc').onchange = e => { LBB.src = e.target.value; LBB.all = null; if (LBB.src === 'pf') LBB.as = 'smart'; saveLBB(); FindWallets(box); lbLoad(); };
+  if ($('#lbPer')) $('#lbPer').onchange = e => { LBB.per = e.target.value; LBB.all = null; saveLBB(); lbLoad(); };
+  $('#lbSort').onchange = e => { LBB.sort = e.target.value; saveLBB(); if (live || LBB.src === 'birdeye') lbLoad(); else lbDraw(); };
+  $('#lbAs').onchange = e => { LBB.as = e.target.value; saveLBB(); lbDraw(); };
+  if ($('#lbPre')) $('#lbPre').onchange = e => { const k = e.target.value; LBB.pre[g] = k; if (pres[k]) { LBB.f[g] = { ...pres[k][1] }; if (pres[k][2]) Object.assign(LBB, pres[k][2]); } LBB.all = null; redraw(); if (live) lbLoad(); else lbDraw(); };
+  $('#lbFb').onclick = () => { const p = $('#lbFp'), o = p.style.display === 'none'; p.style.display = o ? '' : 'none'; $('#lbFc').textContent = o ? '▴' : '▾'; };
+  $('#lbFp').querySelectorAll('[data-tog]').forEach(b => b.onclick = () => b.classList.toggle('on'));
+  $('#lbFr').onclick = () => { const k = LBB.pre[g]; LBB.f[g] = pres[k] ? { ...pres[k][1] } : { ...(LB_DEF[g] || LB_PRE[g][Object.keys(LB_PRE[g])[0]][1]) }; if (!pres[k] && Object.keys(pres).length) LBB.pre[g] = Object.keys(pres)[0]; redraw(); lbLoad(); };
+  $('#lbFa').onclick = () => { const before = JSON.stringify(LB_SRVF.map(k => f[k])), nf = { ...f };
+    $('#lbFp').querySelectorAll('[data-lf]').forEach(el => { const k = el.dataset.lf, kind = LB_F[g].find(x => x[0] === k)[2];
+      nf[k] = kind === 'tog' ? (el.classList.contains('on') ? 1 : 0) : kind.startsWith('sel:') ? (/^\d+$/.test(el.value) ? +el.value : el.value) : (el.value.trim() === '' ? (k === 'life' ? '' : 0) : lbNum(el.value)); });
+    const changed = JSON.stringify(nf) !== JSON.stringify(f); LBB.f[g] = nf; if (changed && Object.keys(pres).length) LBB.pre[g] = 'custom';
+    const reload = live && JSON.stringify(LB_SRVF.map(k => nf[k])) !== before; redraw(); if (reload) lbLoad(); else lbDraw(); };
+  if (pf) $('#lbScan').onclick = () => { const [d1, d2] = $('#lbsD').value.split('-').map(Number), [wMin, wMax] = $('#lbsA').value.split('-').map(Number), lp = $('#lbsL').value === 'all' ? ['pump', 'launchlab', 'dbc', 'boop', 'moon'] : $('#lbsL').value.split(',');
+    lsSet('hslab_cfg5', { ...lsGet('hslab_cfg5', {}), d1, d2, wMin, wMax, n: +$('#lbsN').value, lp }); openLab(); };
+  if (LBB.rows.length && LBB.rows[0].src === LBB.src && !LBB.loading) lbDraw(); else lbLoad();
+}
+
 // ---------- Users ----------
 const US = { filter: 'all', q: '', shown: 20, users: [], total: 0, counts: {} };
 async function Users() {
@@ -429,7 +705,7 @@ function More() {
   $('#app').innerHTML = header('More') + `<div class="cd">
    ${Object.entries(SUBS).map(([k, l]) => `<div class="row" style="cursor:pointer" onclick="location.hash='more/${k}'"><span>${l}</span><span class="mu3">›</span></div>`).join('')}</div>
    <div class="cd"><div class="row"><div class="rl"><div>Signed in as</div><div class="mu">${esc(me.email || short(me.wallet))}</div></div><button class="bt" id="so">Sign out</button></div></div>
-   <div class="mu3 center">Owner dashboard · server v3</div>`;
+   <div class="mu3 center">Owner dashboard · server v4</div>`;
   $('#so').onclick = signOut;
 }
 

@@ -5,13 +5,14 @@
 // (no transaction, no fee), and the Worker checks the signature. Then it hands out a session token.
 // Owner dashboard: open <this worker's address>/owner
 
-const API_V = 3;
+const API_V = 4;
 // Owner wallet(s) — always allowed into the dashboard. More owners can be added in Site control.
 const OWNER_WALLETS = 'CZQkA9JszBPP7x2LescrtZwh1LGoxZwnW68wLbdFPz93';
 // Sites allowed to call this API from a browser
 const ORIGINS = ['https://rejinrenganathan.github.io'];
 const APP_URI = 'https://rejinrenganathan.github.io/Holder-scaner/';
 const OWNER_PAGE = 'https://rejinrenganathan.github.io/Holder-scaner/server/owner.html';
+const LAB_PAGE = 'https://rejinrenganathan.github.io/Holder-scaner/lab.html';
 const NONCE_TTL = 10 * 60;          // a sign-in message is valid for 10 minutes, once
 const SESSION_DAYS = 30;            // stay signed in for 30 days
 const FRESH_SIGNIN = 15 * 60;       // changing payment wallet / owners needs a sign-in from the last 15 minutes
@@ -167,7 +168,9 @@ export default {
 async function handle(req, env, ctx) {
   if (req.method === 'OPTIONS') return new Response(null, { headers: cors(req) });
   const path = new URL(req.url).pathname.replace(/\/+$/, '') || '/';
-  if (path === '/owner') return ownerPage();
+  if (path === '/owner') return ownerPage(OWNER_PAGE);
+  if (path === '/owner/lab') return ownerPage(LAB_PAGE);
+  if (path === '/owner/hit.js') return new Response('', { headers: { 'content-type': 'text/javascript' } });
   if (!env.DB) return fail(req, 500, 'D1 database is not connected as DB (see server.html, step 3)');
   await init(env);
   const later = p => { if (ctx && ctx.waitUntil) ctx.waitUntil(p); else return p; };
@@ -294,14 +297,14 @@ async function handle(req, env, ctx) {
   return fail(req, 404, 'Not found');
 }
 
-async function ownerPage() {
+async function ownerPage(url) {
   let html = '';
   try {
-    const r = await fetch(OWNER_PAGE + '?t=' + Math.floor(Date.now() / 60000), { cf: { cacheTtl: 60 } });
+    const r = await fetch(url + '?t=' + Math.floor(Date.now() / 60000), { cf: { cacheTtl: 60 } });
     if (r.ok) html = await r.text();
   } catch (e) { }
   if (!html) html = '<!doctype html><meta name=viewport content="width=device-width"><p style="font:16px sans-serif;padding:20px">Could not load the dashboard page. Check your internet and reload.</p>';
-  return new Response(html, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-frame-options': 'DENY',
+  return new Response(html, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-frame-options': 'SAMEORIGIN', 'content-security-policy': "frame-ancestors 'self'",
     'referrer-policy': 'no-referrer', 'x-content-type-options': 'nosniff' } });
 }
 
@@ -479,6 +482,36 @@ async function owner(req, env, route, s, se) {
     }
     const sold = await DB.prepare("SELECT COUNT(*) n FROM users WHERE plan = 'lifetime'").first();
     return json(req, { ok: true, wallet: { address: w, sol, error: err, founderSold: sold ? sold.n : 0, founderMax: Number(s.founder_max) } });
+  }
+
+  // ---- key-safe pass-through for the dashboard's leaderboards and Winner Lab (keys never leave the server) ----
+  if (route === 'proxy' && req.method === 'POST') {
+    const svc = b.svc;
+    let upstream;
+    if (svc === 'st' || svc === 'be') {
+      const p = String(b.path || '');
+      const okPath = svc === 'st' ? /^\/(v2\/pnl\/|tokens\/|chart\/|price|search|deployer\/|first-buyers\/|pnl\/|top-traders\/)/ : /^\/(trader\/gainers-losers|defi\/price|defi\/v3\/token\/)/;
+      if (!okPath.test(p) || p.length > 600) return fail(req, 400, 'This request is not allowed');
+      const key = await getKey(env, svc === 'st' ? 'stracker' : 'birdeye');
+      if (!key) return fail(req, 400, `Add your ${svc === 'st' ? 'Solana Tracker' : 'Birdeye'} key in More → API keys`);
+      upstream = await fetch((svc === 'st' ? 'https://data.solanatracker.io' : 'https://public-api.birdeye.so') + p,
+        { headers: svc === 'st' ? { 'x-api-key': key, accept: 'application/json' } : { 'X-API-KEY': key, 'x-chain': 'solana', accept: 'application/json' } });
+      await bump(env, svc === 'st' ? 'call_stracker' : 'call_birdeye');
+    } else if (svc === 'hel') {
+      const allowed = ['getSignaturesForAddress', 'getTransaction', 'getMultipleAccounts', 'getBalance', 'getAccountInfo', 'getTokenAccountsByOwner', 'getTokenLargestAccounts', 'getAsset'];
+      if (!allowed.includes(b.method)) return fail(req, 400, 'This request is not allowed');
+      const key = await getKey(env, 'helius');
+      if (!key) return fail(req, 400, 'Add your Helius key in More → API keys');
+      upstream = await fetch('https://mainnet.helius-rpc.com/?api-key=' + encodeURIComponent(key), { method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: b.method, params: Array.isArray(b.params) ? b.params : [] }) });
+      await bump(env, 'call_helius');
+    } else return fail(req, 400, 'Unknown service');
+    // body is streamed through untouched (no parsing = little server time); the real status rides in a header
+    return new Response(upstream.body, { status: 200, headers: { 'content-type': 'application/json', 'cache-control': 'no-store', 'x-up': String(upstream.status), ...cors(req) } });
+  }
+  if (route === 'wallets/ids') {
+    const rows = (await DB.prepare('SELECT wallet FROM site_wallets').all()).results || [];
+    return json(req, { ok: true, ids: rows.map(r => r.wallet) });
   }
 
   // ---- site wallets ----
