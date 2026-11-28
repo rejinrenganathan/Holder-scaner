@@ -5,7 +5,7 @@
 // (no transaction, no fee), and the Worker checks the signature. Then it hands out a session token.
 // Owner dashboard: open <this worker's address>/owner
 
-const API_V = 6;
+const API_V = 7;
 // Owner wallet(s) — always allowed into the dashboard. More owners can be added in Site control.
 const OWNER_WALLETS = 'CZQkA9JszBPP7x2LescrtZwh1LGoxZwnW68wLbdFPz93';
 // Sites allowed to call this API from a browser
@@ -27,7 +27,8 @@ const DEFAULTS = {
   site_live: '1', signups: '1', payments: '0', founder: '1', alerts: '1', announce: '',
   prices: JSON.stringify({ m1: 2, m3: 5, m6: 9, m12: 15, lifetime: 30 }), founder_max: '100',
   free_tokens: '4', free_wallets: '10', paid_wallets: '4000',
-  pay_wallet: OWNER_WALLETS.split(',')[0], owner_wallets: OWNER_WALLETS, owner_emails: '', google_client_id: ''
+  pay_wallet: OWNER_WALLETS.split(',')[0], owner_wallets: OWNER_WALLETS, owner_emails: '', google_client_id: '',
+  hook_id: '', hook_secret: '', hook_url: '', hook_count: '0', hook_synced: '0', hook_err: '', hook_dirty: '0'
 };
 const PUBLIC_KEYS = ['site_live', 'signups', 'payments', 'founder', 'alerts', 'announce', 'prices', 'founder_max', 'free_tokens', 'free_wallets', 'paid_wallets', 'pay_wallet'];
 const SENSITIVE = ['pay_wallet', 'owner_wallets', 'owner_emails', 'google_client_id'];
@@ -58,7 +59,7 @@ const csv = s => String(s || '').split(/[\s,]+/).map(x => x.trim()).filter(Boole
 // the exact text the wallet signs — rebuilt on the server from the stored nonce, never trusted from the app
 function signInMessage(wallet, nonce, issued) {
   // plain text on purpose: Phantom strictly checks messages written in the "Sign in with Solana" format
-  return `Sign in to Holder Scan\n\nWallet: ${wallet}\nNonce: ${nonce}\nTime: ${new Date(issued * 1000).toISOString()}\n\n` +
+  return `Sign in to Scan Holders\n\nWallet: ${wallet}\nNonce: ${nonce}\nTime: ${new Date(issued * 1000).toISOString()}\n\n` +
     `This only proves you own this wallet. It costs nothing and sends no transaction.`;
 }
 async function verifyEd25519(pubBytes, sigBytes, msgBytes) {
@@ -89,11 +90,17 @@ async function init(env) {
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS stats(day TEXT NOT NULL, k TEXT NOT NULL, n INTEGER NOT NULL, PRIMARY KEY(day, k))`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS hits(id INTEGER PRIMARY KEY, ts INTEGER NOT NULL, day TEXT NOT NULL, vid TEXT NOT NULL,
       path TEXT NOT NULL, ref TEXT NOT NULL, country TEXT NOT NULL, device TEXT NOT NULL, inst INTEGER NOT NULL)`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS trades(id INTEGER PRIMARY KEY, ts INTEGER NOT NULL, wallet TEXT NOT NULL, mint TEXT NOT NULL, side TEXT NOT NULL, sol REAL NOT NULL, sig TEXT NOT NULL)`),
+    env.DB.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS trades_u ON trades(sig, wallet, mint)`),
+    env.DB.prepare(`CREATE INDEX IF NOT EXISTS trades_ts ON trades(ts)`),
+    env.DB.prepare(`CREATE INDEX IF NOT EXISTS trades_mint ON trades(mint, ts)`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS user_wallets(user_id INTEGER NOT NULL, wallet TEXT NOT NULL, name TEXT NOT NULL DEFAULT '', handle TEXT NOT NULL DEFAULT '', kind TEXT NOT NULL DEFAULT 'smart', added INTEGER NOT NULL, PRIMARY KEY(user_id, wallet))`),
+    env.DB.prepare(`CREATE INDEX IF NOT EXISTS uw_wallet ON user_wallets(wallet)`),
     env.DB.prepare(`CREATE INDEX IF NOT EXISTS hits_day ON hits(day)`),
     env.DB.prepare(`CREATE INDEX IF NOT EXISTS hits_ts ON hits(ts)`)
   ]);
   // columns added after build 1
-  for (const sql of ['ALTER TABLE users ADD COLUMN blocked INTEGER NOT NULL DEFAULT 0', "ALTER TABLE users ADD COLUMN via TEXT NOT NULL DEFAULT ''"]) {
+  for (const sql of ['ALTER TABLE users ADD COLUMN blocked INTEGER NOT NULL DEFAULT 0', "ALTER TABLE users ADD COLUMN via TEXT NOT NULL DEFAULT ''", 'ALTER TABLE users ADD COLUMN follow INTEGER NOT NULL DEFAULT 1']) {
     try { await env.DB.prepare(sql).run(); } catch (e) { /* already there */ }
   }
   ready = true;
@@ -127,7 +134,7 @@ function publicUser(u, s) {
   if (!u) return null;
   const active = planActive(u);
   return { id: u.id, wallet: u.wallet, email: u.email, name: u.name, plan: active ? u.plan : 'free', planUntil: active ? u.plan_until : 0,
-    created: u.created, isAdmin: isOwner(u, s || DEFAULTS) };
+    created: u.created, isAdmin: isOwner(u, s || DEFAULTS), follow: u.follow !== 0 };
 }
 async function sessionFromRequest(req, env) {
   const m = (req.headers.get('authorization') || '').match(/^Bearer ([0-9a-f]{64})$/);
@@ -293,13 +300,44 @@ async function handle(req, env, ctx) {
     return json(req, { ok: true });
   }
 
+  // ---------- live tracking: Helius sends every trade of the tracked wallets here ----------
+  if (path === '/hook' && req.method === 'POST') {
+    const s = await getSettings(env);
+    if (!s.hook_secret || req.headers.get('authorization') !== s.hook_secret) return fail(req, 401, 'Not allowed');
+    let list = []; try { list = await req.json(); } catch (e) { }
+    if (!Array.isArray(list)) list = [list];
+    const T = await tracked(env), rows = [], seen = new Set();
+    for (const tx of list) {
+      if (!tx || !tx.signature || tx.transactionError) continue;
+      const who = new Set([tx.feePayer, ...(tx.tokenTransfers || []).flatMap(x => [x.fromUserAccount, x.toUserAccount]), ...(tx.accountData || []).map(a => a.account)]);
+      for (const w of who) { if (!w || !T.has(w)) continue; const tr = parseTrade(tx, w), k = tx.signature + w; if (tr && !seen.has(k)) { seen.add(k); rows.push([tx.timestamp || now(), w, tr.m, tr.side, Math.round(tr.sol * 1000) / 1000, tx.signature]); } }
+    }
+    if (s.hook_dirty === '1' && now() - (+s.hook_synced || 0) >= 30) { await setSetting(env, 'hook_dirty', '0'); later(syncHook(env, '').catch(() => { })); }
+    if (rows.length) {
+      const st = env.DB.prepare('INSERT OR IGNORE INTO trades(ts, wallet, mint, side, sol, sig) VALUES(?, ?, ?, ?, ?, ?)');
+      await env.DB.batch(rows.map(r => st.bind(...r)));
+      later(bump(env, 'trades', rows.length));
+    }
+    if (Math.random() < 0.01) later(env.DB.prepare('DELETE FROM trades WHERE ts < ?').bind(now() - 48 * 3600).run());
+    return json(req, { ok: true, n: rows.length });
+  }
+
+  // ---------- public app (Scan Holders) ----------
+  if (path === '/api/feed' || path === '/api/trades' || path === '/api/token' || path === '/api/wallets' || path.startsWith('/api/wallets/')) {
+    const s = await getSettings(env);
+    const se = await sessionFromRequest(req, env), u = se ? se.user : null;
+    const full = !!u && (planActive(u) || isOwner(u, s));
+    if (s.site_live !== '1' && !(u && isOwner(u, s))) return json(req, { ok: false, down: true, error: 'Scan Holders is being updated — back soon' }, 503);
+    return publicApi(req, env, path, s, u, full, later);
+  }
+
   // ---------- owner only ----------
   if (path.startsWith('/api/owner/')) {
     const se = await sessionFromRequest(req, env);
     if (!se) return fail(req, 401, 'Not signed in');
     const s = await getSettings(env);
     if (!isOwner(se.user, s)) return fail(req, 403, "This account isn't allowed here");
-    return owner(req, env, path.slice(11), s, se);
+    return owner(req, env, path.slice(11), s, se, later);
   }
 
   return fail(req, 404, 'Not found');
@@ -321,6 +359,60 @@ async function ownerPage(url, ctx) {
     'referrer-policy': 'no-referrer', 'x-content-type-options': 'nosniff' } });
 }
 
+// after wallets change, refresh the webhook list (at most once every 30 seconds)
+function hookLater(env, s, later) {
+  TRACKED.t = 0; if (!s.hook_id) return;
+  if (now() - (+s.hook_synced || 0) < 30) { later(setSetting(env, 'hook_dirty', '1')); return; }   // sent with the next update
+  later(syncHook(env, '').catch(() => { }));
+}
+
+// ---------- trades ----------
+const SKIP_MINTS = new Set([SOL_MINT, 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB']);
+// the same buy/sell reading the personal app uses: one memecoin in or out, paid in SOL
+function parseTrade(tx, w) {
+  const tt = tx.tokenTransfers || [], ins = {}, outs = {};
+  for (const x of tt) { if (!x || SKIP_MINTS.has(x.mint)) continue; const a = +x.tokenAmount || 0; if (x.toUserAccount === w) ins[x.mint] = (ins[x.mint] || 0) + a; if (x.fromUserAccount === w) outs[x.mint] = (outs[x.mint] || 0) + a; }
+  const im = Object.keys(ins), om = Object.keys(outs);
+  const ad = (tx.accountData || []).find(a => a.account === w); let sol = (ad ? ad.nativeBalanceChange : 0) / 1e9;
+  for (const x of tt) { if (!x || x.mint !== SOL_MINT) continue; if (x.toUserAccount === w) sol += +x.tokenAmount || 0; if (x.fromUserAccount === w) sol -= +x.tokenAmount || 0; }
+  if (im.length === 1 && !om.length && -sol >= 0.01) return { m: im[0], side: 'buy', sol: -sol };
+  if (om.length === 1 && !im.length && sol >= 0.01) return { m: om[0], side: 'sell', sol };
+  return null;
+}
+// every wallet we follow: site wallets (not hidden) + every user's own wallets — kept in memory for a minute
+let TRACKED = { t: 0, set: new Set() };
+async function tracked(env) {
+  if (Date.now() - TRACKED.t < 60000) return TRACKED.set;
+  const r = await env.DB.batch([env.DB.prepare('SELECT wallet FROM site_wallets WHERE hidden = 0'), env.DB.prepare('SELECT DISTINCT wallet FROM user_wallets')]);
+  TRACKED = { t: Date.now(), set: new Set([...(r[0].results || []), ...(r[1].results || [])].map(x => x.wallet)) };
+  return TRACKED.set;
+}
+// keep the Helius webhook's address list the same as the wallets we follow
+async function syncHook(env, origin) {
+  const s = await getSettings(env), key = await getKey(env, 'helius');
+  if (!key) return { ok: false, error: 'Add your Helius key first (More → API keys)' };
+  let secret = s.hook_secret; if (!secret) { secret = 'hs_' + randomToken(20); await setSetting(env, 'hook_secret', secret); }
+  const url = origin ? origin + '/hook' : s.hook_url; if (!url) return { ok: false, error: 'Open the dashboard once to set the address' };
+  if (origin) await setSetting(env, 'hook_url', url);
+  TRACKED.t = 0; const set = await tracked(env), addrs = [...set].slice(0, 100000);
+  if (!addrs.length) return { ok: false, error: 'Add some site wallets first' };
+  const body = JSON.stringify({ webhookURL: url, transactionTypes: ['ANY'], accountAddresses: addrs, webhookType: 'enhanced', authHeader: secret });
+  const base = 'https://api.helius.xyz/v0/webhooks', q = '?api-key=' + encodeURIComponent(key);
+  let r = null, id = s.hook_id;
+  for (let i = 0; i < 3; i++) {
+    r = await fetch(id ? `${base}/${id}${q}` : base + q, { method: id ? 'PUT' : 'POST', headers: { 'content-type': 'application/json' }, body });
+    await bump(env, 'call_helius');
+    if (r.status === 404 && id) { id = ''; continue; }
+    if (r.status === 429 || r.status >= 500) { await new Promise(res => setTimeout(res, 1500 * (i + 1))); continue; }
+    break;
+  }
+  if (!r || !r.ok) { const msg = 'Helius webhook update failed (' + (r ? r.status : 'no answer') + ')'; await setSetting(env, 'hook_err', msg); await logEvent(env, 'error', 'tracking', msg, 'Tap Sync again in a minute; check the Helius key'); return { ok: false, error: msg }; }
+  const j = await r.json().catch(() => ({}));
+  if (j.webhookID) await setSetting(env, 'hook_id', j.webhookID);
+  await setSetting(env, 'hook_count', addrs.length); await setSetting(env, 'hook_synced', now()); await setSetting(env, 'hook_err', ''); await setSetting(env, 'hook_dirty', '0');
+  return { ok: true, count: addrs.length, id: j.webhookID || id };
+}
+
 // SOL price (CoinGecko, no key) — remembered for 5 minutes
 let PX = { t: 0, inr: null, usd: null };
 async function solPrice() {
@@ -328,6 +420,97 @@ async function solPrice() {
   try { const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=inr,usd', { headers: { accept: 'application/json' } });
     const j = r.ok ? await r.json() : null; if (j && j.solana) PX = { t: Date.now(), inr: j.solana.inr ?? null, usd: j.solana.usd ?? null }; } catch (e) { }
   return PX;
+}
+
+// ---------- public app API ----------
+const short4 = w => w.slice(0, 4) + '…' + w.slice(-4);
+async function publicApi(req, env, path, s, u, full, later) {
+  const DB = env.DB, t = now(), q = new URL(req.url).searchParams, b = req.method === 'POST' ? await body(req) : {};
+  const FREE = Math.max(1, +s.free_tokens || 4), uid = u ? u.id : -1, follow = !u || u.follow !== 0;
+  const plan = u ? (isOwner(u, s) ? 'owner' : planActive(u) ? u.plan : 'free') : 'guest';
+  const scope = follow ? '' : ' AND uw.wallet IS NOT NULL';   // "follow site KOLs" off → only the user's own wallets
+
+  if (path === '/api/feed') {
+    const tab = ['hot', 'kol', 'smart', 'spikes', 'mine'].includes(q.get('tab')) ? q.get('tab') : 'hot';
+    const win = tab === 'spikes' ? 900 : Math.min(86400, Math.max(900, +q.get('win') || 14400));
+    const having = { hot: 'kol + smart + mine >= 1', kol: 'kol >= 1', smart: 'smart >= 1', spikes: 'buys >= 3', mine: 'mine >= 1' }[tab];
+    const order = { hot: 'kol * 3 + smart + mine * 2 DESC, last DESC', kol: 'kol DESC, last DESC', smart: 'smart DESC, last DESC', spikes: 'buys DESC, last DESC', mine: 'mine DESC, last DESC' }[tab];
+    const rows = (await DB.prepare(`SELECT t.mint,
+        COUNT(DISTINCT CASE WHEN t.side = 'buy' AND sw.kind = 'kol' THEN t.wallet END) kol,
+        COUNT(DISTINCT CASE WHEN t.side = 'buy' AND sw.kind = 'smart' THEN t.wallet END) smart,
+        COUNT(DISTINCT CASE WHEN t.side = 'buy' AND uw.wallet IS NOT NULL THEN t.wallet END) mine,
+        SUM(t.side = 'buy') buys, SUM(t.side = 'sell') sells, ROUND(SUM(CASE WHEN t.side = 'buy' THEN t.sol ELSE 0 END), 2) solIn,
+        ROUND(SUM(CASE WHEN t.side = 'sell' THEN t.sol ELSE 0 END), 2) solOut, MIN(t.ts) first, MAX(t.ts) last
+      FROM trades t LEFT JOIN site_wallets sw ON sw.wallet = t.wallet AND sw.hidden = 0 LEFT JOIN user_wallets uw ON uw.wallet = t.wallet AND uw.user_id = ?
+      WHERE t.ts > ?${scope} AND (sw.wallet IS NOT NULL OR uw.wallet IS NOT NULL) GROUP BY t.mint HAVING ${having} ORDER BY ${order} LIMIT 60`).bind(uid, t - win).all()).results || [];
+    const vis = full ? rows : rows.slice(0, FREE), locked = rows.length - vis.length;
+    if (vis.length) {
+      const by = (await DB.prepare(`SELECT t.mint, t.wallet, MIN(t.ts) ts, ROUND(SUM(t.sol), 2) sol, sw.kind, sw.name, sw.handle, uw.name uname
+        FROM trades t LEFT JOIN site_wallets sw ON sw.wallet = t.wallet AND sw.hidden = 0 LEFT JOIN user_wallets uw ON uw.wallet = t.wallet AND uw.user_id = ?
+        WHERE t.ts > ? AND t.side = 'buy' AND t.mint IN (${vis.map(() => '?').join(',')}) AND (sw.wallet IS NOT NULL OR uw.wallet IS NOT NULL) GROUP BY t.mint, t.wallet ORDER BY ts`)
+        .bind(uid, t - win, ...vis.map(r => r.mint)).all()).results || [];
+      const m = {}; for (const x of by) (m[x.mint] = m[x.mint] || []).push({ w: x.wallet, name: x.name || x.uname || '', x: x.handle || '', kind: x.uname != null && !x.kind ? 'mine' : x.kind || 'smart', sol: x.sol, ts: x.ts });
+      vis.forEach(r => { r.buyers = (m[r.mint] || []).slice(0, full ? 12 : 3); });
+    }
+    return json(req, { ok: true, tab, win, plan, limit: full ? null : FREE, tokens: vis, locked });
+  }
+
+  if (path === '/api/trades') {
+    const f = ['all', 'kol', 'smart', 'mine'].includes(q.get('f')) ? q.get('f') : 'all';
+    const cond = { all: '(sw.wallet IS NOT NULL OR uw.wallet IS NOT NULL)', kol: "sw.kind = 'kol'", smart: "sw.kind = 'smart'", mine: 'uw.wallet IS NOT NULL' }[f];
+    const rows = (await DB.prepare(`SELECT t.id, t.ts, t.wallet, t.mint, t.side, t.sol, t.sig, sw.kind, sw.name, sw.handle, uw.name uname FROM trades t
+      LEFT JOIN site_wallets sw ON sw.wallet = t.wallet AND sw.hidden = 0 LEFT JOIN user_wallets uw ON uw.wallet = t.wallet AND uw.user_id = ?
+      WHERE t.ts > ? AND ${cond}${scope} ORDER BY t.id DESC LIMIT 60`).bind(uid, t - 86400).all()).results || [];
+    const out = rows.map(r => ({ ts: r.ts, w: r.wallet, mint: r.mint, side: r.side, sol: r.sol, sig: r.sig, name: r.name || r.uname || '', x: r.handle || '', kind: r.uname != null && !r.kind ? 'mine' : r.kind || 'smart' }));
+    const vis = full ? out : out.slice(0, FREE);
+    return json(req, { ok: true, plan, limit: full ? null : FREE, trades: vis, locked: out.length - vis.length });
+  }
+
+  if (path === '/api/token') {
+    const mint = q.get('mint') || '';
+    if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(mint)) return fail(req, 400, 'Not a valid token');
+    const rows = (await DB.prepare(`SELECT t.ts, t.wallet, t.side, t.sol, sw.kind, sw.name, sw.handle, uw.name uname FROM trades t
+      LEFT JOIN site_wallets sw ON sw.wallet = t.wallet AND sw.hidden = 0 LEFT JOIN user_wallets uw ON uw.wallet = t.wallet AND uw.user_id = ?
+      WHERE t.mint = ? AND t.ts > ? AND (sw.wallet IS NOT NULL OR uw.wallet IS NOT NULL)${scope} ORDER BY t.ts DESC LIMIT 80`).bind(uid, mint, t - 86400).all()).results || [];
+    const out = rows.map(r => ({ ts: r.ts, w: r.wallet, side: r.side, sol: r.sol, name: r.name || r.uname || '', x: r.handle || '', kind: r.uname != null && !r.kind ? 'mine' : r.kind || 'smart' }));
+    const vis = full ? out : out.slice(0, FREE);
+    return json(req, { ok: true, plan, trades: vis, locked: out.length - vis.length, buys: rows.filter(r => r.side === 'buy').length, sells: rows.filter(r => r.side === 'sell').length });
+  }
+
+  // ---- the user's own wallets ----
+  if (!u) return fail(req, 401, 'Sign in to add your own wallets');
+  const limit = full ? +s.paid_wallets || 4000 : +s.free_wallets || 10;
+  if (path === '/api/wallets' && req.method === 'GET') {
+    const rows = (await DB.prepare('SELECT wallet, name, handle, kind, added FROM user_wallets WHERE user_id = ? ORDER BY added DESC').bind(u.id).all()).results || [];
+    return json(req, { ok: true, plan, limit, used: rows.length, follow: follow ? 1 : 0, wallets: rows });
+  }
+  if (path === '/api/wallets/add' && req.method === 'POST') {
+    const { list, bad } = parseWallets(b.text);
+    const have = new Set(((await DB.prepare('SELECT wallet FROM user_wallets WHERE user_id = ?').bind(u.id).all()).results || []).map(r => r.wallet));
+    const fresh = list.filter(x => !have.has(x.wallet)), room = Math.max(0, limit - have.size), take = fresh.slice(0, room);
+    const res = { add: take.length, dup: list.length - fresh.length, bad, over: fresh.length - take.length, limit, used: have.size + take.length };
+    if (b.dry) return json(req, { ok: true, preview: res });
+    for (let i = 0; i < take.length; i += 50)
+      await DB.batch(take.slice(i, i + 50).map(x => DB.prepare('INSERT OR IGNORE INTO user_wallets(user_id, wallet, name, handle, kind, added) VALUES(?, ?, ?, ?, ?, ?)').bind(u.id, x.wallet, x.name, x.handle, x.kind, t)));
+    if (take.length) hookLater(env, s, later);
+    return json(req, { ok: true, result: res });
+  }
+  if (path === '/api/wallets/delete' && req.method === 'POST') {
+    const ws = (Array.isArray(b.wallets) ? b.wallets : []).filter(isWallet).slice(0, 5000); let n = 0;
+    for (let i = 0; i < ws.length; i += 90) { const r = await DB.prepare(`DELETE FROM user_wallets WHERE user_id = ? AND wallet IN (${ws.slice(i, i + 90).map(() => '?').join(',')})`).bind(u.id, ...ws.slice(i, i + 90)).run(); n += r.meta ? r.meta.changes : 0; }
+    if (n) hookLater(env, s, later);
+    return json(req, { ok: true, deleted: n });
+  }
+  if (path === '/api/wallets/edit' && req.method === 'POST') {
+    if (!isWallet(b.wallet)) return fail(req, 400, 'Not a valid wallet');
+    await DB.prepare('UPDATE user_wallets SET name = ?, handle = ? WHERE user_id = ? AND wallet = ?').bind(String(b.name || '').slice(0, 40), String(b.handle || '').replace(/^@/, '').slice(0, 30), u.id, b.wallet).run();
+    return json(req, { ok: true });
+  }
+  if (path === '/api/wallets/follow' && req.method === 'POST') {
+    await DB.prepare('UPDATE users SET follow = ? WHERE id = ?').bind(b.on ? 1 : 0, u.id).run();
+    return json(req, { ok: true });
+  }
+  return fail(req, 404, 'Not found');
 }
 
 // ---------- key tests ----------
@@ -372,7 +555,7 @@ function parseWallets(text) {
   return { list: out, bad };
 }
 
-async function owner(req, env, route, s, se) {
+async function owner(req, env, route, s, se, later) {
   const DB = env.DB, t = now(), b = req.method === 'POST' ? await body(req) : {};
   const q = new URL(req.url).searchParams;
 
@@ -396,7 +579,7 @@ async function owner(req, env, route, s, se) {
 
   if (route === 'settings' && req.method === 'GET') {
     const out = { ...s };
-    for (const k of Object.keys(out)) if (k.startsWith('salt_')) delete out[k];
+    for (const k of Object.keys(out)) if (k.startsWith('salt_') || k === 'hook_secret') delete out[k];
     out.prices = JSON.parse(s.prices);
     out.signedInAgo = t - se.created;
     return json(req, { ok: true, settings: out });
@@ -404,7 +587,7 @@ async function owner(req, env, route, s, se) {
   if (route === 'settings' && req.method === 'POST') {
     const ch = b.changes || {};
     for (const [k, v] of Object.entries(ch)) {
-      if (!(k in DEFAULTS)) return fail(req, 400, 'Unknown setting ' + k);
+      if (!(k in DEFAULTS) || k.startsWith('hook_')) return fail(req, 400, 'Unknown setting ' + k);
       if (SENSITIVE.includes(k) && t - se.created > FRESH_SIGNIN) return fail(req, 403, 'For safety, sign out and sign in again, then change this within 15 minutes');
       let val = v;
       if (['site_live', 'signups', 'payments', 'founder', 'alerts'].includes(k)) val = v === true || v === '1' || v === 1 ? '1' : '0';
@@ -473,11 +656,31 @@ async function owner(req, env, route, s, se) {
     const st = await DB.prepare('SELECT n FROM stats WHERE day = ? AND k = ?').bind(dayOf(t), 'req').first();
     const events = (await DB.prepare("SELECT ts, level, src, msg, fix FROM events WHERE level IN ('error','warn') ORDER BY id DESC LIMIT 30").all()).results;
     if (run) await logEvent(env, 'info', 'health', 'Full check run');
-    return json(req, { ok: true, health: { server: 'ok', db, keys, requestsToday: st ? st.n : 0, events } });
+    const tr = await DB.prepare('SELECT COUNT(*) n FROM trades WHERE ts > ?').bind(t - 86400).first();
+    return json(req, { ok: true, health: { server: 'ok', db, keys, requestsToday: st ? st.n : 0, events, hook: { on: !!s.hook_id, err: s.hook_err || '', trades24h: tr ? tr.n : 0 } } });
   }
   if (route === 'events/clear' && req.method === 'POST') {
     await DB.prepare("DELETE FROM events WHERE level IN ('error','warn')").run();
     return json(req, { ok: true });
+  }
+
+  // ---- live tracking ----
+  if (route === 'hook' && req.method === 'GET') {
+    const r = await DB.batch([DB.prepare('SELECT COUNT(*) n, MAX(ts) last FROM trades WHERE ts > ?').bind(t - 86400), DB.prepare('SELECT COUNT(*) n FROM site_wallets WHERE hidden = 0'), DB.prepare('SELECT COUNT(DISTINCT wallet) n FROM user_wallets')]);
+    const a = r[0].results[0] || {};
+    return json(req, { ok: true, hook: { on: !!s.hook_id, id: s.hook_id || '', count: +s.hook_count || 0, synced: +s.hook_synced || 0, err: s.hook_err || '',
+      trades24h: a.n || 0, lastTrade: a.last || 0, siteWallets: r[1].results[0].n, userWallets: r[2].results[0].n } });
+  }
+  if (route === 'hook' && req.method === 'POST') {
+    if (b.action === 'off') {
+      const key = await getKey(env, 'helius');
+      if (s.hook_id && key) { try { await fetch(`https://api.helius.xyz/v0/webhooks/${s.hook_id}?api-key=${encodeURIComponent(key)}`, { method: 'DELETE' }); } catch (e) { } }
+      await setSetting(env, 'hook_id', ''); await logEvent(env, 'warn', 'tracking', 'Live tracking turned off');
+      return json(req, { ok: true });
+    }
+    const res = await syncHook(env, new URL(req.url).origin);
+    if (res.ok) await logEvent(env, 'info', 'tracking', `Live tracking synced · ${res.count} wallets`);
+    return res.ok ? json(req, { ok: true, result: res }) : fail(req, 400, res.error);
   }
 
   // ---- main wallet ----
@@ -560,7 +763,7 @@ async function owner(req, env, route, s, se) {
     for (let i = 0; i < fresh.length; i += 50)
       await DB.batch(fresh.slice(i, i + 50).map(x => DB.prepare('INSERT OR IGNORE INTO site_wallets(wallet, name, handle, kind, source, added) VALUES(?, ?, ?, ?, ?, ?)')
         .bind(x.wallet, x.name, x.handle, x.kind, src, t)));
-    if (fresh.length) await logEvent(env, 'info', 'wallets', `${fresh.length} wallet${fresh.length > 1 ? 's' : ''} added (${src})`);
+    if (fresh.length) { await logEvent(env, 'info', 'wallets', `${fresh.length} wallet${fresh.length > 1 ? 's' : ''} added (${src})`); hookLater(env, s, later); }
     return json(req, { ok: true, result: res });
   }
   if (route === 'wallets/edit' && req.method === 'POST') {
@@ -584,7 +787,7 @@ async function owner(req, env, route, s, se) {
         n += r.meta ? r.meta.changes : 0;
       }
     }
-    if (n) await logEvent(env, 'warn', 'wallets', `${n} wallet${n > 1 ? 's' : ''} deleted`);
+    if (n) { await logEvent(env, 'warn', 'wallets', `${n} wallet${n > 1 ? 's' : ''} deleted`); hookLater(env, s, later); }
     return json(req, { ok: true, deleted: n });
   }
   if (route === 'wallets/restore' && req.method === 'POST') {

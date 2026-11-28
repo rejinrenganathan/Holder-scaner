@@ -478,9 +478,10 @@ async function loadBal() {
 const tier = s => s == null ? '' : s >= 500 ? '🐋 ' : s >= 100 ? '🦈 ' : '🐟 ';
 function drawW() {
   const s = WS.summary; if (!$('#wl')) return;
-  $('#wsum').innerHTML = `<div class="hd"><span class="ht">Site wallets · ${fmt(s.total)}</span><span class="pl ne">Live alerts: step 3</span></div>
+  $('#wsum').innerHTML = `<div class="hd"><span class="ht">Site wallets · ${fmt(s.total)}</span><span class="pl ne" id="wHk">Tracking…</span></div>
    <div class="g2"><div class="kp"><div class="mu">KOL</div><div class="kn">${fmt(s.kol)}</div></div><div class="kp"><div class="mu">Smart</div><div class="kn">${fmt(s.smart)}</div></div></div>
    ${s.hidden ? `<div class="mu mt">${fmt(s.hidden)} hidden from users</div>` : ''}`;
+  api('/api/owner/hook').then(j => { const e = $('#wHk'), h = j.hook; if (!e) return; const on = h.on && !h.err; e.className = 'pl ' + (on ? 'ok' : h.err ? 'er' : 'ne'); e.textContent = on ? `Live · ${fmt(h.count)}` : h.err ? 'Tracking problem' : 'Tracking off'; e.onclick = () => { location.hash = 'more/site'; }; }).catch(() => { });
   $('#wk').innerHTML = [['all', 'All'], ['kol', 'KOL'], ['smart', 'Smart'], ['hidden', 'Hidden']].map(([k, l]) => `<span class="ch ${WS.kind === k ? 'on' : ''}" data-k="${k}">${l}</span>`).join('');
   $('#wk').querySelectorAll('.ch').forEach(c => c.onclick = () => { WS.kind = c.dataset.k; WS.shown = 10; loadW(); });
   $('#wsel').textContent = WS.sel ? 'Done' : 'Select';
@@ -936,7 +937,7 @@ function More() {
    <div class="sec">Account</div>
    <div class="cd" style="padding:2px 16px"><div class="row"><div class="sq" style="background:#5e5ce6;border-radius:50%">${esc((me.email || me.wallet || '?')[0].toUpperCase())}</div><div class="rl"><div>${esc(me.email || short(me.wallet))}</div><div class="mu">Owner</div></div></div>
     <div class="row tap" id="so" style="margin:0 -16px;padding:9px 16px;color:var(--er)"><div class="sq" style="background:#ff453a">${svg('out')}</div><span style="flex:1">Sign out</span></div></div>
-   <div class="mu3 center" style="margin-top:18px">Holder Scan owner · server v6</div>`;
+   <div class="mu3 center" style="margin-top:18px">Holder Scan owner · server v7</div>`;
   $('#so').onclick = signOut;
 }
 
@@ -975,9 +976,18 @@ const SW = [['site_live', 'Site live', 'Off shows a “back soon” page'], ['si
   ['payments', 'Payments', 'Turn on once SOL payments are built'], ['founder', 'Founder offer', 'Lifetime plan for the first buyers'], ['alerts', 'Live alerts', 'Wallet alerts for users']];
 async function Site() {
   loading('Site control');
-  let s; try { s = (await api('/api/owner/settings')).settings; } catch (e) { return e.message === 'signed out' || errBox('Site control', e); }
-  const fresh = s.signedInAgo < 15 * 60;
+  let s, hk; try { [s, hk] = await Promise.all([api('/api/owner/settings'), api('/api/owner/hook')]); s = s.settings; hk = hk.hook; } catch (e) { return e.message === 'signed out' || errBox('Site control', e); }
+  const fresh = s.signedInAgo < 15 * 60, want = hk.siteWallets + hk.userWallets, behind = hk.on && hk.count < want;
   $('#app').innerHTML = header('Site control') + `
+  <div class="cd"><div class="hd"><span class="ht">Live tracking</span><span class="pl ${!hk.on ? 'ne' : hk.err ? 'er' : behind ? 'wa' : 'ok'}">${!hk.on ? 'Off' : hk.err ? 'Problem' : behind ? 'Needs sync' : 'On'}</span></div>
+   <div class="mu" style="margin-bottom:6px">Helius sends every trade of the tracked wallets to your server. This powers the public feed.</div>
+   <div class="row"><span>Wallets tracked</span><span>${fmt(hk.count)} / ${fmt(want)}</span></div>
+   <div class="row"><span>Trades in the last 24h</span><span>${fmt(hk.trades24h)}</span></div>
+   <div class="row"><span>Last trade received</span><span>${hk.lastTrade ? ago(hk.lastTrade) : '—'}</span></div>
+   <div class="row"><span>Last synced</span><span>${hk.synced ? ago(hk.synced) : 'never'}</span></div>
+   ${hk.err ? `<div class="err">${esc(hk.err)}</div>` : ''}
+   <div class="g2 mt"><button class="bt ${hk.on ? '' : 'bp'}" id="hkSync">${hk.on ? 'Sync now' : 'Turn on'}</button>${hk.on ? '<button class="bt bd" id="hkOff">Turn off</button>' : '<span></span>'}</div>
+   <div class="mu3 mt">Needs Workers Paid ($5/month): with thousands of wallets the free 100,000 requests a day run out.</div></div>
   <div class="cd"><div class="hd"><span class="ht">Switches</span></div>
    ${SW.map(([k, l, d]) => `<div class="row"><div class="rl"><div>${l}</div><div class="mu">${d}</div></div><button class="tg ${s[k] === '1' ? 'on' : ''}" data-k="${k}"></button></div>`).join('')}</div>
   <div class="cd"><div class="hd"><span class="ht">Content and limits</span></div>
@@ -992,6 +1002,8 @@ async function Site() {
    <div class="row"><div class="rl"><div>Google sign-in ID</div><div class="mu">${s.google_client_id ? esc(s.google_client_id.slice(0, 14)) + '…' : 'Not set — Google button hidden'}</div></div><button class="lk" id="e_gc">Edit</button></div>
    <div class="row"><div class="rl"><div>Payment wallet</div><div class="mu">${short(s.pay_wallet)}</div></div><button class="lk" id="e_pa">Edit</button></div>
    ${fresh ? '' : '<div class="mu3">For safety, these four need a sign-in from the last 15 minutes. Sign out (More) and sign in again first.</div>'}</div>`;
+  $('#hkSync').onclick = e => act(e.target, async () => { const r = (await api('/api/owner/hook', { body: { action: 'sync' } })).result; toast(`Tracking ${fmt(r.count)} wallets`); Site(); });
+  const hOff = $('#hkOff'); if (hOff) hOff.onclick = () => menu(null, [['Turn off live tracking', () => act(null, async () => { await api('/api/owner/hook', { body: { action: 'off' } }); toast('Live tracking off'); Site(); }), true]], 'The public feed stops getting new trades');
   document.querySelectorAll('.tg[data-k]').forEach(b => b.onclick = async () => { buzz(10);
     const on = !b.classList.contains('on'); b.classList.toggle('on', on);
     try { await api('/api/owner/settings', { body: { changes: { [b.dataset.k]: on } } }); toast(`${SW.find(x => x[0] === b.dataset.k)[1]}: ${on ? 'on' : 'off'}`); } catch (e) { b.classList.toggle('on', !on); toast(e.message); }
@@ -1052,7 +1064,7 @@ async function Health(run) {
   $('#app').innerHTML = header('Health and logs', run ? 'Full check just ran' : 'Last saved results · run a check for fresh ones') + `
   <div class="cd"><div class="g2">${tile('Server', 'ok', 'Running')}${tile('Database', h.db, h.db === 'ok' ? 'Connected' : 'Error')}
    ${h.keys.map(k => tile(k.label, k.status === 'untested' ? 'missing' : k.status, k.status === 'untested' ? 'Not tested' : k.note)).join('')}
-   ${tile('Live alerts', 'missing', 'Comes with step 3')}</div>
+   ${tile('Live tracking', h.hook ? (h.hook.err ? 'error' : h.hook.on ? 'ok' : 'missing') : 'missing', h.hook ? (h.hook.err ? 'Problem' : h.hook.on ? fmt(h.hook.trades24h) + ' trades 24h' : 'Off') : 'Off')}</div>
    <div class="row mt"><span>Server requests today</span><span>${fmt(h.requestsToday)}</span></div>
    <button class="bt bp wide mt" id="run">Run full check</button></div>
   <div class="cd"><div class="hd"><span class="ht">Errors and warnings</span>${h.events.length ? '<button class="lk" id="clr">Clear</button>' : ''}</div>
