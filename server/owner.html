@@ -442,7 +442,8 @@ const LB_PRE = {
     momentum: ['🚀 Momentum', { minWin: 1, pnl: 500, roi: 2, life: 0, buyMin: 50, buyMax: 0, hold: 60, style: 'momentum', pre: 'any', fresh: 1, tracked: 1 }, { sort: 'pnl' }],
     big: ['💰 Big single hits', { minWin: 1, pnl: 20000, roi: 2, life: 0, buyMin: 0, buyMax: 0, hold: 0, style: 'all', pre: 'any', fresh: 1, tracked: 1 }, { sort: 'pnl' }] },
   be: {}, gm: {}, ks: {} };
-const LB_DEF = { be: { pnl: 10000, tMin: 10, tMax: 2000, tracked: 1 }, gm: { pnl: 5000, wr: 50, tMin: 10, tMax: 1500, last: 3, tpd: 100, xOnly: 0, bots: 1, tracked: 1 }, ks: { pnl: 50, wr: 50, tMin: 10, tMax: 1000, xOnly: 1, tracked: 1 } };
+// every filter starts empty / off; presets are optional
+const lbEmpty = g => Object.fromEntries(LB_F[g].map(([k, , kind]) => [k, kind === 'tog' ? 0 : k === 'style' ? 'all' : k === 'pre' ? 'any' : k === 'minWin' ? 1 : k === 'life' ? '' : 0]));
 const LB_F = {
   st: [['wr', 'Win rate at least', '%', 'Performance (Solana Tracker)'], ['roi', 'ROI at least', '%', 'Performance (Solana Tracker)'], ['days', 'Active days at least', 'n', 'Performance (Solana Tracker)'], ['closed', 'Closed coins at least', 'n', 'Performance (Solana Tracker)'], ['one', 'Max profit from one coin', '%', 'Performance (Solana Tracker)'], ['inv', 'Invested at least', '$', 'Performance (Solana Tracker)'],
     ['buyMin', 'Average buy from', '$', 'Trading style'], ['buyMax', 'Average buy up to', '$', 'Trading style'], ['tpd', 'Trades per day at most', 'n', 'Trading style'], ['pdays', 'Profitable days at least', '%', 'Trading style'],
@@ -458,12 +459,11 @@ const LB_SRVF = ['wr', 'roi', 'days', 'closed', 'one', 'inv'];
 const STY = { sniper: '🎯 Sniper', curve: '📈 Curve buyer', momentum: '🚀 Momentum' };
 const lsGet = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } };
 const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } };
-let LBB = { src: 'axiom', per: '7d', sort: 'pnl', as: 'auto', pre: { st: 'consistent', pf: 'repeat' }, f: {}, ...lsGet('hso_lbb', {}) };
-if (!LBB.pre) LBB.pre = { st: 'consistent', pf: 'repeat' }; if (!LBB.f) LBB.f = {};
-['st', 'pf'].forEach(g => { if (!LBB.f[g]) LBB.f[g] = { ...LB_PRE[g][LBB.pre[g] || Object.keys(LB_PRE[g])[0]][1] }; });
-['be', 'gm', 'ks'].forEach(g => { if (!LBB.f[g]) LBB.f[g] = { ...LB_DEF[g] }; });
+let LBB = { src: 'axiom', per: '7d', sort: 'pnl', as: 'auto', pre: {}, f: {}, ...lsGet('hso_lbb2', {}) };
+if (!LBB.pre) LBB.pre = {}; if (!LBB.f) LBB.f = {};
+['st', 'pf', 'be', 'gm', 'ks'].forEach(g => { LBB.f[g] = { ...lbEmpty(g), ...(LBB.f[g] || {}) }; if (!LBB.pre[g]) LBB.pre[g] = 'custom'; });
 LBB.rows = []; LBB.more = null; LBB.err = ''; LBB.asOf = 0; LBB.loading = false; LBB.show = 50;
-const saveLBB = () => { const { src, per, sort, as, pre, f } = LBB; lsSet('hso_lbb', { src, per, sort, as, pre, f }); };
+const saveLBB = () => { const { src, per, sort, as, pre, f } = LBB; lsSet('hso_lbb2', { src, per, sort, as, pre, f }); };
 let TRK = null;   // wallets already on the site
 const ADDED = new Map();   // added during this visit → 'kol' | 'smart'
 async function loadTracked() { try { TRK = new Set((await api('/api/owner/wallets/ids')).ids); } catch (e) { TRK = TRK || new Set(); } }
@@ -616,7 +616,7 @@ function FindWallets(box) {
   const lc = lsGet('hslab_cfg5', { d1: 1, d2: 15, wMin: 3e5, wMax: 1e7, n: 25, lp: ['pump', 'launchlab', 'dbc', 'boop', 'moon'] });
   const groups = []; LB_F[g].forEach(fd => { let x = groups.find(y => y[0] === fd[3]); if (!x) groups.push(x = [fd[3], []]); x[1].push(fd); });
   const fld = ([k, l, kind]) => kind === 'tog' ? `<div class="row"><span>${l}</span><button class="tg ${f[k] ? 'on' : ''}" data-lf="${k}" data-tog="1"></button></div>`
-    : kind.startsWith('sel:') ? `<div class="row"><span>${l}</span><select data-lf="${k}" style="width:auto;min-width:110px">${kind.slice(4).split(',').map(o => `<option value="${o}" ${String(f[k]) === o ? 'selected' : ''}>${o === '0' || o === 'any' ? 'any' : o === 'all' ? 'all' : k === 'last' ? o + ' day' + (o === '1' ? '' : 's') : k === 'style' ? STY[o] : k === 'minWin' ? o + (o === '4' ? '+' : '') : o}</option>`).join('')}</select></div>`
+    : kind.startsWith('sel:') ? `<div class="row"><span>${l}</span><select data-lf="${k}" style="width:auto;min-width:110px">${kind.slice(4).split(',').map(o => `<option value="${o}" ${String(f[k]) === o ? 'selected' : ''}>${o === '0' || o === 'any' ? 'any' : o === 'all' ? 'all' : k === 'last' ? o + ' day' + (o === '1' ? '' : 's') : k === 'style' ? STY[o] : k === 'minWin' ? (o === '1' ? 'any' : o + (o === '4' ? '+' : '')) : o}</option>`).join('')}</select></div>`
     : `<div class="row"><span>${l}</span><input data-lf="${k}" inputmode="decimal" style="width:110px;text-align:right" value="${k === 'life' ? (f.life === '' || f.life == null ? '' : (+f.life < 0 ? '-' : '') + (+f.life === 0 ? '0' : lbFmt(Math.abs(+f.life), '$'))) : kind === '$' ? lbFmt(f[k], '$') : (+f[k] ? f[k] : '')}" placeholder="off"></div>`;
   box.innerHTML = `<div class="cd">
    <div class="field"><label>Source</label><select id="lbSrc">${LBS.map(([k, l, d]) => `<option value="${k}" ${LBB.src === k ? 'selected' : ''}>${l} · ${d}</option>`).join('')}</select></div>
@@ -625,7 +625,7 @@ function FindWallets(box) {
      ${dd('lbsN', 'Winners to scan', lc.n, [['10', '10'], ['25', '25'], ['50', '50']])}${dd('lbsL', 'Launchpads', (lc.lp || []).length >= 4 ? 'all' : (lc.lp || []).join(','), [['pump,launchlab', 'Pump.fun + Bonk'], ['pump', 'Pump.fun'], ['all', 'All launchpads']])}</div>
      <div class="mu3 mt">The scan runs here in Winner Lab (≈ ${Math.min(30, lc.d2 - lc.d1 + 1) + lc.n * 3} Solana Tracker calls; coins scanned before are free). Keep this page open while it runs.</div></div>` : ''}
    <div class="g2">
-     ${Object.keys(pres).length ? dd('lbPre', 'Preset', LBB.pre[g] || 'custom', [...Object.entries(pres).map(([k, v]) => [k, v[0]]), ['custom', 'Custom']]) : ''}
+     ${Object.keys(pres).length ? dd('lbPre', 'Preset', LBB.pre[g] || 'custom', [['custom', 'None (custom)'], ...Object.entries(pres).map(([k, v]) => [k, v[0]])]) : ''}
      ${pf ? '' : dd('lbPer', 'Period', LBB.per, pers)}
      ${dd('lbSort', 'Rank by', LBB.sort, ranks)}
      ${dd('lbAs', 'Add as', LBB.as, [['auto', 'Auto (handle → KOL)'], ['smart', 'All as Smart']])}
@@ -633,17 +633,17 @@ function FindWallets(box) {
    <button class="bt wide mt" id="lbFb" style="display:flex;justify-content:space-between"><span>⚙ Filters · ${lbChips().length} on</span><span id="lbFc">▾</span></button>
    <div class="chips mt" style="flex-wrap:wrap">${lbChips().map(c => `<span class="pl ne">${esc(c)}</span>`).join('')}</div>
    <div id="lbFp" style="display:none">${groups.map(([name, fs]) => `<div class="mu" style="font-weight:600;margin-top:10px">${name}</div>${fs.map(fld).join('')}`).join('')}
-     <div class="g2 mt"><button class="bt" id="lbFr">${Object.keys(pres).length ? 'Reset to preset' : 'Reset'}</button><button class="bt bp" id="lbFa">Apply</button></div></div>
+     <div class="g2 mt"><button class="bt" id="lbFr">Reset all</button><button class="bt bp" id="lbFa">Apply</button></div></div>
    </div><div class="cd" id="lbList"></div>`;
   const redraw = () => { saveLBB(); FindWallets(box); };
   $('#lbSrc').onchange = e => { LBB.src = e.target.value; LBB.all = null; if (LBB.src === 'pf') LBB.as = 'smart'; saveLBB(); FindWallets(box); lbLoad(); };
   if ($('#lbPer')) $('#lbPer').onchange = e => { LBB.per = e.target.value; LBB.all = null; saveLBB(); lbLoad(); };
   $('#lbSort').onchange = e => { LBB.sort = e.target.value; saveLBB(); if (live || LBB.src === 'birdeye') lbLoad(); else lbDraw(); };
   $('#lbAs').onchange = e => { LBB.as = e.target.value; saveLBB(); lbDraw(); };
-  if ($('#lbPre')) $('#lbPre').onchange = e => { const k = e.target.value; LBB.pre[g] = k; if (pres[k]) { LBB.f[g] = { ...pres[k][1] }; if (pres[k][2]) Object.assign(LBB, pres[k][2]); } LBB.all = null; redraw(); if (live) lbLoad(); else lbDraw(); };
+  if ($('#lbPre')) $('#lbPre').onchange = e => { const k = e.target.value; LBB.pre[g] = k; if (pres[k]) { LBB.f[g] = { ...lbEmpty(g), ...pres[k][1] }; if (pres[k][2]) Object.assign(LBB, pres[k][2]); } else LBB.f[g] = lbEmpty(g); LBB.all = null; redraw(); if (live) lbLoad(); else lbDraw(); };
   $('#lbFb').onclick = () => { const p = $('#lbFp'), o = p.style.display === 'none'; p.style.display = o ? '' : 'none'; $('#lbFc').textContent = o ? '▴' : '▾'; };
   $('#lbFp').querySelectorAll('[data-tog]').forEach(b => b.onclick = () => b.classList.toggle('on'));
-  $('#lbFr').onclick = () => { const k = LBB.pre[g]; LBB.f[g] = pres[k] ? { ...pres[k][1] } : { ...(LB_DEF[g] || LB_PRE[g][Object.keys(LB_PRE[g])[0]][1]) }; if (!pres[k] && Object.keys(pres).length) LBB.pre[g] = Object.keys(pres)[0]; redraw(); lbLoad(); };
+  $('#lbFr').onclick = () => { LBB.f[g] = lbEmpty(g); LBB.pre[g] = 'custom'; LBB.all = null; redraw(); lbLoad(); };
   $('#lbFa').onclick = () => { const before = JSON.stringify(LB_SRVF.map(k => f[k])), nf = { ...f };
     $('#lbFp').querySelectorAll('[data-lf]').forEach(el => { const k = el.dataset.lf, kind = LB_F[g].find(x => x[0] === k)[2];
       nf[k] = kind === 'tog' ? (el.classList.contains('on') ? 1 : 0) : kind.startsWith('sel:') ? (/^\d+$/.test(el.value) ? +el.value : el.value) : (el.value.trim() === '' ? (k === 'life' ? '' : 0) : lbNum(el.value)); });
