@@ -9,7 +9,7 @@
 // the plan price to the payment wallet with that key attached. The server finds the transfer by the key on Helius, checks recipient,
 // exact amount, confirmation and that the signature was never used before, then turns the plan on. A cron re-checks every 5 minutes.
 
-const API_V = 11;
+const API_V = 12;
 // Owner wallet(s) — always allowed into the dashboard. More owners can be added in Site control.
 const OWNER_WALLETS = 'CZQkA9JszBPP7x2LescrtZwh1LGoxZwnW68wLbdFPz93';
 // Sites allowed to call this API from a browser
@@ -578,9 +578,15 @@ async function marketMints(env) {
   await setSetting(env, 'mkt', JSON.stringify({ t: now(), m: cache ? cache.m : [] }));   // others use the old list while this one refreshes
   const key = await getKey(env, 'stracker'); if (!key) return cache ? cache.m : [];
   try {
-    const r = await fetch('https://data.solanatracker.io/tokens/multi/all?limit=100', { headers: { 'x-api-key': key, accept: 'application/json' } }); await bump(env, 'call_stracker');
-    const j = r.ok ? await r.json() : null; if (!j) return cache ? cache.m : [];
-    const list = [...(j.latest || []), ...(j.graduating || []), ...(j.graduated || [])].filter(x => x && x.token && x.token.mint);
+    const get = async p => { const r = await fetch('https://data.solanatracker.io' + p, { headers: { 'x-api-key': key, accept: 'application/json' } }); await bump(env, 'call_stracker');
+      const j = r.ok ? await r.json().catch(() => null) : null; if (!r.ok) await logEvent(env, 'error', 'hot', `Solana Tracker ${p.split('?')[0]} answered ${r.status}`, r.status === 429 ? 'Too many calls — it retries next minute' : r.status === 401 || r.status === 403 ? 'Check the Solana Tracker key / plan' : 'It retries next minute'); return j; };
+    let list = [];
+    const j = await get('/tokens/multi/all?limit=100');
+    if (j && typeof j === 'object' && !Array.isArray(j)) list = [...(j.latest || []), ...(j.graduating || []), ...(j.graduated || [])];
+    if (!list.length) { await sleep(1100); const tr = await get('/tokens/trending/5m'); if (Array.isArray(tr)) list = tr; }
+    if (!list.length) { await sleep(1100); const la = await get('/tokens/latest'); if (Array.isArray(la)) list = la; }
+    list = list.filter(x => x && x.token && x.token.mint);
+    if (!list.length) return cache ? cache.m : [];
     const patches = {}; for (const ti of list) patches[ti.token.mint] = stMeta(ti);
     await metaPut(env, patches, 'st');
     const m = [...new Set(list.map(x => x.token.mint))];
@@ -678,11 +684,11 @@ async function hotFeed(req, env, s, u, full, later, q) {
   if (needST.length || f.ads) later(stWork(env, tracked ? mints.slice(0, 60) : needST, f.ads).catch(() => 0));
   const px = await solPrice();
   let waiting = 0;
-  const pass = [];
+  const pass = [], D = { checked: toks.length, noLp: 0, unsafe: 0, quiet: 0, noSpike: 0, filters: 0 };
   for (const x of toks) {
     const m = metas[x.mint] || {}, v = view(x.mint, m, win);
-    if (!v.lp) { if (!v.hasST) waiting++; continue; }   // launchpad tokens only (unknown → wait for Solana Tracker)
-    if (v.unsafe) continue;                                                     // mint or freeze authority still on → never shown
+    if (!v.lp) { if (!v.hasST) waiting++; D.noLp++; continue; }   // launchpad tokens only (unknown → wait for Solana Tracker)
+    if (v.unsafe) { D.unsafe++; continue; }                                                     // mint or freeze authority still on → never shown
     if (!f.stage[v.stage === 'bond' ? 'bond' : 'mig'] && v.stage) continue;
     if (!v.stage && !(f.stage.bond && f.stage.mig)) continue;
     if (f.lpOff.includes(v.lp)) continue;
@@ -692,9 +698,9 @@ async function hotFeed(req, env, s, u, full, later, q) {
     if (x.market) {
       // whole market: sudden buying only, no dead tokens
       const t5 = (m.tx || {}).m5, t1 = (m.tx || {}).h1, v5 = (m.vol || {}).m5;
-      if (!t5 || !(v5 >= 500)) continue;
+      if (!t5 || !(v5 >= 500)) { D.quiet++; continue; }
       const ratio = t1 && t1.b ? t5.b / Math.max(1, t1.b / 12) : t5.b ? 5 : 0;
-      if (!(t5.b >= 15 && v5 >= 3000 && ratio >= 2)) continue;
+      if (!(t5.b >= 15 && v5 >= 3000 && ratio >= 2)) { D.noSpike++; continue; }
       buyersN = v.buys; sol = null;
       hot = Math.min(99, Math.round(10 * Math.log2(1 + (v.buys || 0) / 10) + 8 * Math.min(5, ratio)));
       x.spike = Math.round(ratio * 10) / 10;
@@ -725,9 +731,10 @@ async function hotFeed(req, env, s, u, full, later, q) {
   }
   const key = { hot: z => z.hot, new: z => z.created || 0, buyers: z => z.buyers || 0, sol: z => z.solIn ?? z.vol ?? 0, mc: z => z.mc || 0, vol: z => z.vol || 0, fees: z => z.fees || 0 }[f.sort] || (z => z.hot);
   pass.sort((a, b) => key(b) - key(a) || (b.last || 0) - (a.last || 0));
+  D.filters = Math.max(0, D.checked - D.noLp - D.unsafe - D.quiet - D.noSpike - pass.length);
   const count = pass.length, vis = full ? pass.slice(0, 60) : pass.slice(0, FREE);
   const plan = u ? (isOwner(u, s) ? 'owner' : planActive(u) ? u.plan : 'free') : 'guest';
-  return json(req, { ok: true, tab: 'hot', win, plan, mode: tracked ? (f.b.all ? 'mixed' : 'tracked') : 'market', limit: full ? null : FREE, count, tokens: q.get('dry') ? [] : vis, locked: count - vis.length, waiting, filters: f });
+  return json(req, { ok: true, tab: 'hot', win, plan, mode: tracked ? (f.b.all ? 'mixed' : 'tracked') : 'market', limit: full ? null : FREE, count, tokens: q.get('dry') ? [] : vis, locked: count - vis.length, waiting, filters: f, diag: D });
 }
 
 // ---------- public app API ----------

@@ -337,7 +337,12 @@ async function HotFeed(quiet) {
   if (tab !== 'feed' || FS.tab !== 'hot' || !$('#fl')) return;
   for (const t of j.tokens) META.set(t.mint, { t: Date.now(), d: { sym: t.sym, name: t.name, img: t.img, mc: t.mc, liq: t.liq, ch1: t.ch1, ch5: t.pc && t.pc['5m'], ch24: t.pc && t.pc['24h'], age: t.created ? t.created * 1000 : null, url: null } });
   $('#fnote').innerHTML = `<span class="live"></span>${j.mode === 'market' ? 'Sudden buying across the market' : j.mode === 'mixed' ? 'Tokens our wallets bought · ranked by all buyers' : 'Ranked by Hot score'} · ${fmt(j.count)} token${j.count === 1 ? '' : 's'}${j.waiting ? ` · checking ${j.waiting} more` : ''}`;
-  if (!j.tokens.length) { $('#fl').innerHTML = `<div class="cd center mu" style="padding:28px 16px">${j.waiting ? 'Checking tokens — they show up here in a few seconds.' : 'No tokens match right now. Try a longer time or fewer filters.'}</div>`; return autoRefresh(Feed); }
+  if (!j.tokens.length) {
+    const D = j.diag || {}, why = [];
+    if (!D.checked) why.push(j.mode === 'market' ? 'No token list from Solana Tracker yet — try again in a minute' : 'No KOL or smart buys in this time (is live tracking on?)');
+    else { why.push(`Checked ${fmt(D.checked)} tokens`); if (D.noLp) why.push(`${fmt(D.noLp)} not from a launchpad${j.waiting ? ' yet' : ''}`); if (D.unsafe) why.push(`${fmt(D.unsafe)} unsafe`);
+      if (D.quiet) why.push(`${fmt(D.quiet)} no buying now`); if (D.noSpike) why.push(`${fmt(D.noSpike)} no sudden spike`); if (D.filters) why.push(`${fmt(D.filters)} hidden by your filters`); }
+    $('#fl').innerHTML = `<div class="cd center mu" style="padding:24px 16px">${j.waiting ? 'Checking tokens — they show up here in a few seconds.' : 'No tokens match right now.'}<div class="mu3" style="margin-top:8px">${esc(why.join(' · '))}</div></div>`; return autoRefresh(Feed); }
   const fake = j.locked ? Array.from({ length: Math.min(4, j.locked) }, (_, i) => `<div class="tk"><div class="av">??</div><div class="tm"><div class="t1">$LOCKED${i + 1}</div><div class="t2">2 KOL · 1 smart · 12 SOL in</div></div><div class="tr"><div class="t1">$420K</div><div class="t2 up">+38%</div></div></div>`).join('') : '';
   $('#fl').innerHTML = `<div class="cd" style="padding:2px 16px">${j.tokens.map(hotRow).join('')}</div>` + (j.locked ? `<div class="lockwrap"><div class="cd blur" style="padding:2px 16px">${fake}</div><div class="unlock">${lockCard(j.locked, 'tokens')}</div></div>` : '');
   $('#fl').querySelectorAll('.tk[data-m]').forEach(r => r.onclick = () => tokenSheet(r.dataset.m));
