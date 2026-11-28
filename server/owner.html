@@ -153,7 +153,7 @@ const ICON = {
   refresh: '<path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/>', back: '<path d="M15 5l-7 7 7 7"/>', dots: '<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>',
   search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>', plus: '<path d="M12 5v14M5 12h14"/>', traffic: '<path d="M4 19V10M10 19V5M16 19v-7M22 19H2"/>',
   site: '<path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/>', keys: '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3"/>',
-  health: '<path d="M3 12h4l2-5 4 10 2-5h6"/>', out: '<path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h11"/>'
+  health: '<path d="M3 12h4l2-5 4 10 2-5h6"/>', datatest: '<path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.7 3h10.6a2 2 0 0 0 1.7-3l-5-9V3M7.5 14h9"/>', out: '<path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h11"/>'
 };
 const ico = d => `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
 const ICONS = { copy: ico('<rect x="9" y="9" width="11" height="11" rx="2.5"/><path d="M5 15V6a2 2 0 0 1 2-2h8"/>'), globe: ico('<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.8 3 2.8 15 0 18M12 3c-2.8 3-2.8 15 0 18"/>'),
@@ -278,7 +278,7 @@ window.addEventListener('hashchange', () => { if (me && me.isAdmin) go(location.
 
 // ---------- shell ----------
 const TABS = [['home', 'Home'], ['money', 'Money'], ['wallets', 'Wallets'], ['users', 'Users'], ['more', 'More']];
-const SUBS = { traffic: 'Traffic', site: 'Site control', keys: 'API keys', health: 'Health and logs' };
+const SUBS = { traffic: 'Traffic', site: 'Site control', keys: 'API keys', health: 'Health and logs', datatest: 'Data test' };
 function go(where, fromHash) {
   closeSheet(); document.querySelectorAll('.as').forEach(m => m.remove());
   const [t, s] = where.split('/');
@@ -330,7 +330,7 @@ function countUp(root) {
   });
 }
 function render() {
-  const f = { home: Home, money: Money, wallets: Wallets, users: Users, more: () => (sub ? { traffic: Traffic, site: Site, keys: Keys, health: Health }[sub]() : More()) }[tab];
+  const f = { home: Home, money: Money, wallets: Wallets, users: Users, more: () => (sub ? { traffic: Traffic, site: Site, keys: Keys, health: Health, datatest: DataTest }[sub]() : More()) }[tab];
   const k = routeKey(), first = !SEEN.has(k); SEEN.add(k);
   const r = f(); if (first) Promise.resolve(r).then(() => countUp($('#app')));
   return r;
@@ -986,14 +986,61 @@ function userSheet(u) {
 
 // ---------- More ----------
 function More() {
-  const col = { traffic: '#0a84ff', site: '#8e8e93', keys: '#ff9f0a', health: '#ff375f' };
+  const col = { traffic: '#0a84ff', site: '#8e8e93', keys: '#ff9f0a', health: '#ff375f', datatest: '#30d158' };
   $('#app').innerHTML = header('More') + `<div class="cd" style="padding:2px 16px">
    ${Object.entries(SUBS).map(([k, l]) => `<div class="row tap" style="margin:0 -16px;padding:9px 16px" onclick="location.hash='more/${k}'"><div class="sq" style="background:${col[k]}">${svg(k)}</div><span style="flex:1">${l}</span><span class="chev">›</span></div>`).join('')}</div>
    <div class="sec">Account</div>
    <div class="cd" style="padding:2px 16px"><div class="row"><div class="sq" style="background:#5e5ce6;border-radius:50%">${esc((me.email || me.wallet || '?')[0].toUpperCase())}</div><div class="rl"><div>${esc(me.email || short(me.wallet))}</div><div class="mu">Owner</div></div></div>
     <div class="row tap" id="so" style="margin:0 -16px;padding:9px 16px;color:var(--er)"><div class="sq" style="background:#ff453a">${svg('out')}</div><span style="flex:1">Sign out</span></div></div>
-   <div class="mu3 center" style="margin-top:18px">Holder Scan owner · server v7</div>`;
+   <div class="mu3 center" style="margin-top:18px">Holder Scan owner · server v10</div>`;
   $('#so').onclick = signOut;
+}
+
+// ---------- Data test (owner only) ----------
+// Runs the real Solana Tracker calls on a few tokens so we can see if fees and every price-change time frame are there and match DexScreener.
+const DT = { text: '', res: null };
+const TFS = ['1m', '5m', '15m', '30m', '1h', '2h', '3h', '4h', '5h', '6h', '12h', '24h'];
+const pcS = v => v == null || !isFinite(v) ? '—' : (v >= 0 ? '+' : '') + (Math.abs(v) >= 100 ? Math.round(v) : Math.round(v * 10) / 10) + '%';
+function DataTest() {
+  $('#app').innerHTML = header('Data test', 'Real Solana Tracker answers for a few tokens, next to DexScreener') + `
+  <div class="cd"><div class="mu" style="margin-bottom:6px">Tokens to test (up to 5, one per line)</div>
+   <textarea id="dtm" placeholder="Leave empty to use hot tokens" style="min-height:80px;font-family:ui-monospace,monospace;font-size:12px">${esc(DT.text)}</textarea>
+   <div class="g2 mt"><button class="bt" id="dth">Use hot tokens</button><button class="bt bp" id="dtr">Run test</button></div></div><div id="dto"></div>`;
+  const run = (btn, hot) => act(btn, async () => {
+    DT.text = hot ? '' : $('#dtm').value; const mints = DT.text.split(/[\s,]+/).filter(Boolean);
+    $('#dto').innerHTML = '<div class="cd center"><span class="spin"></span> Asking Solana Tracker…</div>';
+    try { DT.res = await api('/api/owner/datatest', { body: { mints } }); } catch (e) { $('#dto').innerHTML = `<div class="cd err">${esc(e.message)}</div>`; throw e; }
+    drawDT();
+  });
+  $('#dtr').onclick = e => run(e.currentTarget, false);
+  $('#dth').onclick = e => run(e.currentTarget, true);
+  if (DT.res) drawDT();
+}
+function drawDT() {
+  const R = DT.res; if (!R || !$('#dto')) return;
+  const toks = R.tokens;
+  // summary: which time frames came back, and do the shared ones match DexScreener (within 3 points or 15%)
+  const have = tf => toks.filter(t => (t.events[tf] != null) || (t.stats[tf] && t.stats[tf].pc != null)).length;
+  const close = (a, b) => a != null && b != null && (Math.abs(a - b) <= 3 || Math.abs(a - b) <= Math.abs(b) * 0.15);
+  const val = (t, tf) => t.events[tf] != null ? t.events[tf] : t.stats[tf] ? t.stats[tf].pc : null;
+  const match = tf => { const c = toks.filter(t => t.dex && t.dex[tf] != null && val(t, tf) != null); return c.length ? `${c.filter(t => close(val(t, tf), t.dex[tf])).length}/${c.length}` : ''; };
+  const feeN = toks.filter(t => t.fees && Object.keys(t.fees).length).length;
+  const shown = TFS.filter(tf => have(tf) || ['5m', '15m', '30m', '1h', '4h', '12h', '24h'].includes(tf));
+  $('#dto').innerHTML = `<div class="sec">Result · ${toks.length} tokens (${R.source === 'yours' ? 'your list' : R.source === 'feed' ? 'hot in your feed' : 'Solana Tracker trending'})</div>
+   <div class="cd" style="padding:2px 16px">
+    <div class="row"><span>Fees field</span><span class="pl ${feeN === toks.length ? 'ok' : feeN ? 'wa' : 'er'}">${feeN} of ${toks.length} tokens</span></div>
+    ${shown.map(tf => { const n = have(tf), m = match(tf); return `<div class="row"><span>Price change ${tf}</span><span>${m ? `<span class="mu" style="margin-right:6px">matches Dex ${m}</span>` : ''}<span class="pl ${n === toks.length ? 'ok' : n ? 'wa' : 'er'}">${n ? n + ' of ' + toks.length : 'not given'}</span></span></div>`; }).join('')}
+   </div>` + toks.map(t => {
+    const fees = t.fees && typeof t.fees === 'object' ? Object.entries(t.fees) : [];
+    return `<div class="sec" style="display:flex;justify-content:space-between;align-items:center;text-transform:none"><span>${esc(t.symbol ? '$' + t.symbol : short(t.mint))} · ${short(t.mint)}</span><a class="lk" style="font-size:14px" href="https://gmgn.ai/sol/token/${esc(t.mint)}" target="_blank" rel="noopener">GMGN ↗</a></div>
+     <div class="cd" style="padding:2px 16px">
+      ${t.status.info !== 200 || t.status.stats !== 200 ? `<div class="row"><span class="err">Solana Tracker answered ${t.status.info} / ${t.status.stats}</span></div>` : ''}
+      <div class="row"><span style="font-weight:600">Fees</span><span class="mu">${fees.length ? '' : 'not given'}</span></div>
+      ${fees.map(([k, v]) => `<div class="row"><span class="mu">${esc(k)}</span><span>${esc(typeof v === 'number' ? (Math.round(v * 10000) / 10000).toLocaleString('en-US') : JSON.stringify(v))}</span></div>`).join('')}
+      <div class="row"><span style="font-weight:600">Price change</span><span class="mu" style="display:flex;gap:14px"><span style="width:62px;text-align:right">Tracker</span><span style="width:62px;text-align:right">DexScr.</span></span></div>
+      ${shown.map(tf => { const a = val(t, tf), b = t.dex ? t.dex[tf] : null, ok = a != null && b != null ? close(a, b) : null;
+        return `<div class="row"><span>${tf}${t.stats[tf] && t.stats[tf].buyers != null ? `<span class="mu3"> · ${fmt(t.stats[tf].buyers)} buyers</span>` : ''}</span><span style="display:flex;gap:14px;align-items:center"><span style="width:62px;text-align:right">${pcS(a)}</span><span style="width:62px;text-align:right" class="mu">${pcS(b)}</span><span style="width:14px">${ok == null ? '' : ok ? '<span style="color:var(--ok)">✓</span>' : '<span style="color:var(--wa)">⚠</span>'}</span></span></div>`; }).join('')}
+     </div>`; }).join('') + '<div class="mu3 center" style="margin-top:10px">Prices move every second, so small gaps between the two sources are normal.</div>';
 }
 
 // ---------- Traffic ----------

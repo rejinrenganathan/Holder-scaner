@@ -9,7 +9,7 @@
 // the plan price to the payment wallet with that key attached. The server finds the transfer by the key on Helius, checks recipient,
 // exact amount, confirmation and that the signature was never used before, then turns the plan on. A cron re-checks every 5 minutes.
 
-const API_V = 9;
+const API_V = 10;
 // Owner wallet(s) — always allowed into the dashboard. More owners can be added in Site control.
 const OWNER_WALLETS = 'CZQkA9JszBPP7x2LescrtZwh1LGoxZwnW68wLbdFPz93';
 // Sites allowed to call this API from a browser
@@ -983,6 +983,38 @@ async function owner(req, env, route, s, se, later) {
     } else return fail(req, 400, 'Unknown service');
     // body is streamed through untouched (no parsing = little server time); the real status rides in a header
     return new Response(upstream.body, { status: 200, headers: { 'content-type': 'application/json', 'cache-control': 'no-store', 'x-up': String(upstream.status), ...cors(req) } });
+  }
+  // ---- data test: compare Solana Tracker fees + price-change time frames with DexScreener on real tokens ----
+  if (route === 'datatest' && req.method === 'POST') {
+    const key = await getKey(env, 'stracker');
+    if (!key) return fail(req, 400, 'Add your Solana Tracker key in More → API keys');
+    const st = async p => { const r = await fetch('https://data.solanatracker.io' + p, { headers: { 'x-api-key': key, accept: 'application/json' } }); await bump(env, 'call_stracker');
+      const j = await r.json().catch(() => null); return { status: r.status, j }; };
+    let mints = (Array.isArray(b.mints) ? b.mints : []).map(x => String(x).trim()).filter(x => /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(x));
+    mints = [...new Set(mints)].slice(0, 5);
+    let source = 'yours';
+    if (!mints.length) {
+      const hot = (await DB.prepare("SELECT mint, COUNT(DISTINCT wallet) n FROM trades WHERE ts > ? AND side = 'buy' GROUP BY mint ORDER BY n DESC LIMIT 5").bind(t - 4 * 3600).all()).results || [];
+      mints = hot.map(r => r.mint); source = 'feed';
+      if (!mints.length) { const tr = await st('/tokens/trending/1h'); mints = (Array.isArray(tr.j) ? tr.j : []).map(x => x && x.token && x.token.mint).filter(Boolean).slice(0, 5); source = 'trending'; }
+    }
+    if (!mints.length) return fail(req, 400, 'No tokens found to test — paste some addresses');
+    let dex = {};
+    try { const r = await fetch('https://api.dexscreener.com/tokens/v1/solana/' + mints.join(',')); const list = r.ok ? await r.json() : [];
+      for (const p of Array.isArray(list) ? list : []) { const a = p.baseToken && p.baseToken.address; if (!a || !mints.includes(a)) continue; if (!dex[a] || ((p.liquidity || {}).usd || 0) > ((dex[a].liquidity || {}).usd || 0)) dex[a] = p; } } catch (e) { }
+    const out = [];
+    for (const m of mints) {
+      const [ti, ss] = await Promise.all([st('/tokens/' + m), st('/stats/' + m)]);
+      const info = ti.j || {}, stats = ss.j || {}, d = dex[m];
+      const ev = {}; for (const [k, v] of Object.entries(info.events || {})) ev[k] = v && typeof v.priceChangePercentage === 'number' ? v.priceChangePercentage : null;
+      const sv = {}; for (const [k, v] of Object.entries(stats || {})) if (v && typeof v === 'object' && 'priceChangePercentage' in v) sv[k] = { pc: v.priceChangePercentage, buyers: v.buyers ?? null, sellers: v.sellers ?? null };
+      out.push({ mint: m, symbol: (info.token && info.token.symbol) || (d && d.baseToken && d.baseToken.symbol) || '', status: { info: ti.status, stats: ss.status },
+        fees: info.risk && info.risk.fees != null ? info.risk.fees : null, poolFees: (info.pools || []).map(p => p && p.fees).filter(x => x != null).slice(0, 3),
+        events: ev, stats: sv, dex: d && d.priceChange ? { '5m': d.priceChange.m5 ?? null, '1h': d.priceChange.h1 ?? null, '6h': d.priceChange.h6 ?? null, '24h': d.priceChange.h24 ?? null } : null,
+        volume24h: d && d.volume ? d.volume.h24 : null });
+    }
+    await logEvent(env, 'info', 'datatest', `Data test run on ${out.length} token${out.length > 1 ? 's' : ''}`);
+    return json(req, { ok: true, source, tokens: out });
   }
   if (route === 'wallets/ids') {
     const rows = (await DB.prepare('SELECT wallet FROM site_wallets').all()).results || [];
