@@ -4,67 +4,126 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
-<meta name="theme-color" content="#0b0b0c">
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="HS Owner">
+<link rel="manifest" href="/owner/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/owner/icon-180.png">
+<link rel="icon" href="/owner/icon-180.png">
 <title>Owner · Holder Scan</title>
 <style>
-:root{--bg:#f6f6f4;--card:#fff;--line:#e7e6e1;--line2:#d4d3cc;--tx:#1a1a19;--tx2:#6b6a64;--tx3:#9a9992;--soft:#efeee9;
---acc:#2f6fdf;--accbg:#e8f0fd;--ok:#1f8a4c;--okbg:#e5f4ea;--wa:#a8660a;--wabg:#fbf0dc;--er:#c93a3a;--erbg:#fbe9e9;--pr:#6d4fd8;--prbg:#efeafd;--pri:#1a1a19;--onpri:#fff}
-@media (prefers-color-scheme:dark){:root{--bg:#0b0b0c;--card:#161617;--line:#262628;--line2:#38383b;--tx:#ededec;--tx2:#a2a19c;--tx3:#6e6d69;--soft:#1f1f21;
---acc:#6ea0ff;--accbg:#16233d;--ok:#4cc580;--okbg:#12291b;--wa:#e5a647;--wabg:#2e230f;--er:#f07a7a;--erbg:#331616;--pr:#a993ff;--prbg:#241d3d;--pri:#ededec;--onpri:#111}}
+/* iOS-style dark theme */
+:root{--bg:#000;--card:#1c1c1e;--card2:#2c2c2e;--line:#38383a;--line2:#48484a;--tx:#fff;--tx2:#8e8e93;--tx3:#636366;--soft:#2c2c2e;
+--acc:#0a84ff;--accbg:rgba(10,132,255,.18);--ok:#30d158;--okbg:rgba(48,209,88,.16);--wa:#ff9f0a;--wabg:rgba(255,159,10,.16);--er:#ff453a;--erbg:rgba(255,69,58,.16);
+--pr:#bf5af2;--prbg:rgba(191,90,242,.18);--pri:#fff;--onpri:#000;color-scheme:dark}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+html{background:var(--bg)}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.4 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,system-ui,sans-serif;-webkit-font-smoothing:antialiased;overscroll-behavior-y:contain}
 button,input,select,textarea{font:inherit;color:inherit}
-.wrap{max-width:560px;margin:0 auto;padding:12px 12px 96px}
-.top{display:flex;justify-content:space-between;align-items:center;padding:6px 2px 12px}
-.top h1{font-size:17px;font-weight:600;margin:0}.mu{color:var(--tx2);font-size:12px}.mu3{color:var(--tx3);font-size:12px}
-.cd{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px}
-.hd{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}.ht{font-weight:600;font-size:15px}
-.g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
-.kp{background:var(--soft);border-radius:10px;padding:9px 10px}.kn{font-size:21px;font-weight:600;margin-top:1px}
-.row{display:flex;justify-content:space-between;align-items:center;gap:10px;border-top:1px solid var(--line);padding:9px 0}
-.row:first-child{border-top:0}.rl{min-width:0;flex:1}.rl>div{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.pl{font-size:11px;font-weight:500;border-radius:6px;padding:2px 7px;white-space:nowrap;display:inline-block}
-.ok{background:var(--okbg);color:var(--ok)}.wa{background:var(--wabg);color:var(--wa)}.er{background:var(--erbg);color:var(--er)}.ac{background:var(--accbg);color:var(--acc)}.pr{background:var(--prbg);color:var(--pr)}.ne{background:var(--soft);color:var(--tx2)}
-.bt{border:1px solid var(--line2);background:var(--card);border-radius:10px;padding:8px 12px;font-size:13px;cursor:pointer;text-align:center}
-a.bt{color:inherit}a.bt.bp{color:var(--onpri)}.bt:active{transform:scale(.98)}.bp{background:var(--pri);color:var(--onpri);border-color:var(--pri)}.bd{color:var(--er);border-color:var(--er)}
-.bt[disabled]{opacity:.5}.wide{width:100%;display:block}
-.lk{color:var(--acc);font-size:13px;cursor:pointer;background:none;border:0;padding:4px 0;text-decoration:none}
-.chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;margin-bottom:8px;scrollbar-width:none}.chips::-webkit-scrollbar{display:none}
-.ch{border:1px solid var(--line2);border-radius:16px;padding:4px 11px;font-size:12px;white-space:nowrap;background:var(--card);cursor:pointer}
-.ch.on{background:var(--pri);color:var(--onpri);border-color:var(--pri)}
-input[type=text],input[type=number],input:not([type]),select,textarea{width:100%;border:1px solid var(--line2);background:var(--card);border-radius:10px;padding:9px 10px;outline:none}
-input:focus,select:focus,textarea:focus{border-color:var(--acc)}
-textarea{font-family:ui-monospace,Menlo,monospace;font-size:12px;min-height:96px;resize:vertical}
-.tg{width:42px;height:24px;border-radius:12px;background:var(--line2);position:relative;border:0;flex:none;cursor:pointer;transition:background .15s}
-.tg::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:left .15s}
-.tg.on{background:var(--ok)}.tg.on::after{left:21px}
-.nav{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(5,1fr);padding:6px 0 calc(6px + env(safe-area-inset-bottom));z-index:5}
-.nav button{background:none;border:0;font-size:11px;color:var(--tx2);display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer}
-.nav button.on{color:var(--acc)}.nav svg{width:22px;height:22px}
-.issue{background:var(--erbg);border:1px solid var(--er);border-radius:14px;padding:10px 12px;margin-bottom:10px;display:flex;gap:10px;align-items:center;color:var(--er)}
-.issue.w{background:var(--wabg);border-color:var(--wa);color:var(--wa)}
-.bars{display:flex;align-items:flex-end;gap:4px;height:70px;margin-top:6px}.bars div{flex:1;background:var(--acc);border-radius:3px 3px 0 0;min-height:2px}
-.bl{display:flex;gap:4px;font-size:10px;color:var(--tx3)}.bl span{flex:1;text-align:center;overflow:hidden}
-.meter{height:6px;background:var(--soft);border-radius:4px;margin-top:5px;overflow:hidden}.meter div{height:6px;border-radius:4px}
-.sheetbg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:20;display:flex;align-items:flex-end;justify-content:center}
-.sheet{background:var(--card);width:100%;max-width:560px;border-radius:18px 18px 0 0;padding:16px 14px calc(16px + env(safe-area-inset-bottom));max-height:88vh;overflow:auto}
-.sheet h3{margin:0 0 10px;font-size:16px}.field{margin-bottom:10px}.field label{display:block;font-size:12px;color:var(--tx2);margin-bottom:4px}
-.toast{position:fixed;left:50%;bottom:86px;transform:translateX(-50%);background:var(--pri);color:var(--onpri);padding:9px 14px;border-radius:10px;font-size:13px;z-index:30;max-width:90%;display:flex;gap:12px;align-items:center}
-.toast button{background:none;border:0;color:var(--onpri);font-weight:600;text-decoration:underline}
-.menu{position:absolute;right:0;top:28px;background:var(--card);border:1px solid var(--line2);border-radius:12px;min-width:170px;z-index:10;box-shadow:0 8px 24px rgba(0,0,0,.15)}
-.menu button{display:block;width:100%;text-align:left;background:none;border:0;padding:10px 14px;font-size:13px;cursor:pointer}.menu button+button{border-top:1px solid var(--line)}
-.dots{background:none;border:0;padding:4px 6px;cursor:pointer;color:var(--tx2);font-size:18px;line-height:1}
-.selbar{position:sticky;top:0;background:var(--card);border:1px solid var(--line2);border-radius:12px;padding:8px 10px;display:flex;gap:8px;align-items:center;margin-bottom:8px;z-index:4}
-.ck{width:20px;height:20px;flex:none;accent-color:var(--acc)}
-.center{text-align:center}.mt{margin-top:8px}.mb0{margin-bottom:0}
-.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--line2);border-top-color:var(--acc);border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px}
+.wrap{max-width:600px;margin:0 auto;padding:0 16px calc(100px + env(safe-area-inset-bottom))}
+.wrap>*{animation:in .28s cubic-bezier(.2,.8,.2,1) both}
+@keyframes in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+/* bars */
+.bar{position:fixed;top:0;left:0;right:0;z-index:6;height:calc(48px + env(safe-area-inset-top));padding-top:env(safe-area-inset-top);display:flex;align-items:center;justify-content:center;
+ background:rgba(18,18,18,.78);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-bottom:.5px solid rgba(84,84,88,.5);opacity:0;pointer-events:none;transition:opacity .2s}
+.bar.show{opacity:1;pointer-events:auto}.bar b{font-size:17px;font-weight:600}
+.top{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;padding:calc(14px + env(safe-area-inset-top)) 0 14px}
+.top h1{font-size:34px;font-weight:700;letter-spacing:.2px;margin:0;line-height:1.1}
+.back{display:inline-flex;align-items:center;gap:2px;color:var(--acc);font-size:17px;background:none;border:0;padding:8px 8px 8px 0;min-height:44px;cursor:pointer}
+.back svg{width:22px;height:22px}
+.ib{width:40px;height:40px;border-radius:50%;background:var(--card);border:0;display:inline-flex;align-items:center;justify-content:center;color:var(--acc);cursor:pointer;flex:none;transition:transform .12s,background .12s}
+.ib:active{transform:scale(.9);background:var(--card2)}.ib svg{width:21px;height:21px}
+.mu{color:var(--tx2);font-size:13px}.mu3{color:var(--tx3);font-size:12px}
+.sec{color:var(--tx2);font-size:13px;text-transform:uppercase;letter-spacing:.3px;margin:22px 16px 7px}
+/* grouped lists */
+.cd{background:var(--card);border-radius:14px;padding:12px 16px;margin-bottom:14px}
+.hd{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;min-height:28px}.ht{font-weight:600;font-size:17px}
+.g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.plain .kp{background:var(--card)}.kp{background:var(--card2);border-radius:12px;padding:11px 12px}.kn{font-size:24px;font-weight:700;margin-top:2px;font-variant-numeric:tabular-nums;letter-spacing:-.3px}
+.row{display:flex;justify-content:space-between;align-items:center;gap:12px;border-top:.5px solid var(--line);padding:11px 0;min-height:48px;position:relative}
+.row:first-child,.hd+.row{border-top:0}.rl{min-width:0;flex:1}.rl>div{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row[style*="margin:0 -16px"]{border-top-color:var(--line)}.tap{cursor:pointer;transition:background .15s}.tap:active{background:rgba(255,255,255,.06)}
+.chev{color:var(--tx3);font-size:20px;line-height:1}
+.sq{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;flex:none;font-size:15px}
+.sq svg{width:18px;height:18px}
+.pl{font-size:12px;font-weight:600;border-radius:7px;padding:3px 8px;white-space:nowrap;display:inline-block}
+.ok{background:var(--okbg);color:var(--ok)}.wa{background:var(--wabg);color:var(--wa)}.er{background:var(--erbg);color:var(--er)}.ac{background:var(--accbg);color:var(--acc)}.pr{background:var(--prbg);color:var(--pr)}.ne{background:var(--card2);color:var(--tx2)}
+/* buttons */
+.bt{border:0;background:var(--card2);color:var(--acc);border-radius:12px;padding:11px 14px;font-size:16px;font-weight:500;cursor:pointer;text-align:center;min-height:44px;transition:transform .12s,opacity .12s}
+.bt:active{transform:scale(.97);opacity:.8}.bp{background:var(--acc);color:#fff}.bd{color:var(--er)}a.bt{color:var(--acc)}a.bt.bp{color:#fff}
+.bt[disabled]{opacity:.4}.wide{width:100%;display:block}
+.lk{color:var(--acc);font-size:16px;cursor:pointer;background:none;border:0;padding:8px 0;min-height:40px;text-decoration:none}
+/* segmented + chips */
+.seg{display:flex;background:var(--card);border-radius:10px;padding:2px;margin-bottom:14px;position:relative}
+.seg button{flex:1;border:0;background:none;padding:8px 6px;font-size:14px;font-weight:500;border-radius:8px;cursor:pointer;color:var(--tx);transition:background .2s}
+.seg button.on{background:#636366;box-shadow:0 3px 8px rgba(0,0,0,.25)}
+.chips{display:flex;gap:7px;overflow-x:auto;padding-bottom:2px;margin-bottom:10px;scrollbar-width:none}.chips::-webkit-scrollbar{display:none}
+.ch{border:0;background:var(--card2);border-radius:16px;padding:6px 13px;font-size:14px;white-space:nowrap;cursor:pointer}
+.ch.on{background:var(--tx);color:#000}
+/* inputs */
+input[type=text],input[type=number],input[type=search],input:not([type]),select,textarea{width:100%;border:0;background:var(--card2);border-radius:10px;padding:11px 12px;outline:none;font-size:16px;-webkit-appearance:none;appearance:none}
+select{background-image:linear-gradient(45deg,transparent 50%,var(--tx2) 50%),linear-gradient(135deg,var(--tx2) 50%,transparent 50%);background-position:calc(100% - 17px) 50%,calc(100% - 12px) 50%;background-size:5px 5px;background-repeat:no-repeat;padding-right:30px}
+input:focus,select:focus,textarea:focus{box-shadow:0 0 0 2px var(--acc)}
+textarea{font-family:ui-monospace,Menlo,monospace;font-size:13px;min-height:100px;resize:vertical}
+.search{position:relative}input[type=search]::-webkit-search-cancel-button{filter:invert(.6)}.search input{padding-left:36px}.search svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);width:18px;height:18px;color:var(--tx2)}
+/* iOS switch */
+.tg{width:51px;height:31px;border-radius:16px;background:#39393d;position:relative;border:0;flex:none;cursor:pointer;transition:background .25s}
+.tg::after{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 3px 8px rgba(0,0,0,.15);transition:left .25s cubic-bezier(.3,1.4,.6,1)}
+.tg.on{background:var(--ok)}.tg.on::after{left:22px}
+/* tab bar */
+.nav{position:fixed;left:0;right:0;bottom:0;z-index:5;display:grid;grid-template-columns:repeat(5,1fr);padding:6px 0 calc(6px + env(safe-area-inset-bottom));
+ background:rgba(18,18,18,.8);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-top:.5px solid rgba(84,84,88,.5)}
+.nav button{background:none;border:0;font-size:10.5px;font-weight:500;color:var(--tx2);display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;min-height:48px;transition:transform .12s}
+.nav button:active{transform:scale(.92)}.nav button.on{color:var(--acc)}.nav svg{width:26px;height:26px}.nav button.on svg{fill:currentColor;fill-opacity:.22}
+/* issue banner */
+.issue{background:var(--erbg);border-radius:14px;padding:12px 14px;margin-bottom:14px;display:flex;gap:12px;align-items:center;color:var(--er)}
+.issue.w{background:var(--wabg);color:var(--wa)}
+/* charts */
+.bars{display:flex;align-items:flex-end;gap:4px;height:80px;margin-top:10px}.bars div{flex:1;background:linear-gradient(var(--acc),rgba(10,132,255,.55));border-radius:4px 4px 1px 1px;min-height:3px;transform-origin:bottom;animation:grow .5s cubic-bezier(.2,.8,.2,1) both}
+@keyframes grow{from{transform:scaleY(0)}}
+.bl{display:flex;gap:4px;font-size:11px;color:var(--tx3);margin-top:4px}.bl span{flex:1;text-align:center;overflow:hidden}
+.meter{height:6px;background:var(--card2);border-radius:4px;margin-top:6px;overflow:hidden}.meter div{height:6px;border-radius:4px;transition:width .6s cubic-bezier(.2,.8,.2,1)}
+/* sheets */
+.sheetbg{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:20;display:flex;align-items:flex-end;justify-content:center;animation:fade .2s both}
+@keyframes fade{from{opacity:0}}
+.sheet{background:#1c1c1e;width:100%;max-width:600px;border-radius:14px 14px 0 0;padding:8px 16px calc(18px + env(safe-area-inset-bottom));max-height:90vh;overflow:auto;animation:up .32s cubic-bezier(.2,.9,.25,1) both;touch-action:pan-y}
+@keyframes up{from{transform:translateY(100%)}}
+.grab{width:36px;height:5px;border-radius:3px;background:#48484a;margin:0 auto 12px}
+.sheet h3{margin:4px 0 12px;font-size:20px;font-weight:700}.field{margin-bottom:12px}.field label{display:block;font-size:13px;color:var(--tx2);margin:0 4px 6px}
+.as{position:fixed;inset:0;z-index:25;background:rgba(0,0,0,.45);display:flex;flex-direction:column;justify-content:flex-end;padding:8px 8px calc(8px + env(safe-area-inset-bottom));animation:fade .2s both}
+.as .grp{background:rgba(44,44,46,.96);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-radius:14px;overflow:hidden;max-width:600px;width:100%;margin:0 auto 8px;animation:up .3s cubic-bezier(.2,.9,.25,1) both}
+.as .t{padding:13px 16px;text-align:center;color:var(--tx2);font-size:13px;border-bottom:.5px solid var(--line2)}
+.as button{display:block;width:100%;background:none;border:0;border-top:.5px solid var(--line2);padding:16px;font-size:19px;color:var(--acc);cursor:pointer}
+.as button:first-of-type{border-top:0}.as .t+button{border-top:0}.as button:active{background:rgba(255,255,255,.08)}.as button.dg{color:var(--er)}.as .cancel{font-weight:600}
+/* toast banner */
+.toast{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top));transform:translateX(-50%);background:rgba(44,44,46,.95);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);color:#fff;padding:12px 16px;border-radius:16px;font-size:15px;z-index:30;max-width:92%;display:flex;gap:14px;align-items:center;box-shadow:0 10px 30px rgba(0,0,0,.4);animation:drop .35s cubic-bezier(.2,.9,.25,1) both}
+@keyframes drop{from{transform:translate(-50%,-120%)}}
+.toast button{background:none;border:0;color:var(--acc);font-weight:600;font-size:15px;padding:0}
+/* swipe rows */
+.swr{position:relative;overflow:hidden;border-top:.5px solid var(--line);margin:0 -16px;padding:0 16px}.swr:first-child{border-top:0}
+.swr .row{border-top:0;background:var(--card);transition:transform .25s cubic-bezier(.2,.8,.2,1);z-index:1}
+.swa{position:absolute;top:0;bottom:0;right:0;display:flex}.swa button{width:78px;border:0;color:#fff;font-size:14px;font-weight:600;cursor:pointer}
+.dots{background:none;border:0;padding:6px;cursor:pointer;color:var(--tx2);min-width:40px;min-height:40px;display:inline-flex;align-items:center;justify-content:center}.dots svg{width:22px;height:22px}
+.selbar{position:sticky;top:calc(52px + env(safe-area-inset-top));background:rgba(44,44,46,.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-radius:12px;padding:8px 10px;display:flex;gap:8px;align-items:center;margin-bottom:8px;z-index:4}
+.selbar .bt{min-height:36px;padding:7px 12px;font-size:14px}
+.ck{width:22px;height:22px;flex:none;accent-color:var(--acc)}
+.center{text-align:center}.mt{margin-top:10px}.mb0{margin-bottom:0}
+.spin{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.2);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertical-align:-3px}
 @keyframes sp{to{transform:rotate(360deg)}}
-.err{color:var(--er);font-size:12px;margin-top:4px}
-.addr{font-family:ui-monospace,Menlo,monospace;font-size:12px;word-break:break-all}
+.sk{background:linear-gradient(90deg,#1c1c1e 25%,#2c2c2e 50%,#1c1c1e 75%);background-size:200% 100%;animation:shim 1.2s infinite;border-radius:14px}
+@keyframes shim{to{background-position:-200% 0}}
+.ptr{position:fixed;top:calc(8px + env(safe-area-inset-top));left:50%;transform:translateX(-50%) translateY(-60px);z-index:7;width:36px;height:36px;border-radius:50%;background:var(--card2);display:flex;align-items:center;justify-content:center;transition:transform .2s}
+.err{color:var(--er);font-size:14px;margin-top:4px}
+.addr{font-family:ui-monospace,Menlo,monospace;font-size:13px;word-break:break-all}
+a{color:var(--acc)}
 </style>
 </head>
 <body>
 <div class="wrap" id="app"><div class="center mu" style="padding:60px 0"><span class="spin"></span> Loading…</div></div>
+<div class="bar" id="bar"><b id="barT"></b></div>
+<div class="ptr" id="ptr"></div>
 <nav class="nav" id="nav" style="display:none"></nav>
 <script>
 'use strict';
@@ -85,7 +144,11 @@ const ICON = {
   money: '<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M16 15h2"/>',
   wallets: '<path d="M4 6h16M4 12h16M4 18h10"/>',
   users: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5M16 4.5a3.5 3.5 0 0 1 0 7M18 14.8c1.9.7 3.1 2.5 3.5 5.2"/>',
-  more: '<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>'
+  more: '<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>',
+  refresh: '<path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/>', back: '<path d="M15 5l-7 7 7 7"/>', dots: '<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>', plus: '<path d="M12 5v14M5 12h14"/>', traffic: '<path d="M4 19V10M10 19V5M16 19v-7M22 19H2"/>',
+  site: '<path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/>', keys: '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3"/>',
+  health: '<path d="M3 12h4l2-5 4 10 2-5h6"/>', out: '<path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h11"/>'
 };
 const svg = k => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICON[k]}</svg>`;
 
@@ -97,8 +160,10 @@ async function api(path, opt = {}) {
   if (!j || !j.ok) throw new Error((j && j.error) || ('The server answered ' + r.status));
   return j;
 }
+const buzz = (ms = 8) => { try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) { } };
 function toast(msg, undo) {
   document.querySelectorAll('.toast').forEach(t => t.remove());
+  buzz(undo ? 15 : 8);
   const t = document.createElement('div'); t.className = 'toast';
   t.innerHTML = `<span>${esc(msg)}</span>` + (undo ? '<button>Undo</button>' : '');
   if (undo) t.querySelector('button').onclick = () => { t.remove(); undo(); };
@@ -107,20 +172,29 @@ function toast(msg, undo) {
 function sheet(html, bind) {
   closeSheet();
   const bg = document.createElement('div'); bg.className = 'sheetbg'; bg.id = 'sheet';
-  bg.innerHTML = `<div class="sheet">${html}</div>`;
+  bg.innerHTML = `<div class="sheet"><div class="grab"></div>${html}</div>`;
   bg.onclick = e => { if (e.target === bg) closeSheet(); };
   document.body.appendChild(bg); if (bind) bind(bg);
+  // swipe down to close (from the grab handle or when scrolled to the top)
+  const sh = bg.querySelector('.sheet'); let y0 = null, dy = 0;
+  sh.addEventListener('touchstart', e => { if (sh.scrollTop <= 0 && !e.target.closest('input,textarea,select')) { y0 = e.touches[0].clientY; dy = 0; sh.style.transition = 'none'; } }, { passive: true });
+  sh.addEventListener('touchmove', e => { if (y0 == null) return; dy = Math.max(0, e.touches[0].clientY - y0); sh.style.transform = `translateY(${dy}px)`; }, { passive: true });
+  sh.addEventListener('touchend', () => { if (y0 == null) return; y0 = null; sh.style.transition = 'transform .25s'; if (dy > 110) closeSheet(); else sh.style.transform = ''; });
 }
 function closeSheet() { const s = $('#sheet'); if (s) s.remove(); }
-function busy(btn, on) { if (!btn) return; if (on) { btn.dataset.t = btn.innerHTML; btn.innerHTML = '<span class="spin"></span>'; btn.disabled = true; } else { btn.innerHTML = btn.dataset.t || btn.innerHTML; btn.disabled = false; } }
+function busy(btn, on) { if (!btn) return; if (on) { btn.dataset.t = btn.innerHTML; btn.innerHTML = '<span class="spin"></span>'; btn.disabled = true; } else { btn.innerHTML = btn.dataset.t || btn.innerHTML; btn.disabled = btn.dataset.stay === '1'; delete btn.dataset.stay; } }
 async function act(btn, fn) { busy(btn, true); try { await fn(); } catch (e) { if (e.message !== 'signed out') toast(e.message); } finally { busy(btn, false); } }
 function copy(text, label) { (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject()).then(() => toast((label || 'Copied'))).catch(() => { const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); toast(label || 'Copied'); }); }
-document.addEventListener('click', e => { if (!e.target.closest('.menu') && !e.target.closest('.dots')) document.querySelectorAll('.menu').forEach(m => m.remove()); });
-function menu(anchor, items) {
-  document.querySelectorAll('.menu').forEach(m => m.remove());
-  const m = document.createElement('div'); m.className = 'menu';
-  items.forEach(([label, fn, danger]) => { const b = document.createElement('button'); b.textContent = label; if (danger) b.style.color = 'var(--er)'; b.onclick = () => { m.remove(); fn(); }; m.appendChild(b); });
-  anchor.parentElement.style.position = 'relative'; anchor.parentElement.appendChild(m);
+// iOS action sheet (used for every ⋯ menu)
+function menu(anchor, items, title) {
+  document.querySelectorAll('.as').forEach(m => m.remove()); buzz(6);
+  const m = document.createElement('div'); m.className = 'as';
+  m.innerHTML = `<div class="grp">${title ? `<div class="t">${esc(title)}</div>` : ''}</div><div class="grp"><button class="cancel">Cancel</button></div>`;
+  const g = m.querySelector('.grp');
+  items.forEach(([label, fn, danger]) => { const b = document.createElement('button'); b.textContent = label; if (danger) b.className = 'dg'; b.onclick = () => { m.remove(); fn(); }; g.appendChild(b); });
+  m.querySelector('.cancel').onclick = () => m.remove();
+  m.onclick = e => { if (e.target === m) m.remove(); };
+  document.body.appendChild(m);
 }
 
 // ---------- sign-in ----------
@@ -177,24 +251,58 @@ window.addEventListener('hashchange', () => { if (me && me.isAdmin) go(location.
 const TABS = [['home', 'Home'], ['money', 'Money'], ['wallets', 'Wallets'], ['users', 'Users'], ['more', 'More']];
 const SUBS = { traffic: 'Traffic', site: 'Site control', keys: 'API keys', health: 'Health and logs' };
 function go(where, fromHash) {
+  closeSheet(); document.querySelectorAll('.as').forEach(m => m.remove());
   const [t, s] = where.split('/');
   tab = TABS.some(x => x[0] === t) ? t : 'home'; sub = tab === 'more' && SUBS[s] ? s : '';
   const h = tab + (sub ? '/' + sub : '');
   if (!fromHash && location.hash.slice(1) !== h) history.replaceState(null, '', '#' + h);
   $('#nav').innerHTML = TABS.map(([k, l]) => `<button class="${k === tab ? 'on' : ''}" data-t="${k}">${svg(k)}${l}</button>`).join('');
-  $('#nav').querySelectorAll('button').forEach(b => b.onclick = () => { location.hash = b.dataset.t; });
+  $('#nav').querySelectorAll('button').forEach(b => b.onclick = () => { buzz(5); if (b.dataset.t === tab && !sub) { window.scrollTo({ top: 0, behavior: 'smooth' }); return; } location.hash = b.dataset.t; });
   window.scrollTo(0, 0);
   render();
 }
-function header(title, extra) {
-  return `<div class="top"><div>${sub ? `<button class="lk" onclick="location.hash='more'">‹ More</button>` : ''}<h1>${esc(title)}</h1>${extra ? `<div class="mu">${extra}</div>` : ''}</div>
-    <button class="dots" title="Refresh" onclick="render()">↻</button></div>`;
+let TITLE = '';
+function header(title, extra, actions) {
+  TITLE = title; const bt = $('#barT'); if (bt) bt.textContent = title;
+  return `${sub ? `<button class="back" style="margin-top:calc(4px + env(safe-area-inset-top))" onclick="location.hash='more'">${svg('back')}More</button>` : ''}
+   <div class="top" style="${sub ? 'padding-top:2px' : ''}"><div style="min-width:0">${extra && !sub ? `<div class="mu" style="margin-bottom:2px">${extra}</div>` : ''}<h1>${esc(title)}</h1>${extra && sub ? `<div class="mu" style="margin-top:4px">${extra}</div>` : ''}</div>
+    <div style="display:flex;gap:8px">${actions || ''}<button class="ib" title="Refresh" aria-label="Refresh" onclick="buzz();render()">${svg('refresh')}</button></div></div>`;
+}
+// compact title bar after scrolling past the big title
+window.addEventListener('scroll', () => { const b = $('#bar'); if (b) b.classList.toggle('show', window.scrollY > 56); }, { passive: true });
+// pull down to refresh, and swipe from the left edge to go back
+(() => {
+  let y0 = null, x0 = null, pulled = 0, edge = false; const ptr = () => $('#ptr');
+  document.addEventListener('touchstart', e => {
+    if ($('#sheet') || document.querySelector('.as') || $('#labov')) return;
+    const t = e.touches[0]; x0 = t.clientX; edge = x0 < 22 && !!sub; y0 = window.scrollY <= 0 ? t.clientY : null; pulled = 0;
+  }, { passive: true });
+  document.addEventListener('touchmove', e => {
+    const t = e.touches[0];
+    if (y0 != null && !edge) { pulled = Math.max(0, t.clientY - y0); const p = ptr(); if (p && pulled > 10) { p.style.transform = `translateX(-50%) translateY(${Math.min(pulled, 110) - 50}px) rotate(${pulled * 3}deg)`; p.innerHTML = svg('refresh'); } }
+  }, { passive: true });
+  document.addEventListener('touchend', e => {
+    const p = ptr(), t = e.changedTouches[0];
+    if (edge && t.clientX - x0 > 80) { buzz(); location.hash = 'more'; }
+    if (y0 != null && pulled > 80) { buzz(12); if (p) p.innerHTML = '<span class="spin"></span>'; Promise.resolve(render()).finally(() => setTimeout(() => { if (p) p.style.transform = ''; }, 400)); }
+    else if (p) p.style.transform = '';
+    y0 = null; edge = false;
+  }, { passive: true });
+})();
+// numbers count up when they appear
+function countUp(root) {
+  (root || document).querySelectorAll('.kn').forEach(el => {
+    const m = el.textContent.trim().match(/^([\d,]+)(.*)$/); if (!m) return; const end = +m[1].replace(/,/g, ''); if (!(end > 0 && end < 1e9)) return;
+    const t0 = performance.now(), tail = m[2]; const step = t => { const k = Math.min(1, (t - t0) / 550), v = Math.round(end * (1 - Math.pow(1 - k, 3))); el.textContent = v.toLocaleString('en-IN') + tail; if (k < 1) requestAnimationFrame(step); };
+    requestAnimationFrame(step);
+  });
 }
 function render() {
   const f = { home: Home, money: Money, wallets: Wallets, users: Users, more: () => (sub ? { traffic: Traffic, site: Site, keys: Keys, health: Health }[sub]() : More()) }[tab];
-  f();
+  const r = f(); Promise.resolve(r).then(() => countUp($('#app')));
+  return r;
 }
-const loading = title => { $('#app').innerHTML = header(title) + '<div class="center mu" style="padding:40px 0"><span class="spin"></span></div>'; };
+const loading = title => { $('#app').innerHTML = header(title) + '<div class="sk" style="height:96px;margin-bottom:14px"></div><div class="g2" style="margin-bottom:14px"><div class="sk" style="height:84px"></div><div class="sk" style="height:84px"></div></div><div class="sk" style="height:180px"></div>'; };
 const errBox = (title, e) => { $('#app').innerHTML = header(title) + `<div class="cd"><div class="err">${esc(e.message)}</div><button class="bt mt" onclick="render()">Try again</button></div>`; };
 
 // ---------- Home ----------
@@ -212,21 +320,25 @@ async function Home() {
   if (h.settings.site_live !== '1') att.push(['Site is switched off', 'more/site', 'Open']);
   if (h.settings.signups !== '1') att.push(['New sign-ups are paused', 'more/site', 'Open']);
   $('#app').innerHTML = header(`${greet}${me.name ? ', ' + me.name.split(' ')[0] : ''}`, new Date().toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' }) + ' · times in your phone\'s time zone') + issues + `
-  <div class="cd"><div class="hd"><span class="ht">Today</span><span class="mu3">since midnight UTC</span></div>
+  <div class="sec" style="margin-top:6px">Today</div><div class="cd plain" style="background:none;padding:0">
    <div class="g2">
     <div class="kp"><div class="mu">Unique visitors</div><div class="kn">${fmt(h.visitors)}</div><div style="font-size:11px">${diff(h.visitors, h.visitorsY)}</div></div>
     <div class="kp"><div class="mu">Sign-ups</div><div class="kn">${fmt(h.signups)}</div><div style="font-size:11px">${diff(h.signups, h.signupsY)}</div></div>
     <div class="kp"><div class="mu">Online now</div><div class="kn" style="color:var(--ok)">${fmt(h.online)}</div><div class="mu3">${fmt(h.active)} active in 24h</div></div>
     <div class="kp"><div class="mu">Users</div><div class="kn">${fmt(h.users)}</div><div class="mu3">${fmt(h.paid)} paid</div></div>
    </div></div>
-  <div class="cd"><div class="hd"><span class="ht">Needs your attention</span></div>
-   ${att.length ? att.map(a => `<div class="row"><span>${esc(a[0])}</span><button class="lk" onclick="location.hash='${a[1]}'">${a[2]} ›</button></div>`).join('') : '<div class="mu">All clear ✓</div>'}</div>
-  <div class="cd"><div class="hd"><span class="ht">At a glance</span></div>
-   <div class="row"><span>Site wallets</span><span>${fmt(h.wallets)}</span></div>
-   <div class="row"><span>Server requests today</span><span>${fmt(h.requests)}</span></div>
-   <div class="row"><span>Site</span><span class="pl ${h.settings.site_live === '1' ? 'ok' : 'er'}">${h.settings.site_live === '1' ? 'Live' : 'Off'}</span></div></div>
-  <div class="cd"><div class="hd"><span class="ht">Recent activity</span><button class="lk" onclick="location.hash='more/health'">All ›</button></div>
-   ${(h.activity || []).length ? h.activity.map(a => `<div class="row"><span class="rl"><div style="color:${a.level === 'error' ? 'var(--er)' : a.level === 'warn' ? 'var(--wa)' : 'inherit'}">${esc(a.msg)}</div></span><span class="mu3">${ago(a.ts)}</span></div>`).join('') : '<div class="mu">Nothing yet</div>'}</div>`;
+  <div class="sec">Needs your attention</div>
+  <div class="cd" style="padding:2px 16px">
+   ${att.length ? att.map(a => `<div class="row tap" style="margin:0 -16px;padding:9px 16px" onclick="location.hash='${a[1]}'"><div class="sq" style="background:${/key/i.test(a[0]) ? '#ff9f0a' : /expire/.test(a[0]) ? '#0a84ff' : /warning/.test(a[0]) ? '#ff9f0a' : '#ff453a'}">${svg(/key/i.test(a[0]) ? 'keys' : /expire/.test(a[0]) ? 'users' : /warning/.test(a[0]) ? 'health' : 'site')}</div><span style="flex:1">${esc(a[0])}</span><span class="chev">›</span></div>`).join('')
+     : '<div class="row"><div class="sq" style="background:#30d158">✓</div><span style="flex:1">All clear</span></div>'}</div>
+  <div class="sec">At a glance</div>
+  <div class="cd" style="padding:2px 16px">
+   <div class="row tap" style="margin:0 -16px;padding:9px 16px" onclick="location.hash='wallets'"><div class="sq" style="background:#5e5ce6">${svg('wallets')}</div><span style="flex:1">Site wallets</span><span class="mu" style="font-size:16px">${fmt(h.wallets)}</span><span class="chev">›</span></div>
+   <div class="row" style="margin:0 -16px;padding:9px 16px"><div class="sq" style="background:#8e8e93">${svg('traffic')}</div><span style="flex:1">Server requests today</span><span class="mu" style="font-size:16px">${fmt(h.requests)}</span></div>
+   <div class="row tap" style="margin:0 -16px;padding:9px 16px" onclick="location.hash='more/site'"><div class="sq" style="background:${h.settings.site_live === '1' ? '#30d158' : '#ff453a'}">${svg('site')}</div><span style="flex:1">Site</span><span class="pl ${h.settings.site_live === '1' ? 'ok' : 'er'}">${h.settings.site_live === '1' ? 'Live' : 'Off'}</span><span class="chev">›</span></div></div>
+  <div class="sec" style="display:flex;justify-content:space-between;align-items:center">Recent activity<button class="lk" style="text-transform:none;font-size:15px;padding:0;min-height:0" onclick="location.hash='more/health'">See all</button></div>
+  <div class="cd" style="padding:2px 16px">
+   ${(h.activity || []).length ? h.activity.map(a => `<div class="row"><span style="width:8px;height:8px;border-radius:50%;flex:none;background:${a.level === 'error' ? 'var(--er)' : a.level === 'warn' ? 'var(--wa)' : 'var(--ok)'}"></span><span class="rl"><div>${esc(a.msg)}</div></span><span class="mu3">${ago(a.ts)}</span></div>`).join('') : '<div class="row mu">Nothing yet</div>'}</div>`;
 }
 
 // ---------- Money ----------
@@ -252,18 +364,18 @@ async function Money() {
 const WS = { kind: 'all', sort: 'new', q: '', shown: 10, sel: null, rows: [], total: 0, summary: {}, bal: {} };
 let WVIEW = 'manage';
 async function Wallets() {
-  const seg = `<div class="g2" style="background:var(--soft);padding:4px;border-radius:12px;margin-bottom:10px">${[['manage', 'Manage'], ['find', 'Find wallets']].map(([k, l]) => `<button class="bt ${WVIEW === k ? 'bp' : ''}" style="border:0;${WVIEW === k ? '' : 'background:transparent'}" data-wv="${k}">${l}</button>`).join('')}</div>`;
-  const bindSeg = () => document.querySelectorAll('[data-wv]').forEach(b => b.onclick = () => { WVIEW = b.dataset.wv; Wallets(); });
-  if (WVIEW === 'find') { TRK = null; $('#app').innerHTML = header('Wallets', 'Leaderboards · added wallets go straight to the site') + seg + '<div id="fw"></div>'; bindSeg(); FindWallets($('#fw')); return; }
+  const seg = `<div class="seg">${[['manage', 'Manage'], ['find', 'Find wallets']].map(([k, l]) => `<button class="${WVIEW === k ? 'on' : ''}" data-wv="${k}">${l}</button>`).join('')}</div>`;
+  const bindSeg = () => document.querySelectorAll('[data-wv]').forEach(b => b.onclick = () => { if (WVIEW === b.dataset.wv) return; buzz(5); WVIEW = b.dataset.wv; Wallets(); });
+  if (WVIEW === 'find') { TRK = null; $('#app').innerHTML = header('Wallets', 'Leaderboards') + seg + '<div id="fw"></div>'; bindSeg(); FindWallets($('#fw')); return; }
   $('#app').innerHTML = header('Wallets', 'The KOL and smart wallets that power the site') + seg + `
   <div class="cd" id="wsum"><span class="spin"></span></div>
   <div class="cd"><div class="hd"><span class="ht">Add wallets</span><label class="lk">⬆ Upload .txt / .csv<input type="file" id="wf" accept=".txt,.csv,text/plain" hidden></label></div>
    <textarea id="wt" placeholder="7xKp…3fQa Ansem @blknoiz06&#10;Hq2m…9LwE Cupsey&#10;9fRt…kL2p"></textarea>
    <div class="mu mt">One per line: wallet, name, @handle. With @handle = KOL, without = smart. Add the word kol or smart to force it.</div>
    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;gap:8px"><span class="mu" id="wp">Paste wallets to see a preview</span><button class="bt bp" id="ws" disabled>Save</button></div></div>
-  <div class="cd"><div class="row" style="cursor:pointer" id="gofind"><div class="rl"><div>Find wallets</div><div class="mu">Axiom · Solana Tracker · Pump.fun winners · Birdeye · GMGN · Kolscan</div></div><span class="lk">Open ›</span></div></div>
-  <div class="cd"><div class="hd"><span class="ht">All wallets</span><div style="display:flex;gap:10px;align-items:center"><button class="lk" id="wsel">Select</button><span><button class="dots" id="wtop">⋮</button></span></div></div>
-   <input id="wq" placeholder="Search wallet, name, @handle" value="${esc(WS.q)}">
+  <div class="cd" style="padding:2px 16px"><div class="row tap" style="margin:0 -16px;padding:9px 16px" id="gofind"><div class="sq" style="background:#30d158">${svg('search')}</div><div class="rl"><div>Find wallets</div><div class="mu">Axiom · Solana Tracker · Pump.fun · Birdeye · GMGN · Kolscan</div></div><span class="chev">›</span></div></div>
+  <div class="cd"><div class="hd"><span class="ht">All wallets</span><div style="display:flex;gap:6px;align-items:center"><button class="lk" id="wsel">Select</button><button class="dots" id="wtop" aria-label="More">${svg('dots')}</button></div></div>
+   <div class="search">${svg('search')}<input id="wq" type="search" placeholder="Search wallet, name, @handle" value="${esc(WS.q)}"></div>
    <div class="chips mt" id="wk"></div>
    <select id="wso" style="margin-bottom:6px"><option value="new">Sort: newest first</option><option value="old">Sort: oldest first</option><option value="name">Sort: name A–Z</option><option value="kind">Sort: KOL first</option></select>
    <div id="wl"><span class="spin"></span></div></div>`;
@@ -277,7 +389,7 @@ async function Wallets() {
   $('#wf').onchange = e => { const f = e.target.files[0]; if (!f) return; if (f.size > 3e6) return toast('File too big (max 3 MB)'); const r = new FileReader(); r.onload = () => { $('#wt').value = r.result; $('#wt').dataset.src = 'upload'; previewAdd(); }; r.readAsText(f); e.target.value = ''; };
   $('#ws').onclick = e => act(e.target, saveAdd);
   $('#wsel').onclick = () => { WS.sel = WS.sel ? null : new Set(); drawW(); };
-  $('#wtop').onclick = e => menu(e.target, [['Export all (.txt)', exportW], ['Delete hidden wallets', () => delW({ hidden: true }, 'all hidden wallets')], ['Delete all…', delAll, true]]);
+  $('#wtop').onclick = e => menu(null, [['Export all (.txt)', exportW], ['Delete hidden wallets', () => delW({ hidden: true }, 'all hidden wallets')], ['Delete all…', delAll, true]]);
   loadW();
 }
 // big lists go up in small batches (Cloudflare's free plan allows very little time per request)
@@ -308,7 +420,7 @@ async function saveAdd() {
     while (true) { try { r = (await api('/api/owner/wallets/add', { body: { text: parts[i], source: src } })).result; break; } catch (e) { if (++tries >= 3) { wp.innerHTML = `<span class="err">Stopped at batch ${i + 1} of ${parts.length}: ${esc(e.message)}. ${fmt(tot.add)} were saved — tap Save again to continue (saved ones are skipped).</span>`; loadW(); throw e; } await new Promise(res => setTimeout(res, 2000 * tries)); } }
     tot.add += r.add; tot.dup += r.dup;
   }
-  $('#wt').value = ''; delete $('#wt').dataset.src; $('#wp').textContent = 'Paste wallets to see a preview'; $('#ws').disabled = true; $('#ws').dataset.t = 'Save';
+  $('#wt').value = ''; delete $('#wt').dataset.src; $('#wp').textContent = 'Paste wallets to see a preview'; $('#ws').disabled = true; $('#ws').dataset.t = 'Save'; $('#ws').dataset.stay = '1';
   toast(`${fmt(tot.add)} wallet${tot.add === 1 ? '' : 's'} added` + (tot.dup ? ` · ${fmt(tot.dup)} already there` : '')); WS.shown = 10; loadW();
 }
 async function loadW() {
@@ -336,11 +448,11 @@ function drawW() {
   if (!WS.rows.length) html += `<div class="mu center" style="padding:16px 0">${WS.q || WS.kind !== 'all' ? 'No wallets match' : 'No site wallets yet. Paste or upload them above.'}</div>`;
   html += WS.rows.map(r => {
     const b = WS.bal[r.wallet];
-    return `<div class="row">${sel ? `<input type="checkbox" class="ck" data-s="${r.wallet}" ${sel.has(r.wallet) ? 'checked' : ''}>` : ''}
+    return `${sel ? '' : `<div class="swr" data-sw="${r.wallet}"><div class="swa"><button style="background:#ff9f0a" data-swh>${r.hidden ? 'Show' : 'Hide'}</button><button style="background:#ff453a" data-swd>Delete</button></div>`}<div class="row" ${sel ? '' : 'style="margin:0 -16px;padding-left:16px;padding-right:16px"'}>${sel ? `<input type="checkbox" class="ck" data-s="${r.wallet}" ${sel.has(r.wallet) ? 'checked' : ''}>` : ''}
      <div class="rl"><div>${esc(r.name || short(r.wallet))} ${r.handle ? `<span class="mu">@${esc(r.handle)}</span>` : ''}</div>
       <div class="mu">${r.name ? short(r.wallet) + ' · ' : ''}${b == null ? '' : tier(b) + b.toLocaleString('en-IN', { maximumFractionDigits: 1 }) + ' SOL · '}added ${ago(r.added)}</div></div>
      <span class="pl ${r.hidden ? 'wa' : r.kind === 'kol' ? 'ac' : 'ne'}">${r.hidden ? 'Hidden' : r.kind === 'kol' ? 'KOL' : 'Smart'}</span>
-     ${sel ? '' : `<span><button class="dots" data-m="${r.wallet}">⋮</button></span>`}</div>`;
+     ${sel ? '' : `<button class="dots" data-m="${r.wallet}" aria-label="More">${svg('dots')}</button>`}</div>${sel ? '' : '</div>'}`;
   }).join('');
   if (WS.balErr) html += `<div class="mu3">${esc(WS.balErr)}</div>`;
   if (WS.total > WS.rows.length) html += `<button class="bt wide mt" id="wmore">Show ${Math.min(20, WS.total - WS.rows.length)} more · ${fmt(WS.total - WS.rows.length)} left</button>`;
@@ -348,15 +460,29 @@ function drawW() {
   $('#wl').innerHTML = html;
   const more = $('#wmore'); if (more) more.onclick = () => { WS.shown += 20; loadW(); };
   const less = $('#wless'); if (less) less.onclick = () => { WS.shown = 10; loadW(); };
-  $('#wl').querySelectorAll('[data-m]').forEach(b => b.onclick = () => { const r = WS.rows.find(x => x.wallet === b.dataset.m); menu(b, [
+  const rowMenu = r => menu(null, [
     ['Edit', () => editW(r)], ['Copy address', () => copy(r.wallet, 'Address copied')], ['Open in GMGN', () => window.open('https://gmgn.ai/sol/address/' + r.wallet, '_blank')],
-    [r.hidden ? 'Show to users' : 'Hide from users', () => saveW({ ...r, hidden: !r.hidden })], ['Delete', () => delW({ wallets: [r.wallet] }, r.name || short(r.wallet)), true]]); });
+    [r.hidden ? 'Show to users' : 'Hide from users', () => saveW({ ...r, hidden: !r.hidden })], ['Delete', () => delW({ wallets: [r.wallet] }, r.name || short(r.wallet)), true]], (r.name || 'Wallet') + ' · ' + short(r.wallet));
+  $('#wl').querySelectorAll('[data-m]').forEach(b => b.onclick = e => { e.stopPropagation(); rowMenu(WS.rows.find(x => x.wallet === b.dataset.m)); });
+  $('#wl').querySelectorAll('[data-sw]').forEach(el => swipeRow(el, WS.rows.find(x => x.wallet === el.dataset.sw), rowMenu));
   if (sel) {
     $('#wl').querySelectorAll('[data-s]').forEach(c => c.onchange = () => { c.checked ? sel.add(c.dataset.s) : sel.delete(c.dataset.s); drawW(); });
     $('#wsa').onchange = e => { WS.rows.forEach(r => e.target.checked ? sel.add(r.wallet) : sel.delete(r.wallet)); drawW(); };
     $('#wsd').onclick = () => delW({ wallets: [...sel] }, `${sel.size} wallet${sel.size > 1 ? 's' : ''}`);
     $('#wsh').onclick = async () => { for (const w of sel) { const r = WS.rows.find(x => x.wallet === w); if (r) await api('/api/owner/wallets/edit', { body: { ...r, hidden: true } }); } toast(`${sel.size} hidden`); WS.sel = new Set(); loadW(); };
   }
+}
+// swipe left on a row → Hide / Delete; long-press → menu
+function swipeRow(el, r, onLong) {
+  const row = el.querySelector('.row'); let x0 = 0, y0 = 0, dx = 0, open = false, horiz = null, lt = null;
+  const set = v => { row.style.transform = v ? `translateX(${v}px)` : ''; };
+  el.addEventListener('touchstart', e => { const t = e.touches[0]; x0 = t.clientX; y0 = t.clientY; dx = 0; horiz = null; row.style.transition = 'none'; lt = setTimeout(() => { lt = null; if (horiz == null) { buzz(12); onLong(r); } }, 550); }, { passive: true });
+  el.addEventListener('touchmove', e => { const t = e.touches[0], mx = t.clientX - x0, my = t.clientY - y0;
+    if (horiz == null && (Math.abs(mx) > 8 || Math.abs(my) > 8)) { horiz = Math.abs(mx) > Math.abs(my); if (lt) { clearTimeout(lt); lt = null; } }
+    if (horiz) { dx = Math.min(0, Math.max(-170, mx + (open ? -156 : 0))); set(dx); } }, { passive: true });
+  el.addEventListener('touchend', () => { if (lt) { clearTimeout(lt); lt = null; } row.style.transition = ''; if (!horiz) return; open = dx < -70; if (open) buzz(6); set(open ? -156 : 0); });
+  el.querySelector('[data-swh]').onclick = () => { set(0); open = false; saveW({ ...r, hidden: !r.hidden }); };
+  el.querySelector('[data-swd]').onclick = () => { set(0); open = false; delW({ wallets: [r.wallet] }, r.name || short(r.wallet)); };
 }
 function editW(r) {
   sheet(`<h3>Edit wallet</h3><div class="addr mu" style="margin-bottom:10px">${esc(r.wallet)}</div>
@@ -366,7 +492,7 @@ function editW(r) {
    <div class="row"><span>Hidden from users</span><button class="tg ${r.hidden ? 'on' : ''}" id="eH"></button></div>
    <div class="g2 mt"><button class="bt" onclick="closeSheet()">Cancel</button><button class="bt bp" id="es">Save</button></div>`, bg => {
     bg.querySelector('#ek').value = r.kind;
-    bg.querySelector('#eH').onclick = e => e.target.classList.toggle('on');
+    bg.querySelector('#eH').onclick = e => { buzz(10); e.target.classList.toggle('on'); };
     bg.querySelector('#es').onclick = e => act(e.target, async () => { await saveW({ wallet: r.wallet, name: $('#en').value.trim(), handle: $('#eh').value.trim(), kind: $('#ek').value, hidden: $('#eH').classList.contains('on') }); closeSheet(); });
   });
 }
@@ -659,7 +785,7 @@ function FindWallets(box) {
   $('#lbAs').onchange = e => { LBB.as = e.target.value; saveLBB(); lbDraw(); };
   if ($('#lbPre')) $('#lbPre').onchange = e => { const k = e.target.value; LBB.pre[g] = k; if (pres[k]) { LBB.f[g] = { ...lbEmpty(g), ...pres[k][1] }; if (pres[k][2]) Object.assign(LBB, pres[k][2]); } else LBB.f[g] = lbEmpty(g); LBB.all = null; redraw(); if (live) lbLoad(); else lbDraw(); };
   $('#lbFb').onclick = () => { const p = $('#lbFp'), o = p.style.display === 'none'; p.style.display = o ? '' : 'none'; $('#lbFc').textContent = o ? '▴' : '▾'; };
-  $('#lbFp').querySelectorAll('[data-tog]').forEach(b => b.onclick = () => b.classList.toggle('on'));
+  $('#lbFp').querySelectorAll('[data-tog]').forEach(b => b.onclick = () => { buzz(10); b.classList.toggle('on'); });
   $('#lbFr').onclick = () => { LBB.f[g] = lbEmpty(g); LBB.pre[g] = 'custom'; LBB.all = null; redraw(); lbLoad(); };
   $('#lbFa').onclick = () => { const before = JSON.stringify(LB_SRVF.map(k => f[k])), nf = { ...f };
     $('#lbFp').querySelectorAll('[data-lf]').forEach(el => { const k = el.dataset.lf, kind = LB_F[g].find(x => x[0] === k)[2];
@@ -674,7 +800,7 @@ function FindWallets(box) {
 // ---------- Users ----------
 const US = { filter: 'all', q: '', shown: 20, users: [], total: 0, counts: {} };
 async function Users() {
-  $('#app').innerHTML = header('Users') + `<div class="cd"><input id="uq" placeholder="Search wallet, email, name" value="${esc(US.q)}"><div class="chips mt" id="uf"></div><div id="ul"><span class="spin"></span></div></div>`;
+  $('#app').innerHTML = header('Users') + `<div class="cd"><div class="search">${svg('search')}<input id="uq" type="search" placeholder="Search wallet, email, name" value="${esc(US.q)}"></div><div class="chips mt" id="uf"></div><div id="ul"><span class="spin"></span></div></div>`;
   let qt; $('#uq').oninput = e => { clearTimeout(qt); qt = setTimeout(() => { US.q = e.target.value.trim(); US.shown = 20; loadU(); }, 300); };
   loadU();
 }
@@ -684,8 +810,8 @@ async function loadU() {
   $('#uf').innerHTML = [['all', `All · ${fmt(c.total)}`], ['paid', `Paid · ${fmt(c.paid || 0)}`], ['free', 'Free'], ['expiring', `Expiring · ${fmt(c.expiring || 0)}`], ['blocked', `Blocked · ${fmt(c.blocked || 0)}`]]
     .map(([k, l]) => `<span class="ch ${US.filter === k ? 'on' : ''}" data-k="${k}">${l}</span>`).join('');
   $('#uf').querySelectorAll('.ch').forEach(x => x.onclick = () => { US.filter = x.dataset.k; US.shown = 20; loadU(); });
-  $('#ul').innerHTML = (US.users.length ? US.users.map((u, i) => `<div class="row" data-i="${i}" style="cursor:pointer"><div class="rl"><div>${esc(u.email || u.name || short(u.wallet))}</div>
-     <div class="mu">${u.via === 'google' ? 'Google' : 'Wallet'} · last seen ${ago(u.lastSeen)}${u.isAdmin ? ' · owner' : ''}</div></div>${planPill(u)}</div>`).join('') : '<div class="mu center" style="padding:16px 0">No users here yet</div>')
+  $('#ul').innerHTML = (US.users.length ? US.users.map((u, i) => `<div class="row tap" data-i="${i}" style="margin:0 -16px;padding:9px 16px"><div class="sq" style="border-radius:50%;background:${u.via === 'google' ? '#0a84ff' : '#bf5af2'}">${esc((u.email || u.wallet || '?')[0].toUpperCase())}</div><div class="rl"><div>${esc(u.email || u.name || short(u.wallet))}</div>
+     <div class="mu">${u.via === 'google' ? 'Google' : 'Wallet'} · last seen ${ago(u.lastSeen)}${u.isAdmin ? ' · owner' : ''}</div></div>${planPill(u)}<span class="chev">›</span></div>`).join('') : '<div class="mu center" style="padding:16px 0">No users here yet</div>')
     + (US.total > US.users.length ? `<button class="bt wide mt" id="umore">Show more · ${fmt(US.total - US.users.length)} left</button>` : '');
   $('#ul').querySelectorAll('[data-i]').forEach(r => r.onclick = () => userSheet(US.users[r.dataset.i]));
   const m = $('#umore'); if (m) m.onclick = () => { US.shown += 20; loadU(); };
@@ -720,10 +846,13 @@ function userSheet(u) {
 
 // ---------- More ----------
 function More() {
-  $('#app').innerHTML = header('More') + `<div class="cd">
-   ${Object.entries(SUBS).map(([k, l]) => `<div class="row" style="cursor:pointer" onclick="location.hash='more/${k}'"><span>${l}</span><span class="mu3">›</span></div>`).join('')}</div>
-   <div class="cd"><div class="row"><div class="rl"><div>Signed in as</div><div class="mu">${esc(me.email || short(me.wallet))}</div></div><button class="bt" id="so">Sign out</button></div></div>
-   <div class="mu3 center">Owner dashboard · server v4</div>`;
+  const col = { traffic: '#0a84ff', site: '#8e8e93', keys: '#ff9f0a', health: '#ff375f' };
+  $('#app').innerHTML = header('More') + `<div class="cd" style="padding:2px 16px">
+   ${Object.entries(SUBS).map(([k, l]) => `<div class="row tap" style="margin:0 -16px;padding:9px 16px" onclick="location.hash='more/${k}'"><div class="sq" style="background:${col[k]}">${svg(k)}</div><span style="flex:1">${l}</span><span class="chev">›</span></div>`).join('')}</div>
+   <div class="sec">Account</div>
+   <div class="cd" style="padding:2px 16px"><div class="row"><div class="sq" style="background:#5e5ce6;border-radius:50%">${esc((me.email || me.wallet || '?')[0].toUpperCase())}</div><div class="rl"><div>${esc(me.email || short(me.wallet))}</div><div class="mu">Owner</div></div></div>
+    <div class="row tap" id="so" style="margin:0 -16px;padding:9px 16px;color:var(--er)"><div class="sq" style="background:#ff453a">${svg('out')}</div><span style="flex:1">Sign out</span></div></div>
+   <div class="mu3 center" style="margin-top:18px">Holder Scan owner · server v5</div>`;
   $('#so').onclick = signOut;
 }
 
@@ -779,7 +908,7 @@ async function Site() {
    <div class="row"><div class="rl"><div>Google sign-in ID</div><div class="mu">${s.google_client_id ? esc(s.google_client_id.slice(0, 14)) + '…' : 'Not set — Google button hidden'}</div></div><button class="lk" id="e_gc">Edit</button></div>
    <div class="row"><div class="rl"><div>Payment wallet</div><div class="mu">${short(s.pay_wallet)}</div></div><button class="lk" id="e_pa">Edit</button></div>
    ${fresh ? '' : '<div class="mu3">For safety, these four need a sign-in from the last 15 minutes. Sign out (More) and sign in again first.</div>'}</div>`;
-  document.querySelectorAll('.tg[data-k]').forEach(b => b.onclick = async () => {
+  document.querySelectorAll('.tg[data-k]').forEach(b => b.onclick = async () => { buzz(10);
     const on = !b.classList.contains('on'); b.classList.toggle('on', on);
     try { await api('/api/owner/settings', { body: { changes: { [b.dataset.k]: on } } }); toast(`${SW.find(x => x[0] === b.dataset.k)[1]}: ${on ? 'on' : 'off'}`); } catch (e) { b.classList.toggle('on', !on); toast(e.message); }
   });
