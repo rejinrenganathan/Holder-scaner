@@ -9,7 +9,7 @@
 // the plan price to the payment wallet with that key attached. The server finds the transfer by the key on Helius, checks recipient,
 // exact amount, confirmation and that the signature was never used before, then turns the plan on. A cron re-checks every 5 minutes.
 
-const API_V = 8;
+const API_V = 9;
 // Owner wallet(s) — always allowed into the dashboard. More owners can be added in Site control.
 const OWNER_WALLETS = 'CZQkA9JszBPP7x2LescrtZwh1LGoxZwnW68wLbdFPz93';
 // Sites allowed to call this API from a browser
@@ -120,6 +120,7 @@ async function init(env) {
   for (const sql of ['ALTER TABLE users ADD COLUMN blocked INTEGER NOT NULL DEFAULT 0', "ALTER TABLE users ADD COLUMN via TEXT NOT NULL DEFAULT ''", 'ALTER TABLE users ADD COLUMN follow INTEGER NOT NULL DEFAULT 1']) {
     try { await env.DB.prepare(sql).run(); } catch (e) { /* already there */ }
   }
+  try { await env.DB.prepare('ALTER TABLE payments ADD COLUMN usd REAL NOT NULL DEFAULT 0').run(); } catch (e) { /* already there */ }
   ready = true;
 }
 async function getSettings(env) {
@@ -440,11 +441,11 @@ async function syncHook(env, origin) {
 }
 
 // SOL price (CoinGecko, no key) — remembered for 5 minutes
-let PX = { t: 0, inr: null, usd: null };
+let PX = { t: 0, usd: null };
 async function solPrice() {
   if (Date.now() - PX.t < 300000) return PX;
-  try { const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=inr,usd', { headers: { accept: 'application/json' } });
-    const j = r.ok ? await r.json() : null; if (j && j.solana) PX = { t: Date.now(), inr: j.solana.inr ?? null, usd: j.solana.usd ?? null }; } catch (e) { }
+  try { const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd', { headers: { accept: 'application/json' } });
+    const j = r.ok ? await r.json() : null; if (j && j.solana) PX = { t: Date.now(), usd: j.solana.usd ?? null }; } catch (e) { }
   return PX;
 }
 
@@ -542,7 +543,8 @@ async function publicApi(req, env, path, s, u, full, later) {
 // ---------- plan payments (SOL) ----------
 const PAY_HOLD = 20 * 60;           // a Founder seat is held 20 minutes for someone who started paying
 const PAY_GIVEUP = 48 * 3600;       // stop looking for a payment after 48 hours
-const IST = 19800;                  // money totals use India time (UTC+5:30)
+// start of "today" for money totals: the owner's phone sends its time-zone offset (minutes, like getTimezoneOffset)
+const dayStart = (t, tz) => { const off = -Math.max(-840, Math.min(840, Number(tz) || 0)) * 60; return t - ((t + off) % 86400 + 86400) % 86400; };
 async function rpc(env, key, method, params) {
   const r = await fetch('https://mainnet.helius-rpc.com/?api-key=' + encodeURIComponent(key), { method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }) });
@@ -604,8 +606,8 @@ async function checkPayment(env, p, key) {
 async function activate(env, p, sig, payer, got, ts) {
   const DB = env.DB, s = await getSettings(env), px = await solPrice(), t = now();
   try {
-    const c = await DB.prepare("UPDATE payments SET status = 'paid', sig = ?, payer = ?, got = ?, paid_at = ?, inr = ? WHERE id = ? AND status = 'pending'")
-      .bind(sig, payer, got, ts, px.inr || 0, p.id).run();
+    const c = await DB.prepare("UPDATE payments SET status = 'paid', sig = ?, payer = ?, got = ?, paid_at = ?, usd = ? WHERE id = ? AND status = 'pending'")
+      .bind(sig, payer, got, ts, px.usd || 0, p.id).run();
     if (!c.meta || !c.meta.changes) return await DB.prepare('SELECT * FROM payments WHERE id = ?').bind(p.id).first();   // someone else handled it
   } catch (e) { return p; }   // signature used by another payment
   const u = await DB.prepare('SELECT * FROM users WHERE id = ?').bind(p.user_id).first();
@@ -666,7 +668,7 @@ async function payApi(req, env, path, later) {
     if (u.wallet && u.wallet === s.pay_wallet) return fail(req, 400, 'This is the payment wallet itself — sign in with another account to test');
     const open = await DB.prepare("SELECT * FROM payments WHERE user_id = ? AND plan = ? AND lamports = ? AND recipient = ? AND status = 'pending' AND created > ? ORDER BY id DESC LIMIT 1")
       .bind(u.id, plan, lamports, s.pay_wallet, t - PAY_HOLD).first();
-    if (open) return json(req, { ok: true, payment: payOut(open, { inr: (await solPrice()).inr }) });
+    if (open) return json(req, { ok: true, payment: payOut(open, { usd: (await solPrice()).usd }) });
     if (plan === 'lifetime') {
       if (s.founder !== '1') return fail(req, 400, 'The Founder plan is closed');
       const r = await DB.batch([DB.prepare("SELECT COUNT(*) n FROM users WHERE plan = 'lifetime'"),
@@ -681,7 +683,7 @@ async function payApi(req, env, path, later) {
     const ref = b58encode(rb);
     await DB.prepare('INSERT INTO payments(ref, user_id, plan, sol, lamports, recipient, created) VALUES(?, ?, ?, ?, ?, ?, ?)').bind(ref, u.id, plan, solOf(lamports), lamports, s.pay_wallet, t).run();
     const p = await DB.prepare('SELECT * FROM payments WHERE ref = ?').bind(ref).first();
-    return json(req, { ok: true, payment: payOut(p, { inr: (await solPrice()).inr }) });
+    return json(req, { ok: true, payment: payOut(p, { usd: (await solPrice()).usd }) });
   }
 
   // the reference key works like a ticket: it only lets someone pay for that plan, so these two need no sign-in
@@ -783,7 +785,7 @@ async function owner(req, env, route, s, se, later) {
       ['wallets', 'SELECT COUNT(*) n FROM site_wallets'], ['expiring', "SELECT COUNT(*) n FROM users WHERE plan NOT IN ('free','lifetime') AND plan_until > ? AND plan_until < ?", t, t + 7 * 86400],
       ['errors', "SELECT COUNT(*) n FROM events WHERE level = 'error' AND ts > ?", t - 86400], ['warns', "SELECT COUNT(*) n FROM events WHERE level = 'warn' AND ts > ?", t - 86400],
       ['keys', 'SELECT COUNT(*) n FROM apikeys'], ['keysBad', "SELECT COUNT(*) n FROM apikeys WHERE status IN ('error','warn')"], ['requests', 'SELECT n FROM stats WHERE day = ? AND k = ?', today, 'req'],
-      ['payReview', "SELECT COUNT(*) n FROM payments WHERE status = 'review'"], ['payToday', "SELECT COALESCE(SUM(got), 0) n FROM payments WHERE status = 'paid' AND paid_at >= ?", t - ((t + IST) % 86400)],
+      ['payReview', "SELECT COUNT(*) n FROM payments WHERE status = 'review'"], ['payToday', "SELECT COALESCE(SUM(got), 0) n FROM payments WHERE status = 'paid' AND paid_at >= ?", dayStart(t, q.get('tz'))],
       ['issues', "SELECT ts, level, src, msg, fix FROM events WHERE level = 'error' AND ts > ? ORDER BY id DESC LIMIT 3", t - 86400], ['activity', 'SELECT ts, level, src, msg FROM events ORDER BY id DESC LIMIT 8']];
     const res = await DB.batch(q1.map(([, sql, ...a]) => DB.prepare(sql).bind(...a)));   // one trip to the database
     const out = { settings: { site_live: s.site_live, signups: s.signups, alerts: s.alerts } };
@@ -914,7 +916,7 @@ async function owner(req, env, route, s, se, later) {
     }
     const sold = await DB.prepare("SELECT COUNT(*) n FROM users WHERE plan = 'lifetime'").first();
     const px = await solPrice();
-    return json(req, { ok: true, wallet: { address: w, sol, error: err, founderSold: sold ? sold.n : 0, founderMax: Number(s.founder_max), inr: px.inr, usd: px.usd } });
+    return json(req, { ok: true, wallet: { address: w, sol, error: err, founderSold: sold ? sold.n : 0, founderMax: Number(s.founder_max), usd: px.usd } });
   }
 
   // ---- payments ----
@@ -923,18 +925,18 @@ async function owner(req, env, route, s, se, later) {
     const f = ['all', 'paid', 'review', 'pending'].includes(q.get('filter')) ? q.get('filter') : 'all';
     const lim = Math.min(200, Math.max(1, Number(q.get('limit')) || 30));
     const where = { all: "p.status IN ('paid', 'review', 'refunded')", paid: "p.status = 'paid'", review: "p.status = 'review'", pending: "p.status = 'pending'" }[f];
-    const midIST = t - ((t + IST) % 86400);
-    const sum = from => DB.prepare("SELECT COUNT(*) n, COALESCE(SUM(got), 0) l, COALESCE(SUM(got / 1e9 * inr), 0) r FROM payments WHERE status = 'paid' AND paid_at >= ?").bind(from);
-    const r = await DB.batch([sum(midIST), sum(t - 7 * 86400), sum(0),
+    const midDay = dayStart(t, q.get('tz'));
+    const sum = from => DB.prepare("SELECT COUNT(*) n, COALESCE(SUM(got), 0) l, COALESCE(SUM(got / 1e9 * usd), 0) r FROM payments WHERE status = 'paid' AND paid_at >= ?").bind(from);
+    const r = await DB.batch([sum(midDay), sum(t - 7 * 86400), sum(0),
       DB.prepare("SELECT SUM(status = 'review') review, SUM(status = 'pending' AND created > ?) pending, SUM(status = 'paid') paid, SUM(status = 'refunded') refunded FROM payments").bind(t - 3600),
       DB.prepare(`SELECT p.*, u.wallet uwallet, u.email uemail, u.name uname FROM payments p LEFT JOIN users u ON u.id = p.user_id WHERE ${where}
         ORDER BY COALESCE(NULLIF(p.paid_at, 0), p.created) DESC LIMIT ?`).bind(lim + 1)]);
     const px = await solPrice();
-    const tot = i => { const x = r[i].results[0] || {}; return { n: x.n || 0, sol: solOf(x.l || 0), inr: Math.round(x.r || 0) }; };
+    const tot = i => { const x = r[i].results[0] || {}; return { n: x.n || 0, sol: solOf(x.l || 0), usd: Math.round((x.r || 0) * 100) / 100 }; };
     const rows = r[4].results || [];
-    return json(req, { ok: true, income: { today: tot(0), week: tot(1), all: tot(2) }, counts: r[3].results[0] || {}, inrNow: px.inr, more: rows.length > lim,
+    return json(req, { ok: true, income: { today: tot(0), week: tot(1), all: tot(2) }, counts: r[3].results[0] || {}, usdNow: px.usd, more: rows.length > lim,
       payments: rows.slice(0, lim).map(p => ({ id: p.id, plan: p.plan, planName: PLANS[p.plan] ? PLANS[p.plan].name : p.plan, sol: solOf(p.lamports), got: solOf(p.got), status: p.status,
-        sig: p.sig || '', payer: p.payer, created: p.created, paidAt: p.paid_at, until: p.until_after, before: p.until_before, inr: p.inr, note: p.note, ref: p.ref,
+        sig: p.sig || '', payer: p.payer, created: p.created, paidAt: p.paid_at, until: p.until_after, before: p.until_before, usd: p.usd, note: p.note, ref: p.ref,
         user: { id: p.user_id, wallet: p.uwallet || '', email: p.uemail || '', name: p.uname || '' } })) });
   }
   if (route === 'payments/action' && req.method === 'POST') {

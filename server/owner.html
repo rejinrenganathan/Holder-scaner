@@ -137,10 +137,10 @@ const TK = 'hso_token';
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const short = w => w ? w.slice(0, 4) + '…' + w.slice(-4) : '';
-const fmt = n => Number(n || 0).toLocaleString('en-IN');
+const fmt = n => Number(n || 0).toLocaleString('en-US');
 const ago = ts => { if (!ts) return '—'; const d = Math.floor(Date.now() / 1000) - ts; return d < 60 ? 'now' : d < 3600 ? Math.floor(d / 60) + 'm ago' : d < 86400 ? Math.floor(d / 3600) + 'h ago' : Math.floor(d / 86400) + 'd ago'; };
-const clock = ts => new Date(ts * 1000).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false });
-const dateS = ts => new Date(ts * 1000).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+const clock = ts => new Date(ts * 1000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+const dateS = ts => new Date(ts * 1000).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
 const PLAN = { m1: '1 month', m3: '3 months', m6: '6 months', m12: '12 months', lifetime: 'Founder lifetime', free: 'Free' };
 const PLANS_ORDER = ['m1', 'm3', 'm6', 'm12', 'lifetime'];
 let token = localStorage.getItem(TK) || '', me = null, tab = 'home', sub = '';
@@ -325,7 +325,7 @@ window.addEventListener('scroll', () => { const b = $('#bar'); if (b) b.classLis
 function countUp(root) {
   (root || document).querySelectorAll('.kn').forEach(el => {
     const m = el.textContent.trim().match(/^([\d,]+)(.*)$/); if (!m) return; const end = +m[1].replace(/,/g, ''); if (!(end > 0 && end < 1e9)) return;
-    const t0 = performance.now(), tail = m[2]; const step = t => { const k = Math.min(1, (t - t0) / 550), v = Math.round(end * (1 - Math.pow(1 - k, 3))); el.textContent = v.toLocaleString('en-IN') + tail; if (k < 1) requestAnimationFrame(step); };
+    const t0 = performance.now(), tail = m[2]; const step = t => { const k = Math.min(1, (t - t0) / 550), v = Math.round(end * (1 - Math.pow(1 - k, 3))); el.textContent = v.toLocaleString('en-US') + tail; if (k < 1) requestAnimationFrame(step); };
     requestAnimationFrame(step);
   });
 }
@@ -341,7 +341,7 @@ const errBox = (title, e) => { $('#app').innerHTML = header(title) + `<div class
 // ---------- Home ----------
 async function Home() {
   loading('Home');
-  let h; try { h = (await api('/api/owner/home')).home; } catch (e) { return e.message === 'signed out' || errBox('Home', e); }
+  let h; try { h = (await api('/api/owner/home?' + TZQ())).home; } catch (e) { return e.message === 'signed out' || errBox('Home', e); }
   const hr = new Date().getHours(), greet = hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening';
   const diff = (a, b) => { const d = a - b; return d === 0 ? '<span class="mu3">same as yesterday</span>' : `<span style="color:var(--${d > 0 ? 'ok' : 'er'})">${d > 0 ? '+' : ''}${d} vs yesterday</span>`; };
   const issues = (h.issues || []).map(i => `<div class="issue"><span style="font-size:18px">⚠</span><div style="flex:1"><div style="font-weight:600">${esc(i.msg)}</div><div style="font-size:12px">${clock(i.ts)}${i.fix ? ' · ' + esc(i.fix) : ''}</div></div></div>`).join('');
@@ -353,7 +353,7 @@ async function Home() {
   if (h.warns) att.push([`${h.warns} warning${h.warns > 1 ? 's' : ''} in the last 24h`, 'more/health', 'See']);
   if (h.settings.site_live !== '1') att.push(['Site is switched off', 'more/site', 'Open']);
   if (h.settings.signups !== '1') att.push(['New sign-ups are paused', 'more/site', 'Open']);
-  $('#app').innerHTML = header(`${greet}${me.name ? ', ' + me.name.split(' ')[0] : ''}`, new Date().toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' }) + ' · times in your phone\'s time zone') + issues + `
+  $('#app').innerHTML = header(`${greet}${me.name ? ', ' + me.name.split(' ')[0] : ''}`, new Date().toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' }) + ' · times in your phone\'s time zone') + issues + `
   <div class="sec" style="margin-top:6px">Today</div><div class="cd plain" style="background:none;padding:0">
    <div class="g2">
     <div class="kp"><div class="mu">Unique visitors</div><div class="kn">${fmt(h.visitors)}</div><div style="font-size:11px">${diff(h.visitors, h.visitorsY)}</div></div>
@@ -378,13 +378,13 @@ async function Home() {
 // ---------- Money ----------
 async function Money() {
   loading('Money');
-  let w, st, pj; try { [w, st, pj] = await Promise.all([api('/api/owner/wallet'), api('/api/owner/settings'), api('/api/owner/payments?' + new URLSearchParams({ filter: MS.filter, limit: MS.shown }))]); w = w.wallet; st = st.settings; } catch (e) { return e.message === 'signed out' || errBox('Money', e); }
-  const sol = w.sol, inr = sol != null && w.inr ? sol * w.inr : null, sold = w.founderSold, max = w.founderMax || 1;
+  let w, st, pj; try { [w, st, pj] = await Promise.all([api('/api/owner/wallet'), api('/api/owner/settings'), api('/api/owner/payments?' + new URLSearchParams({ filter: MS.filter, limit: MS.shown }) + '&' + TZQ())]); w = w.wallet; st = st.settings; } catch (e) { return e.message === 'signed out' || errBox('Money', e); }
+  const sol = w.sol, usdV = sol != null && w.usd ? sol * w.usd : null, sold = w.founderSold, max = w.founderMax || 1;
   $('#app').innerHTML = header('Money') + `
   <div class="cd">
    <div class="hd" style="margin-bottom:4px"><span class="mu" style="text-transform:uppercase;letter-spacing:.3px">Main wallet</span><span class="pl ${st.payments === '1' ? 'ok' : 'ne'}">${st.payments === '1' ? 'Receiving' : 'Payments off'}</span></div>
-   <div class="kn" style="font-size:36px">${sol == null ? '—' : sol.toLocaleString('en-IN', { maximumFractionDigits: 3 })} <span style="font-size:19px;color:var(--tx2);font-weight:600">SOL</span></div>
-   <div class="mu">${w.error ? `<span style="color:var(--wa)">${esc(w.error)}</span>` : (inr != null ? '≈ ₹' + Math.round(inr).toLocaleString('en-IN') + ' · ' : '') + 'live from Helius'}</div>
+   <div class="kn" style="font-size:36px">${sol == null ? '—' : sol.toLocaleString('en-US', { maximumFractionDigits: 3 })} <span style="font-size:19px;color:var(--tx2);font-weight:600">SOL</span></div>
+   <div class="mu">${w.error ? `<span style="color:var(--wa)">${esc(w.error)}</span>` : (usdV != null ? '≈ ' + dollar(usdV) + ' · ' : '') + 'live from Helius'}</div>
    <button class="tap" id="cpa" style="width:100%;display:flex;align-items:center;justify-content:space-between;background:var(--card2);border:0;border-radius:10px;padding:10px 12px;margin-top:12px;color:var(--tx);cursor:pointer">
     <span class="addr" style="word-break:normal">${esc(w.address.slice(0, 6) + '…' + w.address.slice(-5))}</span><span style="color:var(--acc);display:flex">${ICONS.copy}</span></button>
    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px">
@@ -402,19 +402,20 @@ async function Money() {
   $('#chg').onclick = () => editSetting('pay_wallet', 'Payment wallet', w.address, 'Only paste a wallet you control. For safety this needs a sign-in from the last 15 minutes.');
 }
 
-// payments list + income (SOL and ₹ at the price when each payment came in)
+// payments list + income (SOL and US$ at the price when each payment came in)
 const MS = { filter: 'all', shown: 30 };
-const solS = n => (Math.round(n * 1000) / 1000).toLocaleString('en-IN', { maximumFractionDigits: 3 });
-const rupee = n => '₹' + Math.round(n || 0).toLocaleString('en-IN');
+const solS = n => (Math.round(n * 1000) / 1000).toLocaleString('en-US', { maximumFractionDigits: 3 });
+const dollar = n => '$' + Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: (n || 0) >= 1000 ? 0 : 2 });
+const TZQ = () => 'tz=' + new Date().getTimezoneOffset();
 const payWho = p => p.user.email || p.user.name || (p.user.wallet ? short(p.user.wallet) : 'User #' + p.user.id);
 const PAYST = { paid: ['Paid', 'ok'], review: ['Needs refund', 'wa'], refunded: ['Refunded', 'ne'], pending: ['Waiting', 'ac'], expired: ['Expired', 'ne'] };
 function moneyHTML(pj, st) {
   const I = pj.income, c = pj.counts || {}, box = (label, x) => `<div class="kp"><div class="mu">${label}</div><div class="kn" style="font-size:22px">${solS(x.sol)} <span style="font-size:13px;color:var(--tx2)">SOL</span></div>
-    <div class="mu3">${rupee(x.inr)} · ${fmt(x.n)} paid</div></div>`;
+    <div class="mu3">${dollar(x.usd)} · ${fmt(x.n)} paid</div></div>`;
   const review = pj.payments.filter(p => p.status === 'review');
   return `<div class="sec">Income</div><div class="g2 plain" style="margin-bottom:10px">${box('Today', I.today)}${box('Last 7 days', I.week)}</div>
    <div class="kp" style="margin-bottom:6px"><div class="mu">All time</div><div class="kn" style="font-size:26px">${solS(I.all.sol)} <span style="font-size:14px;color:var(--tx2)">SOL</span></div>
-    <div class="mu3">${rupee(I.all.inr)} at the price when paid${pj.inrNow ? ' · ' + rupee(I.all.sol * pj.inrNow) + ' at today\'s price' : ''}</div></div>
+    <div class="mu3">${dollar(I.all.usd)} at the price when paid${pj.usdNow ? ' · ' + dollar(I.all.sol * pj.usdNow) + ' at today\'s price' : ''}</div></div>
    ${st.payments !== '1' ? `<div class="mu" style="margin:8px 4px 0">Payments are off. Turn them on in More → Site control → Payments.</div>` : ''}
    ${c.review && MS.filter !== 'review' ? `<div class="issue tap" id="rvw" style="margin-top:14px;background:var(--wabg);color:var(--wa)"><span style="font-size:18px">↩</span><div style="flex:1"><div style="font-weight:600">${fmt(c.review)} payment${c.review > 1 ? 's' : ''} need${c.review > 1 ? '' : 's'} a refund</div><div style="font-size:12px">Wrong amount or no seat left. Send it back from Phantom, then mark it refunded.</div></div><span class="chev">›</span></div>` : ''}
    <div class="sec">Payments</div>
@@ -442,7 +443,7 @@ function paySheetO(p) {
    ${p.status !== 'paid' && p.status !== 'pending' ? `<div class="row"><span class="mu">Price</span><span>${solS(p.sol)} SOL</span></div>` : ''}
    ${p.note ? `<div class="row"><span class="mu">Note</span><span style="text-align:right">${esc(p.note)}</span></div>` : ''}
    <div class="row"><span class="mu">${p.paidAt ? 'Paid' : 'Asked'}</span><span>${dateS(p.paidAt || p.created)} ${clock(p.paidAt || p.created)}</span></div>
-   ${p.inr && p.status === 'paid' ? `<div class="row"><span class="mu">In rupees</span><span>${rupee(p.got * p.inr)} <span class="mu">(₹${fmt(Math.round(p.inr))}/SOL)</span></span></div>` : ''}
+   ${p.usd && p.status === 'paid' ? `<div class="row"><span class="mu">In US$</span><span>${dollar(p.got * p.usd)} <span class="mu">(${dollar(p.usd)}/SOL)</span></span></div>` : ''}
    ${ends && p.status === 'paid' ? `<div class="row"><span class="mu">Plan now ends</span><span>${ends}</span></div>` : ''}
    ${p.payer ? `<div class="row"><span class="mu">Paid from</span><span class="addr" style="text-align:right">${esc(p.payer)}</span></div>` : ''}
    <div class="g2 mt">${p.sig ? `<a class="bt" style="text-decoration:none" target="_blank" rel="noopener" href="https://solscan.io/tx/${esc(p.sig)}">Solscan</a>` : '<span></span>'}
@@ -547,7 +548,7 @@ function drawW() {
     const b = WS.bal[r.wallet];
     return `${sel ? '' : `<div class="swr" data-sw="${r.wallet}"><div class="swa"><button style="background:#ff9f0a" data-swh>${r.hidden ? 'Show' : 'Hide'}</button><button style="background:#ff453a" data-swd>Delete</button></div>`}<div class="row" ${sel ? '' : 'style="margin:0 -16px;padding-left:16px;padding-right:16px"'}>${sel ? `<input type="checkbox" class="ck" data-s="${r.wallet}" ${sel.has(r.wallet) ? 'checked' : ''}>` : ''}
      <div class="rl"><div>${esc(r.name || short(r.wallet))} ${r.handle ? `<span class="mu">@${esc(r.handle)}</span>` : ''}</div>
-      <div class="mu">${r.name ? short(r.wallet) + ' · ' : ''}${b == null ? '' : tier(b) + b.toLocaleString('en-IN', { maximumFractionDigits: 1 }) + ' SOL · '}added ${ago(r.added)}</div></div>
+      <div class="mu">${r.name ? short(r.wallet) + ' · ' : ''}${b == null ? '' : tier(b) + b.toLocaleString('en-US', { maximumFractionDigits: 1 }) + ' SOL · '}added ${ago(r.added)}</div></div>
      <span class="pl ${r.hidden ? 'wa' : r.kind === 'kol' ? 'ac' : 'ne'}">${r.hidden ? 'Hidden' : r.kind === 'kol' ? 'KOL' : 'Smart'}</span>
      ${sel ? '' : `<button class="dots" data-m="${r.wallet}" aria-label="More">${svg('dots')}</button>`}</div>${sel ? '' : '</div>'}`;
   }).join('');
@@ -622,7 +623,7 @@ async function exportW() {
 
 // ---------- Find wallets: the app's 6 leaderboards, run here with the keys on your server ----------
 const usd = v => v == null || !isFinite(v) ? '–' : (v < 0 ? '-' : '') + (Math.abs(v) >= 1e9 ? '$' + (Math.abs(v) / 1e9).toFixed(2) + 'B' : Math.abs(v) >= 1e6 ? '$' + (Math.abs(v) / 1e6).toFixed(2) + 'M' : Math.abs(v) >= 1e3 ? '$' + (Math.abs(v) / 1e3).toFixed(1) + 'K' : '$' + Math.round(Math.abs(v)));
-const num = (v, d) => v == null || !isFinite(v) ? '–' : Number(v).toLocaleString('en-IN', { maximumFractionDigits: d == null ? 1 : d });
+const num = (v, d) => v == null || !isFinite(v) ? '–' : Number(v).toLocaleString('en-US', { maximumFractionDigits: d == null ? 1 : d });
 const B58 = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 const LB_GMGN = 'https://raw.githubusercontent.com/nirholas/kol-quest/main/solwallets.json';
 const LB_KOLSCAN = 'https://raw.githubusercontent.com/nirholas/kol-quest/main/output/kolscan-leaderboard.json';
@@ -845,7 +846,7 @@ function lbDraw() {
   const el = $('#lbList'); if (!el) return;
   const rows = lbShown(), nNew = rows.filter(r => !onSite(r.w)).length, snap = LBB.src === 'gmgn' || LBB.src === 'kolscan', src = LBS.find(x => x[0] === LBB.src);
   el.innerHTML = `${LBB.err ? `<div class="${LBB.src === 'pf' && !LBB.lab ? 'mu' : 'err'}" style="margin:8px 0">${esc(LBB.err)}</div>` : ''}
-   ${snap && LBB.rows.length ? `<div class="mu3" style="margin:6px 0">📦 Saved snapshot of the ${src[1].replace(/^\S+\s/, '')} leaderboard${LBB.asOf ? ' · data up to ' + new Date(LBB.asOf * 1000).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : ''} — not live. “Last trade within” counts back from that date.</div>` : ''}
+   ${snap && LBB.rows.length ? `<div class="mu3" style="margin:6px 0">📦 Saved snapshot of the ${src[1].replace(/^\S+\s/, '')} leaderboard${LBB.asOf ? ' · data up to ' + new Date(LBB.asOf * 1000).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : ''} — not live. “Last trade within” counts back from that date.</div>` : ''}
    ${LBB.rows.length && rows.length < LBB.rows.length ? (() => { const c = {}; LBB.rows.forEach(r => { const w = lbWhy(r); if (w) c[w] = (c[w] || 0) + 1; }); return `<div class="mu" style="margin:0 2px 8px">Hidden by: ${Object.entries(c).sort((a, b) => b[1] - a[1]).map(([k, n]) => `<b style="color:var(--tx)">${fmt(n)}</b> ${esc(k)}`).join(' · ')}</div>`; })() : ''}
    ${LBB.rows.length ? (() => { const vis = rows.slice(0, LBB.show).filter(r => !onSite(r.w)), allOn = vis.length && vis.every(r => LBSEL.has(r.w)), nSel = [...LBSEL].filter(w => !onSite(w)).length;
      return `<div class="selbar" style="margin:0 -6px 4px"><span class="rck ${allOn ? 'on' : ''}" id="lbSA">${allOn ? '✓' : ''}</span><span style="flex:1;font-size:14px">${nSel ? `<b>${nSel}</b> selected` : `<b>${rows.length}</b> of ${fmt(LBB.rows.length)} match`}</span>
@@ -1015,7 +1016,7 @@ async function Traffic() {
     <div class="kp"><div class="mu">Bounce rate</div><div class="kn">${t.bounce}%</div><div class="mu3">left after 1 page</div></div>
     <div class="kp"><div class="mu">Visit time</div><div class="kn">${Math.floor(t.time / 60)}m ${t.time % 60}s</div><div class="mu3">average</div></div></div>
    ${showBars ? `<div class="bars">${days.map(d => `<div style="height:${Math.round(100 * (by[d] || 0) / mx)}%" title="${d}: ${by[d] || 0}"></div>`).join('')}</div>
-   <div class="bl">${days.map((d, i) => `<span>${t.days <= 7 ? new Date(d).toLocaleDateString('en-IN', { weekday: 'narrow', timeZone: 'UTC' }) : (i % 5 === 0 ? d.slice(8) : '')}</span>`).join('')}</div>` : ''}</div>
+   <div class="bl">${days.map((d, i) => `<span>${t.days <= 7 ? new Date(d).toLocaleDateString('en-US', { weekday: 'narrow', timeZone: 'UTC' }) : (i % 5 === 0 ? d.slice(8) : '')}</span>`).join('')}</div>` : ''}</div>
   <div class="cd">${list('Came from', t.sources)}${list('Countries', t.countries, flag)}${list('Devices', t.devices)}
    <div class="row"><span>Opened as installed app</span><span class="mu">${t.installed}%</span></div>${list('Top pages', t.pages, p => p.replace('/Holder-scaner', '') || '/')}</div>
   <div class="cd"><div class="hd"><span class="ht">Funnel</span><span class="mu3">${t.days === 1 ? 'today' : t.days + ' days'}</span></div>
@@ -1123,7 +1124,7 @@ async function Health(run) {
    <button class="bt bp wide mt" id="run">Run full check</button></div>
   <div class="cd"><div class="hd"><span class="ht">Errors and warnings</span>${h.events.length ? '<button class="lk" id="clr">Clear</button>' : ''}</div>
    ${h.events.length ? h.events.map(e => `<div class="row"><div class="rl"><div style="color:var(--${e.level === 'error' ? 'er' : 'wa'});white-space:normal">${esc(e.msg)}</div>
-     <div class="mu" style="white-space:normal">${new Date(e.ts * 1000).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false })}${e.fix ? ' · Fix: ' + esc(e.fix) : ''}</div></div></div>`).join('') : '<div class="mu">No errors ✓</div>'}</div>`;
+     <div class="mu" style="white-space:normal">${new Date(e.ts * 1000).toLocaleString('en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false })}${e.fix ? ' · Fix: ' + esc(e.fix) : ''}</div></div></div>`).join('') : '<div class="mu">No errors ✓</div>'}</div>`;
   $('#run').onclick = e => { busy(e.target, true); Health(true); };
   const c = $('#clr'); if (c) c.onclick = () => act(c, async () => { await api('/api/owner/events/clear', { body: {} }); toast('Cleared'); Health(); });
 }

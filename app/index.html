@@ -123,7 +123,7 @@ const TK = 'sh_token', SEEN = 'sh_seen';
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const short = w => w ? w.slice(0, 4) + '…' + w.slice(-4) : '';
-const fmt = n => Number(n || 0).toLocaleString('en-IN');
+const fmt = n => Number(n || 0).toLocaleString('en-US');
 const ago = ts => { if (!ts) return '—'; const d = Math.max(0, Math.floor(Date.now() / 1000) - ts); return d < 60 ? d + 's' : d < 3600 ? Math.floor(d / 60) + 'm' : d < 86400 ? Math.floor(d / 3600) + 'h' : Math.floor(d / 86400) + 'd'; };
 const usd = n => n == null ? '—' : n >= 1e9 ? '$' + (n / 1e9).toFixed(2) + 'B' : n >= 1e6 ? '$' + (n / 1e6).toFixed(2) + 'M' : n >= 1e3 ? '$' + (n / 1e3).toFixed(1) + 'K' : '$' + Math.round(n);
 const sol = n => (Math.round((n || 0) * 100) / 100) + ' SOL';
@@ -462,7 +462,7 @@ const walletErr = e => { const m = String((e && e.message) || e || ''); return e
 const pend = () => { try { return JSON.parse(localStorage.getItem(PAYK) || '[]').filter(x => x && x.ref && Date.now() - x.t < 48 * 3600e3); } catch (e) { return []; } };
 function savePending(ref) { const l = pend().filter(x => x.ref !== ref); l.unshift({ ref, t: Date.now() }); localStorage.setItem(PAYK, JSON.stringify(l.slice(0, 5))); }
 function dropPending(ref) { localStorage.setItem(PAYK, JSON.stringify(pend().filter(x => x.ref !== ref))); }
-const dateOf = ts => new Date(ts * 1000).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+const dateOf = ts => new Date(ts * 1000).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
 const planActiveMe = () => me && me.plan !== 'free' && (me.plan === 'lifetime' || me.planUntil * 1000 > Date.now());
 function endsText(plan) {
   if (plan === 'lifetime') return 'Pay once · yours for good';
@@ -493,7 +493,7 @@ async function paySheet(plan) {
   catch (e) { if (e.message !== 'down') sheet(`<h3>${esc(PLAN[plan])}</h3><div class="err">${esc(e.message)}</div><button class="bt wide mt" onclick="closeSheet()">Close</button>`); return; }
   savePending(it.ref);
   sheet(`<h3>Get ${esc(PLAN[it.plan])}</h3>
-   <div class="cd center" style="padding:16px"><div class="kn" style="font-size:34px">${it.sol} SOL</div><div class="mu">${it.inr ? '≈ ₹' + fmt(Math.round(it.sol * it.inr)) + ' · ' : ''}${esc(endsText(it.plan))}</div></div>
+   <div class="cd center" style="padding:16px"><div class="kn" style="font-size:34px">${it.sol} SOL</div><div class="mu">${it.usd ? '≈ $' + fmt(Math.round(it.sol * it.usd)) + ' · ' : ''}${esc(endsText(it.plan))}</div></div>
    <div id="pbtns">${payButtons(it)}</div><div class="mu center mt" id="pst">&nbsp;</div>
    <div class="mu3 center mt">Sends exactly ${it.sol} SOL to Scan Holders (${short(it.recipient)}). Your plan turns on by itself once the network confirms — usually within a minute. A different amount is not accepted and gets refunded by hand.</div>`, bg => bindPay(bg, it));
   watchPay(it.ref, 4000);
