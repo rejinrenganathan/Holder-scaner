@@ -280,9 +280,10 @@ function downScreen(msg) {
 // Every filter is its own check; a token must pass all filters that are on. "Any" = that filter is skipped.
 // Buyers: KOL / Smart decide whose buys count; with both off the whole market counts (sudden buying only).
 const HFK = 'sh_hotf';
-const HF0 = () => ({ b: { all: true, kol: true, smart: true }, stage: { bond: true, mig: true }, lpOff: [], age: null, minb: 2, minsol: 0, hold: 0, lastb: 0, pc: null,
+const HF0 = () => ({ b: { all: true, kol: true, smart: true }, stage: { bond: true, mig: true }, lpOff: [], age: null, minsol: 0, hold: 0, lastb: 0, pc: null,
   bun: null, snp: null, liq: null, top: null, dev: null, mc: null, vol: null, fee: null, ubr: null, bsr: null, hld: null, soc: [], paid: false, boost: false, ads: false, sort: 'hot' });
 let HF = (() => { try { return { ...HF0(), ...JSON.parse(localStorage.getItem(HFK) || '{}') }; } catch (e) { return HF0(); } })();
+delete HF.minb;
 const HOT_WIN = [[900, '15m'], [3600, '1h'], [14400, '4h'], [86400, '24h']];
 const LPS = ['Pump.fun', 'Bonk.fun', 'Raydium LaunchLab', 'Bags', 'Moonit', 'Boop'];
 HF.lpOff = (HF.lpOff || []).filter(x => LPS.includes(x));
@@ -308,7 +309,6 @@ function activeList() {
   if (!HF.b.kol || !HF.b.smart || !HF.b.all) L.push(['b', marketMode() ? 'Whole market' : [HF.b.all ? 'All' : '', HF.b.kol ? 'KOL' : '', HF.b.smart ? 'Smart' : ''].filter(Boolean).join(' + ')]);
   if (!HF.stage.bond || !HF.stage.mig) L.push(['stage', HF.stage.bond ? 'Bonding' : 'Migrated']);
   if (HF.lpOff.length) L.push(['lpOff', `${LPS.length - HF.lpOff.length} launchpads`]);
-  if (isPro() && HF.minb !== (marketMode() ? 0 : 2)) L.push(['minb', HF.minb ? (marketMode() ? fmt(HF.minb) + '+ buys' : HF.minb + '+ buyers') : 'Any buyers']);
   if (HF.minsol) L.push(['minsol', HF.minsol + '+ SOL in']);
   if (HF.hold) L.push(['hold', HF.hold === 100 ? 'All holding' : HF.hold + '%+ holding']);
   if (HF.lastb) L.push(['lastb', 'Last buy ' + fDur(HF.lastb)]);
@@ -418,7 +418,7 @@ function saveEditor(id, raw) {
 }
 function tabCount(tb) {
   const d = HF0(), ne = k => JSON.stringify(HD[k]) !== JSON.stringify(d[k]);
-  const g = { lp: ['stage', 'age', 'lpOff'], basic: ['b', 'minb', 'minsol', 'hold', 'lastb', 'pc'], audit: ['bun', 'snp', 'liq', 'top', 'dev'], ind: ['mc', 'vol', 'fee', 'ubr', 'bsr', 'hld'], soc: ['soc', 'paid', 'boost', 'ads'] }[tb];
+  const g = { lp: ['stage', 'age', 'lpOff'], basic: ['b', 'minsol', 'hold', 'lastb', 'pc'], audit: ['bun', 'snp', 'liq', 'top', 'dev'], ind: ['mc', 'vol', 'fee', 'ubr', 'bsr', 'hld'], soc: ['soc', 'paid', 'boost', 'ads'] }[tb];
   return g.filter(ne).length;
 }
 function drawH() {
@@ -432,7 +432,6 @@ function drawH() {
   if (HT === 'lp') h = sec('Stage') + `<div class="cd" style="padding:2px 16px;margin:0">${sw('Bonding', HD.stage.bond, 'data-stage="bond"')}${sw('Migrated', HD.stage.mig, 'data-stage="mig"')}</div>` + rangeRow('age')
     + sec('Launchpads') + `<div class="cd" style="padding:2px 16px;margin:0">${sw('All launchpads', !HD.lpOff.length, 'data-lpall')}</div><div class="cd" style="padding:2px 16px;margin:8px 0 0">${LPS.map(n => sw(n, !HD.lpOff.includes(n), `data-lp="${esc(n)}"`)).join('')}</div>`;
   if (HT === 'basic') h = sec('Buyers') + `<div class="seg" style="margin:0">${['all', 'kol', 'smart'].map(k => `<button class="${HD.b[k] ? 'on' : ''}" data-buy="${k}">${{ all: 'All', kol: 'KOL', smart: 'Smart' }[k]}</button>`).join('')}</div>`
-    + segRow('minb', mk ? 'Minimum buys' : 'Minimum buyers', mk ? [0, 100, 500, 1000, 5000] : [0, 2, 3, 5, 8], v => mk ? fmt(v) + '+' : v + '+', true)
     + segRow('minsol', 'Minimum SOL in', [0, 5, 10, 25, 50], v => String(v), true, mk) + segRow('hold', 'Still holding', [0, 50, 75, 100], v => v === 100 ? 'All' : v === 50 ? 'Half+' : v + '%+', true, mk)
     + segRow('lastb', 'Last buy within', [0, 300, 900, 3600], fDur, true)
     + `<div data-row="pc">${sec('Price change', 'pc')}<div class="seg" style="margin:0">${[['any', 'Any'], ['up', 'Up'], ['down', 'Down']].map(([k, l]) => `<button class="${(HD.pc ? HD.pc.dir : 'any') === k ? 'on' : ''}" data-pcd="${k}">${l}${HD.pc && HD.pc.dir === k && HD.pc.min ? (k === 'up' ? ' +' : ' −') + HD.pc.min + '%' : ''}</button>`).join('')}<button data-ed="pc">✎</button></div>
@@ -447,7 +446,7 @@ function drawH() {
   body.querySelectorAll('[data-stage]').forEach(x => x.onclick = gate('stage', () => { const k = x.dataset.stage; HD.stage[k] = !HD.stage[k]; if (!HD.stage.bond && !HD.stage.mig) HD.stage[k] = true; }));
   body.querySelectorAll('[data-lp]').forEach(x => x.onclick = gate('lpOff', () => { const n = x.dataset.lp, i = HD.lpOff.indexOf(n); if (i >= 0) HD.lpOff.splice(i, 1); else HD.lpOff.push(n); if (HD.lpOff.length >= LPS.length) HD.lpOff = LPS.filter(z => z !== n); }));
   body.querySelectorAll('[data-lpall]').forEach(x => x.onclick = gate('lpOff', () => { HD.lpOff = HD.lpOff.length ? [] : LPS.slice(1); }));
-  body.querySelectorAll('[data-buy]').forEach(x => x.onclick = gate('b', () => { const k = x.dataset.buy; const was = marketMode(HD); HD.b[k] = !HD.b[k]; if (!HD.b.kol && !HD.b.smart) HD.b.all = true; const now2 = marketMode(HD); if (!was && now2 && HD.minb < 100) HD.minb = 0; if (was && !now2 && (HD.minb === 0 || HD.minb >= 100)) HD.minb = 2; }));
+  body.querySelectorAll('[data-buy]').forEach(x => x.onclick = gate('b', () => { const k = x.dataset.buy; const was = marketMode(HD); HD.b[k] = !HD.b[k]; if (!HD.b.kol && !HD.b.smart) HD.b.all = true; }));
   body.querySelectorAll('[data-set]').forEach(x => x.onclick = gate(x.dataset.set, () => { HD[x.dataset.set] = +x.dataset.v; HE = null; }));
   body.querySelectorAll('[data-ed]').forEach(x => x.onclick = () => { const k = x.dataset.ed; if (!proOK(k)) return proToast(); HE = HE === k ? null : k; drawH(); bindEd(); });
   body.querySelectorAll('[data-rg]').forEach(x => x.onclick = () => { const k = x.dataset.rg, s = x.dataset.x; if (!proOK(k)) return proToast(); if (s === 'any') { HD[k] = null; HE = null; drawH(); countH(); return; } HE = HE === k + ':' + s ? null : k + ':' + s; drawH(); bindEd(); });

@@ -9,7 +9,7 @@
 // the plan price to the payment wallet with that key attached. The server finds the transfer by the key on Helius, checks recipient,
 // exact amount, confirmation and that the signature was never used before, then turns the plan on. A cron re-checks every 5 minutes.
 
-const API_V = 13;
+const API_V = 14;
 // Owner wallet(s) — always allowed into the dashboard. More owners can be added in Site control.
 const OWNER_WALLETS = 'CZQkA9JszBPP7x2LescrtZwh1LGoxZwnW68wLbdFPz93';
 // Sites allowed to call this API from a browser
@@ -634,8 +634,9 @@ function parseFilters(raw, full) {
   out.stage = { bond: !f.stage || f.stage.bond !== false, mig: !f.stage || f.stage.mig !== false }; if (!out.stage.bond && !out.stage.mig) out.stage = { bond: true, mig: true };
   out.lpOff = Array.isArray(f.lpOff) ? f.lpOff.filter(x => LP_NAMES.includes(x)) : []; if (out.lpOff.length >= LP_NAMES.length) out.lpOff = [];
   out.age = range(f.age, 1e9); out.mc = range(f.mc, 1e13); out.liq = range(f.liq, 1e12);
-  if (!full) { out.minb = 2; out.sort = 'hot'; return out; }
-  out.minb = num(f.minb, 0, 1e7) || 0; out.minsol = num(f.minsol, 0, 1e7) || 0; out.hold = num(f.hold, 0, 100) || 0; out.lastb = num(f.lastb, 0, 86400 * 7) || 0;
+  out.minb = 0;   // Minimum buyers filter removed (owner decision 28 Nov 2026)
+  if (!full) { out.sort = 'hot'; return out; }
+  out.minsol = num(f.minsol, 0, 1e7) || 0; out.hold = num(f.hold, 0, 100) || 0; out.lastb = num(f.lastb, 0, 86400 * 7) || 0;
   if (f.pc && (f.pc.dir === 'up' || f.pc.dir === 'down')) out.pc = { dir: f.pc.dir, min: num(f.pc.min, 0, 1e6) || 0, tf: ['5m', '30m', '6h', '24h'].includes(f.pc.tf) ? f.pc.tf : '5m' };
   for (const k of ['bun', 'snp', 'top', 'dev']) out[k] = range(f[k], 100);
   out.vol = range(f.vol, 1e13); out.fee = range(f.fee, 1e9); out.ubr = range(f.ubr, 1e9); out.bsr = range(f.bsr, 1e6); out.hld = range(f.hld, 1e9);
