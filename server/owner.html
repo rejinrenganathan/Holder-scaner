@@ -992,7 +992,7 @@ function More() {
    <div class="sec">Account</div>
    <div class="cd" style="padding:2px 16px"><div class="row"><div class="sq" style="background:#5e5ce6;border-radius:50%">${esc((me.email || me.wallet || '?')[0].toUpperCase())}</div><div class="rl"><div>${esc(me.email || short(me.wallet))}</div><div class="mu">Owner</div></div></div>
     <div class="row tap" id="so" style="margin:0 -16px;padding:9px 16px;color:var(--er)"><div class="sq" style="background:#ff453a">${svg('out')}</div><span style="flex:1">Sign out</span></div></div>
-   <div class="mu3 center" style="margin-top:18px">Holder Scan owner · server v18</div>`;
+   <div class="mu3 center" style="margin-top:18px">Holder Scan owner · server v19</div>`;
   $('#so').onclick = signOut;
 }
 
@@ -1119,26 +1119,41 @@ async function Traffic() {
   document.querySelectorAll('[data-d]').forEach(c => c.onclick = () => { TD = Number(c.dataset.d); Traffic(); });
 }
 
-// ---------- Past trades (backfill): server does 8 wallets per call, the phone keeps calling until done ----------
+// ---------- Past trades (backfill): the phone keeps calling until done, shrinks rounds that time out, and remembers where it stopped ----------
 let BFH = 24, BF_RUN = false;
+const BFK = h => 'hso_bf_' + h;
 async function backfill() {
   if (BF_RUN) return; BF_RUN = true; buzz(10);
-  const btn = $('#bfGo'), out = () => $('#bfOut'); let off = 0, found = 0, saved = 0, total = 0, errs = [], tries = 0;
+  let mem = {}; try { mem = JSON.parse(localStorage.getItem(BFK(BFH)) || '{}'); } catch (e) { }
+  const fresh = !mem.off || Date.now() - (mem.t || 0) > 6 * 3600e3;          // carry on only within 6 hours
+  let off = fresh ? 0 : mem.off, found = fresh ? 0 : mem.found || 0, saved = fresh ? 0 : mem.saved || 0, total = mem.total || 0, errs = [], fails = 0;
+  const steps = [{ n: 8, pages: 3, lim: 100 }, { n: 4, pages: 3, lim: 100 }, { n: 2, pages: 3, lim: 100 }, { n: 1, pages: 3, lim: 100 }, { n: 1, pages: 2, lim: 50 }, { n: 1, pages: 1, lim: 25 }];
+  let lvl = 0, good = 0;
+  const keep = () => { try { localStorage.setItem(BFK(BFH), JSON.stringify({ off, found, saved, total, t: Date.now() })); } catch (e) { } };
+  const btn = $('#bfGo'), out = () => $('#bfOut');
   const draw = (msg, cls) => { const o = out(); if (!o) return; const pc = total ? Math.round(100 * off / total) : 0;
     o.innerHTML = `<div class="row"><span>${msg}</span><span>${pc}%</span></div><div style="height:6px;background:var(--card2);border-radius:3px;overflow:hidden"><div style="height:100%;width:${pc}%;background:var(--${cls || 'acc'})"></div></div>
      <div class="mu mt">${fmt(found)} trades found · ${fmt(saved)} new</div>${errs.length ? `<div class="err mt">${errs.slice(-3).map(esc).join('<br>')}</div>` : ''}`; };
   if (btn) { btn.disabled = true; btn.textContent = 'Loading…'; }
-  draw('Starting…');
+  draw(off ? `Carrying on from wallet ${fmt(off)}…` : 'Starting…');
   try {
     while (true) {
-      let r; try { r = await api('/api/owner/backfill', { body: { hours: BFH, offset: off } }); tries = 0; }
-      catch (e) { if (e.message === 'signed out') throw e; if (++tries > 3) throw e; await new Promise(z => setTimeout(z, 3000)); continue; }
-      total = r.total; off = r.next; found += r.found; saved += r.saved; errs.push(...(r.errors || []));
+      let r;
+      try { r = await api('/api/owner/backfill', { body: { hours: BFH, offset: off, ...steps[lvl] } }); fails = 0; }
+      catch (e) {
+        if (e.message === 'signed out') throw e;
+        if (lvl < steps.length - 1) { lvl++; good = 0; draw(`Busy wallets — smaller rounds (wallet ${fmt(off)})…`); await new Promise(z => setTimeout(z, 1500)); continue; }
+        if (++fails < 3) { await new Promise(z => setTimeout(z, 4000)); continue; }
+        errs.push(`Skipped wallet ${fmt(off + 1)} — too much history to load`); off++; fails = 0; keep();
+        if (total && off >= total) { draw(`Done · ${fmt(total)} wallets`, 'ok'); break; } continue;
+      }
+      total = r.total; off = r.next; found += r.found; saved += r.saved; errs.push(...(r.errors || [])); keep();
       if (!total) { draw('No KOL or smart wallets yet'); break; }
-      if (r.done) { draw(`Done · ${fmt(total)} wallets`, 'ok'); toast(`Past trades loaded · ${fmt(saved)} new`); break; }
+      if (r.done) { draw(`Done · ${fmt(total)} wallets`, 'ok'); toast(`Past trades loaded · ${fmt(saved)} new`); localStorage.removeItem(BFK(BFH)); break; }
+      if (lvl && ++good >= 5) { lvl--; good = 0; }                              // quiet wallets again → bigger rounds
       draw(`Wallet ${fmt(off)} of ${fmt(total)}`);
     }
-  } catch (e) { draw('Stopped: ' + e.message + ' — tap again to carry on', 'er'); }
+  } catch (e) { draw('Stopped: ' + e.message + ' — tap again to carry on from here', 'er'); }
   BF_RUN = false; const b2 = $('#bfGo'); if (b2) { b2.disabled = false; b2.textContent = 'Load past trades'; }
 }
 // ---------- Site control ----------
