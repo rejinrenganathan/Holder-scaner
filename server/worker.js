@@ -4,8 +4,12 @@
 // Sign in with a Solana wallet: the app asks for a one-time message (nonce), the wallet signs it
 // (no transaction, no fee), and the Worker checks the signature. Then it hands out a session token.
 // Owner dashboard: open <this worker's address>/owner
+//
+// Plan payments (build 8): the app asks for a payment (/api/pay/start) and gets a one-time reference key. The wallet sends exactly
+// the plan price to the payment wallet with that key attached. The server finds the transfer by the key on Helius, checks recipient,
+// exact amount, confirmation and that the signature was never used before, then turns the plan on. A cron re-checks every 5 minutes.
 
-const API_V = 7;
+const API_V = 8;
 // Owner wallet(s) — always allowed into the dashboard. More owners can be added in Site control.
 const OWNER_WALLETS = 'CZQkA9JszBPP7x2LescrtZwh1LGoxZwnW68wLbdFPz93';
 // Sites allowed to call this API from a browser
@@ -48,6 +52,12 @@ function b58decode(s) {
   return new Uint8Array(out);
 }
 const isWallet = s => { const b = b58decode(s); return !!b && b.length === 32; };
+function b58encode(bytes) {
+  let n = 0n; for (const b of bytes) n = n * 256n + BigInt(b);
+  let out = ''; while (n > 0n) { out = B58[Number(n % 58n)] + out; n /= 58n; }
+  for (const b of bytes) { if (b !== 0) break; out = '1' + out; }
+  return out;
+}
 function b64decode(s) {
   try { const bin = atob(String(s)); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u; } catch (e) { return null; }
 }
@@ -97,7 +107,14 @@ async function init(env) {
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS user_wallets(user_id INTEGER NOT NULL, wallet TEXT NOT NULL, name TEXT NOT NULL DEFAULT '', handle TEXT NOT NULL DEFAULT '', kind TEXT NOT NULL DEFAULT 'smart', added INTEGER NOT NULL, PRIMARY KEY(user_id, wallet))`),
     env.DB.prepare(`CREATE INDEX IF NOT EXISTS uw_wallet ON user_wallets(wallet)`),
     env.DB.prepare(`CREATE INDEX IF NOT EXISTS hits_day ON hits(day)`),
-    env.DB.prepare(`CREATE INDEX IF NOT EXISTS hits_ts ON hits(ts)`)
+    env.DB.prepare(`CREATE INDEX IF NOT EXISTS hits_ts ON hits(ts)`),
+    // one row per payment request; status: pending → paid | review (wrong amount / seats full → refund by hand) → refunded | expired
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS payments(id INTEGER PRIMARY KEY, ref TEXT NOT NULL UNIQUE, user_id INTEGER NOT NULL, plan TEXT NOT NULL,
+      sol REAL NOT NULL, lamports INTEGER NOT NULL, recipient TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', sig TEXT UNIQUE, payer TEXT NOT NULL DEFAULT '',
+      got INTEGER NOT NULL DEFAULT 0, created INTEGER NOT NULL, paid_at INTEGER NOT NULL DEFAULT 0, checked INTEGER NOT NULL DEFAULT 0,
+      until_before INTEGER NOT NULL DEFAULT 0, until_after INTEGER NOT NULL DEFAULT 0, inr REAL NOT NULL DEFAULT 0, note TEXT NOT NULL DEFAULT '')`),
+    env.DB.prepare(`CREATE INDEX IF NOT EXISTS pay_user ON payments(user_id, created)`),
+    env.DB.prepare(`CREATE INDEX IF NOT EXISTS pay_status ON payments(status, created)`)
   ]);
   // columns added after build 1
   for (const sql of ['ALTER TABLE users ADD COLUMN blocked INTEGER NOT NULL DEFAULT 0', "ALTER TABLE users ADD COLUMN via TEXT NOT NULL DEFAULT ''", 'ALTER TABLE users ADD COLUMN follow INTEGER NOT NULL DEFAULT 1']) {
@@ -172,6 +189,12 @@ export default {
       if (env && env.DB) await logEvent(env, 'error', 'server', 'Server error: ' + String(e && e.message || e), 'If it repeats, send this message to Claude');
       return fail(req, 500, 'Server error: ' + String(e && e.message || e));
     }
+  },
+  // every 5 minutes: look for payments people made and then closed the app
+  async scheduled(event, env, ctx) {
+    if (!env.DB) return;
+    await init(env);
+    try { await recheckPending(env, 20); } catch (e) { await logEvent(env, 'error', 'payments', 'Payment check failed: ' + String(e && e.message || e), 'It retries by itself in 5 minutes'); }
   }
 };
 
@@ -299,6 +322,9 @@ async function handle(req, env, ctx) {
     if (m) await env.DB.prepare('DELETE FROM sessions WHERE token_hash = ?').bind(await sha256(m[1])).run();
     return json(req, { ok: true });
   }
+
+  // ---------- plan payments ----------
+  if (path.startsWith('/api/pay/')) return payApi(req, env, path, later);
 
   // ---------- live tracking: Helius sends every trade of the tracked wallets here ----------
   if (path === '/hook' && req.method === 'POST') {
@@ -513,6 +539,194 @@ async function publicApi(req, env, path, s, u, full, later) {
   return fail(req, 404, 'Not found');
 }
 
+// ---------- plan payments (SOL) ----------
+const PAY_HOLD = 20 * 60;           // a Founder seat is held 20 minutes for someone who started paying
+const PAY_GIVEUP = 48 * 3600;       // stop looking for a payment after 48 hours
+const IST = 19800;                  // money totals use India time (UTC+5:30)
+async function rpc(env, key, method, params) {
+  const r = await fetch('https://mainnet.helius-rpc.com/?api-key=' + encodeURIComponent(key), { method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }) });
+  await bump(env, 'call_helius');
+  const j = r.ok ? await r.json().catch(() => null) : null;
+  if (!j || j.error) throw new Error('Helius ' + method + ': ' + (j && j.error ? j.error.message : 'answered ' + r.status));
+  return j.result;
+}
+const lam = sol => Math.round(Number(sol) * 1e9);
+const solOf = l => Math.round(l) / 1e9;
+function payOut(p, extra) {
+  const label = 'Scan Holders', msg = `Scan Holders · ${PLANS[p.plan] ? PLANS[p.plan].name : p.plan}`;
+  return { ref: p.ref, plan: p.plan, planName: PLANS[p.plan] ? PLANS[p.plan].name : p.plan, sol: solOf(p.lamports), lamports: p.lamports, recipient: p.recipient,
+    status: p.status, created: p.created, paidAt: p.paid_at, sig: p.sig || '', until: p.until_after || 0, note: p.note || '',
+    url: `solana:${p.recipient}?amount=${solOf(p.lamports)}&reference=${p.ref}&label=${encodeURIComponent(label)}&message=${encodeURIComponent(msg)}`, ...(extra || {}) };
+}
+const whoOf = u => !u ? 'unknown user' : u.email ? u.email.replace(/(.{3}).*@/, '$1…@') : u.wallet ? short4(u.wallet) : '#' + u.id;
+
+// look on chain for a transfer carrying this payment's reference key
+async function checkPayment(env, p, key) {
+  const DB = env.DB;
+  if (p.status !== 'pending') return p;
+  await DB.prepare('UPDATE payments SET checked = ? WHERE id = ?').bind(now(), p.id).run();
+  const sigs = await rpc(env, key, 'getSignaturesForAddress', [p.ref, { limit: 20, commitment: 'confirmed' }]) || [];
+  for (const x of sigs.slice().reverse()) {   // oldest first
+    if (!x || !x.signature || x.err) continue;
+    if (x.confirmationStatus && !['confirmed', 'finalized'].includes(x.confirmationStatus)) continue;
+    if (await DB.prepare('SELECT 1 FROM payments WHERE sig = ?').bind(x.signature).first()) continue;   // signature already used
+    const tx = await rpc(env, key, 'getTransaction', [x.signature, { encoding: 'jsonParsed', commitment: 'confirmed', maxSupportedTransactionVersion: 0 }]);
+    if (!tx || !tx.meta || tx.meta.err || !tx.transaction) continue;
+    const m = tx.transaction.message || {};
+    const keys = (m.accountKeys || []).map(k => typeof k === 'string' ? k : k && k.pubkey);
+    if (!keys.includes(p.ref)) continue;
+    const ins = [...(m.instructions || []), ...((tx.meta.innerInstructions || []).flatMap(i => i.instructions || []))];
+    let got = 0, payer = '';
+    for (const i of ins) {
+      const pi = i && i.parsed;
+      if (i && i.program === 'system' && pi && (pi.type === 'transfer' || pi.type === 'transferWithSeed') && pi.info && pi.info.destination === p.recipient) {
+        got += Number(pi.info.lamports) || 0; payer = payer || pi.info.source || '';
+      }
+    }
+    if (!got) continue;   // not a payment to the payment wallet
+    const ts = tx.blockTime || now();
+    if (got !== p.lamports) {
+      // wrong or partial amount: never accepted — kept for a refund by hand
+      try {
+        await DB.prepare(`INSERT INTO payments(ref, user_id, plan, sol, lamports, recipient, status, sig, payer, got, created, paid_at, checked, note)
+          VALUES(?, ?, ?, ?, ?, ?, 'review', ?, ?, ?, ?, ?, ?, ?)`).bind('x' + x.signature.slice(0, 43), p.user_id, p.plan, p.sol, p.lamports, p.recipient, x.signature, payer, got, now(), ts, now(),
+          `Sent ${solOf(got)} SOL instead of ${solOf(p.lamports)} SOL`).run();
+        const u = await DB.prepare('SELECT * FROM users WHERE id = ?').bind(p.user_id).first();
+        await logEvent(env, 'warn', 'payments', `Wrong amount from ${whoOf(u)}: ${solOf(got)} SOL for ${PLANS[p.plan].name} (${solOf(p.lamports)} SOL)`, 'Money → Needs refund');
+      } catch (e) { /* already recorded */ }
+      continue;
+    }
+    return await activate(env, p, x.signature, payer, got, ts);
+  }
+  return p;
+}
+async function activate(env, p, sig, payer, got, ts) {
+  const DB = env.DB, s = await getSettings(env), px = await solPrice(), t = now();
+  try {
+    const c = await DB.prepare("UPDATE payments SET status = 'paid', sig = ?, payer = ?, got = ?, paid_at = ?, inr = ? WHERE id = ? AND status = 'pending'")
+      .bind(sig, payer, got, ts, px.inr || 0, p.id).run();
+    if (!c.meta || !c.meta.changes) return await DB.prepare('SELECT * FROM payments WHERE id = ?').bind(p.id).first();   // someone else handled it
+  } catch (e) { return p; }   // signature used by another payment
+  const u = await DB.prepare('SELECT * FROM users WHERE id = ?').bind(p.user_id).first();
+  const before = u && planActive(u) ? (u.plan === 'lifetime' ? -1 : u.plan_until) : 0;
+  let ok = false, note = '';
+  if (!u) note = 'User not found';
+  else if (u.plan === 'lifetime') note = 'Already had Founder lifetime';
+  else if (p.plan === 'lifetime') {
+    // one statement = no overselling, even if two people pay in the same second
+    const r = await DB.prepare("UPDATE users SET plan = 'lifetime', plan_until = 0 WHERE id = ? AND plan != 'lifetime' AND (SELECT COUNT(*) FROM users WHERE plan = 'lifetime') < ?")
+      .bind(u.id, Number(s.founder_max) || 0).run();
+    ok = !!(r.meta && r.meta.changes); if (!ok) note = 'Founder seats were full';
+  } else {
+    // renewing adds the days on top of the time that is left
+    const r = await DB.prepare(`UPDATE users SET plan = ?, plan_until = (CASE WHEN plan NOT IN ('free', 'lifetime') AND plan_until > ? THEN plan_until ELSE ? END) + ? WHERE id = ? AND plan != 'lifetime'`)
+      .bind(p.plan, t, t, PLANS[p.plan].days * 86400, u.id).run();
+    ok = !!(r.meta && r.meta.changes); if (!ok) note = 'Could not update the plan';
+  }
+  const u2 = u ? await DB.prepare('SELECT * FROM users WHERE id = ?').bind(u.id).first() : null;
+  if (ok) {
+    await DB.prepare('UPDATE payments SET until_before = ?, until_after = ? WHERE id = ?').bind(before, u2.plan === 'lifetime' ? -1 : u2.plan_until, p.id).run();
+    await logEvent(env, 'info', 'payments', `Payment ${solOf(got)} SOL · ${PLANS[p.plan].name} · ${whoOf(u)}`);
+    await bump(env, 'payments');
+  } else {
+    await DB.prepare("UPDATE payments SET status = 'review', note = ? WHERE id = ?").bind(note, p.id).run();
+    await logEvent(env, 'warn', 'payments', `Payment from ${whoOf(u)} needs a refund: ${note}`, 'Money → Needs refund');
+  }
+  return await DB.prepare('SELECT * FROM payments WHERE id = ?').bind(p.id).first();
+}
+// called by the cron and when the owner opens Money: new requests every run, older ones every 30 minutes
+async function recheckPending(env, max) {
+  const DB = env.DB, t = now();
+  await DB.prepare("UPDATE payments SET status = 'expired' WHERE status = 'pending' AND created < ?").bind(t - PAY_GIVEUP).run();
+  const rows = (await DB.prepare(`SELECT * FROM payments WHERE status = 'pending' AND ((created > ? AND checked < ?) OR checked < ?) ORDER BY created DESC LIMIT ?`)
+    .bind(t - 3600, t - 120, t - 1800, max).all()).results || [];
+  if (!rows.length) return 0;
+  const key = await getKey(env, 'helius'); if (!key) return 0;
+  let n = 0;
+  for (const p of rows) { try { const r = await checkPayment(env, p, key); if (r && r.status === 'paid') n++; } catch (e) { break; } }   // Helius trouble → try next run
+  return n;
+}
+
+async function payApi(req, env, path, later) {
+  const DB = env.DB, t = now(), b = req.method === 'POST' ? await body(req) : {};
+  const s = await getSettings(env), se = await sessionFromRequest(req, env), u = se ? se.user : null;
+
+  // 1) start a payment → one-time reference key
+  if (path === '/api/pay/start' && req.method === 'POST') {
+    if (!u) return fail(req, 401, 'Sign in first so the plan goes to your account');
+    if (s.payments !== '1') return fail(req, 403, 'Payments are not open yet');
+    const plan = String(b.plan || '');
+    if (!PLANS[plan]) return fail(req, 400, 'Pick a plan');
+    const prices = JSON.parse(s.prices), lamports = lam(prices[plan]);
+    if (!(lamports > 0)) return fail(req, 400, 'This plan has no price yet');
+    if (!isWallet(s.pay_wallet)) return fail(req, 503, 'Payments are paused for a moment — try again later');
+    if (!(await getKey(env, 'helius'))) { await logEvent(env, 'error', 'payments', 'Someone tried to pay but the Helius key is missing', 'More → API keys → add Helius'); return fail(req, 503, 'Payments are paused for a moment — try again later'); }
+    if (u.plan === 'lifetime') return fail(req, 400, 'You already have Founder lifetime');
+    if (u.wallet && u.wallet === s.pay_wallet) return fail(req, 400, 'This is the payment wallet itself — sign in with another account to test');
+    const open = await DB.prepare("SELECT * FROM payments WHERE user_id = ? AND plan = ? AND lamports = ? AND recipient = ? AND status = 'pending' AND created > ? ORDER BY id DESC LIMIT 1")
+      .bind(u.id, plan, lamports, s.pay_wallet, t - PAY_HOLD).first();
+    if (open) return json(req, { ok: true, payment: payOut(open, { inr: (await solPrice()).inr }) });
+    if (plan === 'lifetime') {
+      if (s.founder !== '1') return fail(req, 400, 'The Founder plan is closed');
+      const r = await DB.batch([DB.prepare("SELECT COUNT(*) n FROM users WHERE plan = 'lifetime'"),
+        DB.prepare("SELECT COUNT(DISTINCT user_id) n FROM payments WHERE plan = 'lifetime' AND status = 'pending' AND created > ? AND user_id != ?").bind(t - PAY_HOLD, u.id)]);
+      const sold = r[0].results[0].n, held = r[1].results[0].n, max = Number(s.founder_max) || 0;
+      if (sold >= max) return fail(req, 400, 'All Founder seats are taken');
+      if (sold + held >= max) return fail(req, 400, 'The last Founder seats are being paid for right now — try again in 20 minutes');
+    }
+    const recent = await DB.prepare('SELECT COUNT(*) n FROM payments WHERE user_id = ? AND created > ?').bind(u.id, t - 3600).first();
+    if (recent && recent.n >= 12) return fail(req, 429, 'Too many payment requests — wait a few minutes');
+    const rb = new Uint8Array(32); crypto.getRandomValues(rb);
+    const ref = b58encode(rb);
+    await DB.prepare('INSERT INTO payments(ref, user_id, plan, sol, lamports, recipient, created) VALUES(?, ?, ?, ?, ?, ?, ?)').bind(ref, u.id, plan, solOf(lamports), lamports, s.pay_wallet, t).run();
+    const p = await DB.prepare('SELECT * FROM payments WHERE ref = ?').bind(ref).first();
+    return json(req, { ok: true, payment: payOut(p, { inr: (await solPrice()).inr }) });
+  }
+
+  // the reference key works like a ticket: it only lets someone pay for that plan, so these two need no sign-in
+  // (that way a Google user can open Phantom just to pay)
+  const ref = String(b.ref || '');
+  const row = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(ref) ? await DB.prepare('SELECT * FROM payments WHERE ref = ?').bind(ref).first() : null;
+
+  // 2) details for the wallet, with a fresh blockhash
+  if (path === '/api/pay/intent' && req.method === 'POST') {
+    if (!row) return fail(req, 404, 'This payment link is not valid');
+    if (row.status !== 'pending') return json(req, { ok: true, payment: payOut(row) });
+    if (row.created < t - PAY_GIVEUP) return fail(req, 400, 'This payment link expired — start again in the app');
+    const key = await getKey(env, 'helius'); if (!key) return fail(req, 503, 'Payments are paused for a moment — try again later');
+    const bh = await rpc(env, key, 'getLatestBlockhash', [{ commitment: 'confirmed' }]);
+    const owner = await DB.prepare('SELECT wallet, email FROM users WHERE id = ?').bind(row.user_id).first();
+    return json(req, { ok: true, payment: payOut(row, { blockhash: bh && bh.value ? bh.value.blockhash : '', account: owner ? (owner.email ? owner.email.replace(/(.{3}).*@/, '$1…@') : short4(owner.wallet || '')) : '' }) });
+  }
+
+  // 3) has it arrived?
+  if (path === '/api/pay/check' && req.method === 'POST') {
+    const key = await getKey(env, 'helius');
+    if (row) {
+      let p = row;
+      if (p.status === 'pending' && key && t - p.checked >= 3) { try { p = await checkPayment(env, p, key); } catch (e) { /* answer with what we know */ } }
+      const mine = u && u.id === p.user_id;
+      const fresh = mine ? await DB.prepare('SELECT * FROM users WHERE id = ?').bind(u.id).first() : null;
+      return json(req, { ok: true, payment: payOut(p), user: fresh ? publicUser(fresh, s) : undefined });
+    }
+    if (!u) return fail(req, 404, 'This payment is not valid');
+    const rows = (await DB.prepare("SELECT * FROM payments WHERE user_id = ? AND status = 'pending' AND created > ? ORDER BY id DESC LIMIT 5").bind(u.id, t - PAY_GIVEUP).all()).results || [];
+    const out = [];
+    for (let p of rows) { if (key && t - p.checked >= 3) { try { p = await checkPayment(env, p, key); } catch (e) { } } out.push(payOut(p)); }
+    const fresh = await DB.prepare('SELECT * FROM users WHERE id = ?').bind(u.id).first();
+    return json(req, { ok: true, payments: out, user: publicUser(fresh, s) });
+  }
+
+  // 4) my receipts
+  if (path === '/api/pay/mine' && req.method === 'GET') {
+    if (!u) return fail(req, 401, 'Not signed in');
+    const rows = (await DB.prepare("SELECT * FROM payments WHERE user_id = ? AND status IN ('paid', 'review', 'refunded') ORDER BY COALESCE(NULLIF(paid_at, 0), created) DESC LIMIT 20").bind(u.id).all()).results || [];
+    return json(req, { ok: true, payments: rows.map(p => payOut(p, { got: solOf(p.got) })) });
+  }
+  return fail(req, 404, 'Not found');
+}
+
 // ---------- key tests ----------
 async function testKey(name, value) {
   try {
@@ -569,6 +783,7 @@ async function owner(req, env, route, s, se, later) {
       ['wallets', 'SELECT COUNT(*) n FROM site_wallets'], ['expiring', "SELECT COUNT(*) n FROM users WHERE plan NOT IN ('free','lifetime') AND plan_until > ? AND plan_until < ?", t, t + 7 * 86400],
       ['errors', "SELECT COUNT(*) n FROM events WHERE level = 'error' AND ts > ?", t - 86400], ['warns', "SELECT COUNT(*) n FROM events WHERE level = 'warn' AND ts > ?", t - 86400],
       ['keys', 'SELECT COUNT(*) n FROM apikeys'], ['keysBad', "SELECT COUNT(*) n FROM apikeys WHERE status IN ('error','warn')"], ['requests', 'SELECT n FROM stats WHERE day = ? AND k = ?', today, 'req'],
+      ['payReview', "SELECT COUNT(*) n FROM payments WHERE status = 'review'"], ['payToday', "SELECT COALESCE(SUM(got), 0) n FROM payments WHERE status = 'paid' AND paid_at >= ?", t - ((t + IST) % 86400)],
       ['issues', "SELECT ts, level, src, msg, fix FROM events WHERE level = 'error' AND ts > ? ORDER BY id DESC LIMIT 3", t - 86400], ['activity', 'SELECT ts, level, src, msg FROM events ORDER BY id DESC LIMIT 8']];
     const res = await DB.batch(q1.map(([, sql, ...a]) => DB.prepare(sql).bind(...a)));   // one trip to the database
     const out = { settings: { site_live: s.site_live, signups: s.signups, alerts: s.alerts } };
@@ -700,6 +915,46 @@ async function owner(req, env, route, s, se, later) {
     const sold = await DB.prepare("SELECT COUNT(*) n FROM users WHERE plan = 'lifetime'").first();
     const px = await solPrice();
     return json(req, { ok: true, wallet: { address: w, sol, error: err, founderSold: sold ? sold.n : 0, founderMax: Number(s.founder_max), inr: px.inr, usd: px.usd } });
+  }
+
+  // ---- payments ----
+  if (route === 'payments' && req.method === 'GET') {
+    later(recheckPending(env, 10).catch(() => { }));   // look for anything people paid and then closed the app
+    const f = ['all', 'paid', 'review', 'pending'].includes(q.get('filter')) ? q.get('filter') : 'all';
+    const lim = Math.min(200, Math.max(1, Number(q.get('limit')) || 30));
+    const where = { all: "p.status IN ('paid', 'review', 'refunded')", paid: "p.status = 'paid'", review: "p.status = 'review'", pending: "p.status = 'pending'" }[f];
+    const midIST = t - ((t + IST) % 86400);
+    const sum = from => DB.prepare("SELECT COUNT(*) n, COALESCE(SUM(got), 0) l, COALESCE(SUM(got / 1e9 * inr), 0) r FROM payments WHERE status = 'paid' AND paid_at >= ?").bind(from);
+    const r = await DB.batch([sum(midIST), sum(t - 7 * 86400), sum(0),
+      DB.prepare("SELECT SUM(status = 'review') review, SUM(status = 'pending' AND created > ?) pending, SUM(status = 'paid') paid, SUM(status = 'refunded') refunded FROM payments").bind(t - 3600),
+      DB.prepare(`SELECT p.*, u.wallet uwallet, u.email uemail, u.name uname FROM payments p LEFT JOIN users u ON u.id = p.user_id WHERE ${where}
+        ORDER BY COALESCE(NULLIF(p.paid_at, 0), p.created) DESC LIMIT ?`).bind(lim + 1)]);
+    const px = await solPrice();
+    const tot = i => { const x = r[i].results[0] || {}; return { n: x.n || 0, sol: solOf(x.l || 0), inr: Math.round(x.r || 0) }; };
+    const rows = r[4].results || [];
+    return json(req, { ok: true, income: { today: tot(0), week: tot(1), all: tot(2) }, counts: r[3].results[0] || {}, inrNow: px.inr, more: rows.length > lim,
+      payments: rows.slice(0, lim).map(p => ({ id: p.id, plan: p.plan, planName: PLANS[p.plan] ? PLANS[p.plan].name : p.plan, sol: solOf(p.lamports), got: solOf(p.got), status: p.status,
+        sig: p.sig || '', payer: p.payer, created: p.created, paidAt: p.paid_at, until: p.until_after, before: p.until_before, inr: p.inr, note: p.note, ref: p.ref,
+        user: { id: p.user_id, wallet: p.uwallet || '', email: p.uemail || '', name: p.uname || '' } })) });
+  }
+  if (route === 'payments/action' && req.method === 'POST') {
+    const p = await DB.prepare('SELECT * FROM payments WHERE id = ?').bind(Number(b.id)).first();
+    if (!p) return fail(req, 404, 'Payment not found');
+    if (b.action === 'refunded') {
+      if (p.status !== 'review') return fail(req, 400, 'Only payments that need a refund can be marked refunded');
+      await DB.prepare("UPDATE payments SET status = 'refunded', note = ? WHERE id = ?").bind((p.note ? p.note + ' · ' : '') + 'refunded ' + dayOf(t), p.id).run();
+      await logEvent(env, 'info', 'payments', `Marked refunded: ${solOf(p.got)} SOL to ${p.payer ? short4(p.payer) : 'payer'}`);
+      return json(req, { ok: true });
+    }
+    if (b.action === 'recheck') {
+      if (p.status !== 'pending' && p.status !== 'expired') return fail(req, 400, 'This payment is already done');
+      if (p.status === 'expired') await DB.prepare("UPDATE payments SET status = 'pending' WHERE id = ?").bind(p.id).run();
+      const key = await getKey(env, 'helius'); if (!key) return fail(req, 400, 'Add your Helius key first');
+      const r = await checkPayment(env, { ...p, status: 'pending' }, key);
+      if (r.status === 'pending' && p.status === 'expired') await DB.prepare("UPDATE payments SET status = 'expired' WHERE id = ? AND status = 'pending'").bind(p.id).run();
+      return json(req, { ok: true, status: r.status === 'pending' && p.status === 'expired' ? 'expired' : r.status });
+    }
+    return fail(req, 400, 'Unknown action');
   }
 
   // ---- key-safe pass-through for the dashboard's leaderboards and Winner Lab (keys never leave the server) ----

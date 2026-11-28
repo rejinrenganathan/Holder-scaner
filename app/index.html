@@ -32,7 +32,7 @@ button,input,textarea{font:inherit;color:inherit}
 .bar.show{opacity:1;pointer-events:auto}.bar b{font-size:17px;font-weight:600}
 .ann{background:var(--accbg);color:var(--acc);border-radius:12px;padding:10px 14px;font-size:14px;margin:calc(10px + var(--sat)) 0 -4px}
 .top{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;padding:calc(14px + var(--sat)) 0 12px}
-.ann+.top{padding-top:14px}
+.ann+.top{padding-top:14px}.ann+.ann{margin-top:14px}
 .top h1{font-size:34px;font-weight:700;margin:0;line-height:1.1}
 .ib{width:40px;height:40px;border-radius:50%;background:var(--card);border:0;display:inline-flex;align-items:center;justify-content:center;color:var(--acc);cursor:pointer;flex:none}
 .ib:active{transform:scale(.9)}.ib svg{width:21px;height:21px}
@@ -61,6 +61,7 @@ input:focus,textarea:focus{box-shadow:0 0 0 2px var(--acc)}
 .tg{width:51px;height:31px;border-radius:16px;background:#39393d;position:relative;border:0;flex:none;cursor:pointer;transition:background .25s}
 .tg::after{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;transition:left .25s cubic-bezier(.3,1.4,.6,1)}
 .tg.on{background:var(--ok)}.tg.on::after{left:22px}
+.rad{width:22px;height:22px;border-radius:50%;border:2px solid var(--line2);flex:none}.rad.on{border:7px solid var(--acc)}
 .nav{position:fixed;left:0;right:0;bottom:0;z-index:5;display:grid;grid-template-columns:repeat(5,1fr);padding:6px 0 calc(6px + env(safe-area-inset-bottom));
  background:rgba(18,18,18,.8);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-top:.5px solid rgba(84,84,88,.5)}
 .nav button{background:none;border:0;font-size:10.5px;font-weight:500;color:var(--tx2);display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;min-height:48px}
@@ -139,7 +140,7 @@ const ICON = {
 };
 const svg = k => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICON[k]}</svg>`;
 
-let token = localStorage.getItem(TK) || '', me = null, SITE = null, tab = 'feed';
+let token = localStorage.getItem(TK) || '', me = null, SITE = null, tab = 'feed', PAYSEL = '';
 
 // ---------- network ----------
 async function api(path, opt = {}) {
@@ -195,7 +196,7 @@ async function act(b, fn) { busy(b, true); try { await fn(); } catch (e) { if (e
 function copy(text, label) { (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject()).then(() => toast(label || 'Copied')).catch(() => { const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); toast(label || 'Copied'); }); }
 function header(title, right) {
   $('#barT').textContent = title;
-  const ann = SITE && SITE.announce ? `<div class="ann">${esc(SITE.announce)}</div>` : '';
+  const ann = (SITE && SITE.announce ? `<div class="ann">${esc(SITE.announce)}</div>` : '') + (typeof renewBanner === 'function' ? renewBanner() : '');
   return `${ann}<div class="top"><h1>${esc(title)}</h1><div style="display:flex;gap:8px">${right || ''}</div></div>`;
 }
 window.addEventListener('scroll', () => $('#bar').classList.toggle('show', scrollY > 50), { passive: true });
@@ -218,7 +219,7 @@ function go(t) {
   $('#nav').querySelectorAll('button').forEach(b => b.onclick = () => { buzz(5); if (b.dataset.t === tab) { scrollTo({ top: 0, behavior: 'smooth' }); return; } go(b.dataset.t); });
   scrollTo(0, 0); render();
 }
-function render() { clearTimeout(TIMER); ({ feed: Feed, trades: Trades, wallets: Wallets, alerts: Alerts, account: Account })[tab](); }
+function render() { if (tab === 'pay') return; clearTimeout(TIMER); ({ feed: Feed, trades: Trades, wallets: Wallets, alerts: Alerts, account: Account })[tab](); }
 let TIMER = 0;
 const autoRefresh = fn => { clearTimeout(TIMER); TIMER = setTimeout(() => { if (document.visibilityState === 'visible' && !$('#sheet') && !document.querySelector('.as')) fn(true); else autoRefresh(fn); }, 20000); };
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && (tab === 'feed' || tab === 'trades') && !$('#sheet')) render(); });
@@ -402,16 +403,185 @@ function Alerts() {
    <div class="mu3 center">Alerts will be part of paid plans.</div>`;
 }
 
+// ---------- payments (SOL) ----------
+// The server gives a one-time reference key. The wallet sends exactly the price to the payment wallet with that key attached,
+// and the server finds the transfer by the key. The transaction is built here by hand (a plain SOL transfer), no extra library.
+const PAYK = 'sh_pay', DAYS = { m1: 30, m3: 90, m6: 180, m12: 365 };
+const B58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+function b58enc(bytes) { let n = 0n; for (const b of bytes) n = n * 256n + BigInt(b); let s = ''; while (n > 0n) { s = B58[Number(n % 58n)] + s; n /= 58n; } for (const b of bytes) { if (b) break; s = '1' + s; } return s; }
+function b58dec(s) {
+  if (typeof s !== 'string' || !/^[1-9A-HJ-NP-Za-km-z]+$/.test(s)) return null;
+  let n = 0n; for (const c of s) n = n * 58n + BigInt(B58.indexOf(c));
+  const out = []; while (n > 0n) { out.unshift(Number(n % 256n)); n /= 256n; }
+  for (const c of s) { if (c !== '1') break; out.unshift(0); }
+  return new Uint8Array(out);
+}
+// legacy message: transfer `lamports` from payer to `to`, with the reference key as a read-only account (Solana Pay style)
+function transferMessage(payer, to, ref, lamports, blockhash) {
+  if (payer === to) throw new Error('Pay from a different wallet than the Scan Holders payment wallet');
+  const keys = [payer, to, ref, '11111111111111111111111111111111'].map(b58dec), bh = b58dec(blockhash);
+  if (keys.some(k => !k || k.length !== 32) || !bh || bh.length !== 32) throw new Error('Payment details look wrong — close this and try again');
+  const data = new Uint8Array(12), dv = new DataView(data.buffer); dv.setUint32(0, 2, true); dv.setBigUint64(4, BigInt(lamports), true);
+  return new Uint8Array([1, 0, 2, 4, ...keys.flatMap(k => [...k]), ...bh, 1, 3, 3, 0, 1, 2, 12, ...data]);
+}
+// wallets announce themselves through the Wallet Standard (Phantom, Solflare, Backpack all do)
+function stdWallets() {
+  return new Promise(res => {
+    const list = [], reg = { register: (...ws) => { list.push(...ws); return () => { }; } };
+    const h = e => { try { e.detail(reg); } catch (x) { } };
+    window.addEventListener('wallet-standard:register-wallet', h);
+    try { window.dispatchEvent(new CustomEvent('wallet-standard:app-ready', { detail: reg })); } catch (x) { }
+    setTimeout(() => { window.removeEventListener('wallet-standard:register-wallet', h); res(list.filter(w => w && w.features && w.features['solana:signAndSendTransaction'])); }, 300);
+  });
+}
+const brandOf = p => !p ? '' : p.isSolflare ? 'Solflare' : p.isBackpack ? 'Backpack' : 'Phantom';
+async function payWithWallet(ref) {
+  const p = provider(), brand = brandOf(p), ws = await stdWallets();
+  const w = ws.find(x => brand && new RegExp(brand, 'i').test(x.name || '')) || ws[0];
+  const fresh = async () => { const it = (await api('/api/pay/intent', { body: { ref } })).payment; if (it.status !== 'pending') throw new Error(it.status === 'paid' ? 'This plan is already paid' : 'This payment is closed — start again'); return it; };
+  if (w) {
+    let acc = (w.accounts || [])[0];
+    if (!acc) { const c = w.features['standard:connect']; if (!c) throw new Error('Could not connect the wallet'); const r = await c.connect(); acc = ((r && r.accounts) || w.accounts || [])[0]; }
+    if (!acc) throw new Error('The wallet did not share an account');
+    const it = await fresh(), payer = acc.address || b58enc(acc.publicKey);
+    const msg = transferMessage(payer, it.recipient, it.ref, it.lamports, it.blockhash);
+    const tx = new Uint8Array(65 + msg.length); tx[0] = 1; tx.set(msg, 65);   // 1 empty signature + message
+    const out = await w.features['solana:signAndSendTransaction'].signAndSendTransaction({ account: acc, transaction: tx, chain: 'solana:mainnet' });
+    const r0 = Array.isArray(out) ? out[0] : out;
+    return r0 && r0.signature ? (typeof r0.signature === 'string' ? r0.signature : b58enc(r0.signature)) : '';
+  }
+  if (p && p.request) {   // older Phantom
+    const c = await p.connect(); const payer = ((c && c.publicKey) || p.publicKey).toString(), it = await fresh();
+    const r = await p.request({ method: 'signAndSendTransaction', params: { message: b58enc(transferMessage(payer, it.recipient, it.ref, it.lamports, it.blockhash)) } });
+    return (r && r.signature) || '';
+  }
+  throw new Error('No wallet found here — open this page in Phantom or Solflare');
+}
+const walletErr = e => { const m = String((e && e.message) || e || ''); return e && e.code === 4001 || /reject|cancel|denied|declin|closed/i.test(m) ? 'Cancelled — nothing was sent' : /insufficient|not enough|0x1\b/i.test(m) ? 'Not enough SOL in this wallet (the price plus a tiny network fee)' : m || 'The wallet could not send the payment'; };
+// payment requests waiting for the network — kept on this phone so they're checked again next time the app opens
+const pend = () => { try { return JSON.parse(localStorage.getItem(PAYK) || '[]').filter(x => x && x.ref && Date.now() - x.t < 48 * 3600e3); } catch (e) { return []; } };
+function savePending(ref) { const l = pend().filter(x => x.ref !== ref); l.unshift({ ref, t: Date.now() }); localStorage.setItem(PAYK, JSON.stringify(l.slice(0, 5))); }
+function dropPending(ref) { localStorage.setItem(PAYK, JSON.stringify(pend().filter(x => x.ref !== ref))); }
+const dateOf = ts => new Date(ts * 1000).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+const planActiveMe = () => me && me.plan !== 'free' && (me.plan === 'lifetime' || me.planUntil * 1000 > Date.now());
+function endsText(plan) {
+  if (plan === 'lifetime') return 'Pay once · yours for good';
+  const d = DAYS[plan], on = planActiveMe() && me.plan !== 'lifetime', base = on ? me.planUntil : Math.floor(Date.now() / 1000);
+  return `${on ? `Adds ${d} days to your plan` : `${d} days`} · ends ${dateOf(base + d * 86400)}`;
+}
+function payButtons(it) {
+  const p = provider(), link = location.origin + location.pathname + '?payref=' + it.ref;
+  return p ? `<button class="bt bp wide" id="payw">Pay ${it.sol} SOL with ${brandOf(p)}</button>`
+    : `<a class="bt bp wide" href="https://phantom.app/ul/browse/${encodeURIComponent(link)}?ref=${encodeURIComponent(location.origin)}">Pay in Phantom</a>
+       <a class="bt wide mt" href="https://solflare.com/ul/v1/browse/${encodeURIComponent(link)}?ref=${encodeURIComponent(location.origin)}">Pay in Solflare</a>
+       <a class="bt wide mt" href="${esc(it.url)}" style="background:none">Other Solana wallet</a>`;
+}
+function bindPay(root, it) {
+  const b = root.querySelector('#payw'); if (!b) return;
+  b.onclick = () => act(b, async () => {
+    const st = $('#pst'); st.textContent = 'Confirm in your wallet…';
+    let sig; try { sig = await payWithWallet(it.ref); } catch (e) { st.innerHTML = '&nbsp;'; throw new Error(walletErr(e)); }
+    savePending(it.ref); const bx = $('#pbtns'); if (bx) bx.style.display = 'none';
+    st.innerHTML = `<span class="spin"></span> Sent — waiting for the network to confirm…${sig ? ` <a href="https://solscan.io/tx/${esc(sig)}" target="_blank" rel="noopener">View</a>` : ''}`;
+    watchPay(it.ref, 1500);
+  });
+}
+async function paySheet(plan) {
+  if (!me) return signInSheet('Sign in first so the plan goes to your account.');
+  sheet(`<h3>${esc(PLAN[plan])}</h3><div class="center" style="padding:34px 0"><span class="spin"></span></div>`);
+  let it; try { it = (await api('/api/pay/start', { body: { plan } })).payment; }
+  catch (e) { if (e.message !== 'down') sheet(`<h3>${esc(PLAN[plan])}</h3><div class="err">${esc(e.message)}</div><button class="bt wide mt" onclick="closeSheet()">Close</button>`); return; }
+  savePending(it.ref);
+  sheet(`<h3>Get ${esc(PLAN[it.plan])}</h3>
+   <div class="cd center" style="padding:16px"><div class="kn" style="font-size:34px">${it.sol} SOL</div><div class="mu">${it.inr ? '≈ ₹' + fmt(Math.round(it.sol * it.inr)) + ' · ' : ''}${esc(endsText(it.plan))}</div></div>
+   <div id="pbtns">${payButtons(it)}</div><div class="mu center mt" id="pst">&nbsp;</div>
+   <div class="mu3 center mt">Sends exactly ${it.sol} SOL to Scan Holders (${short(it.recipient)}). Your plan turns on by itself once the network confirms — usually within a minute. A different amount is not accepted and gets refunded by hand.</div>`, bg => bindPay(bg, it));
+  watchPay(it.ref, 4000);
+}
+// poll while the sheet is open; checking again right away when you come back from the wallet app
+let PW = { ref: '', timer: 0, until: 0 };
+function watchPay(ref, first) {
+  clearTimeout(PW.timer); PW = { ref, timer: 0, until: Date.now() + 15 * 60e3 };
+  const tick = async () => {
+    if (PW.ref !== ref) return;
+    const st = $('#pst'); if (!st) { PW.ref = ''; return; }
+    if (document.visibilityState === 'visible') { try { if (payResult(await api('/api/pay/check', { body: { ref } }))) return; } catch (e) { } }
+    if (Date.now() > PW.until) { st.textContent = 'Still waiting. If you paid, your plan turns on by itself — you can close this.'; PW.ref = ''; return; }
+    PW.timer = setTimeout(tick, 4000);
+  };
+  PW.tick = tick; PW.timer = setTimeout(tick, first || 4000);
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && PW.ref && PW.tick) { clearTimeout(PW.timer); PW.timer = setTimeout(PW.tick, 300); } });
+function payResult(j) {
+  const p = j.payment; if (j.user) me = j.user;
+  if (p.status === 'pending') return false;
+  dropPending(p.ref); PW.ref = '';
+  if (tab === 'pay') { PayDone(p); return true; }
+  if (p.status === 'paid') {
+    buzz(30);
+    sheet(`<div class="center" style="padding:10px 0 4px"><div style="font-size:54px;line-height:1">✅</div><h3 style="margin-top:12px">Payment confirmed</h3>
+      <div class="mu">${esc(PLAN[p.plan])} is on${p.until > 0 ? ' · ends ' + dateOf(p.until) : p.until === -1 ? ' · never expires' : ''}</div>
+      ${p.sig ? `<a class="mu3" href="https://solscan.io/tx/${esc(p.sig)}" target="_blank" rel="noopener">Receipt on Solscan</a>` : ''}</div>
+      <button class="bt bp wide mt" id="pdone">Done</button>`, bg => { bg.querySelector('#pdone').onclick = () => { closeSheet(); render(); }; });
+  } else if (p.status === 'review') {
+    sheet(`<h3>We got your payment</h3><div class="mu">${esc(p.note || 'It could not be used for this plan')}. It will be sent back to your wallet by hand — no need to do anything.</div><button class="bt wide mt" onclick="closeSheet();render()">OK</button>`);
+  } else sheet(`<h3>Payment closed</h3><div class="mu">This payment request expired. Start again from Account if you still want the plan.</div><button class="bt wide mt" onclick="closeSheet()">OK</button>`);
+  return true;
+}
+// payments made earlier (app was closed before the network confirmed)
+async function checkPendingQuiet() {
+  for (const x of pend()) {
+    try { const j = await api('/api/pay/check', { body: { ref: x.ref } }); if (j.user) me = j.user;
+      if (j.payment.status === 'pending') continue; dropPending(x.ref);
+      if (j.payment.status === 'paid') { toast(`Payment confirmed — ${PLAN[j.payment.plan]} is on`); if (tab === 'account' && !$('#sheet')) render(); }
+    } catch (e) { }
+  }
+}
+// opened from a payment link inside Phantom / Solflare (no sign-in needed: the link itself is the ticket)
+async function PayScreen(ref) {
+  tab = 'pay'; $('#nav').style.display = 'none';
+  $('#app').innerHTML = `<div class="hero"><div class="logo">${svg('scan')}</div><h1 style="font-size:28px">Scan Holders</h1><p><span class="spin"></span></p></div>`;
+  let it; try { it = (await api('/api/pay/intent', { body: { ref } })).payment; }
+  catch (e) { if (e.message !== 'down') $('#app').innerHTML = `<div class="hero"><div class="logo">${svg('scan')}</div><h1 style="font-size:26px">Payment link</h1><p>${esc(e.message)}</p><a class="bt" href="${location.pathname}">Open Scan Holders</a></div>`; return; }
+  if (it.status !== 'pending') return PayDone(it);
+  savePending(ref);
+  $('#app').innerHTML = `<div class="hero" style="padding-bottom:10px"><div class="logo">${svg('scan')}</div><h1 style="font-size:28px">Pay for Scan Holders</h1><p style="margin-bottom:0">${esc(PLAN[it.plan])}${it.account ? ' · for ' + esc(it.account) : ''}</p></div>
+   <div class="cd center" style="padding:18px"><div class="kn" style="font-size:36px">${it.sol} SOL</div><div class="mu">Sent to Scan Holders · ${short(it.recipient)}</div></div>
+   <div id="pbtns">${payButtons(it)}</div><div class="mu center mt" id="pst">&nbsp;</div>
+   <div class="mu3 center mt">The plan turns on by itself once the network confirms. Then go back to Scan Holders.</div>`;
+  bindPay($('#app'), it); watchPay(ref, 2000);
+}
+function PayDone(p) {
+  const ok = p.status === 'paid';
+  $('#app').innerHTML = `<div class="hero"><div style="font-size:64px;line-height:1;margin-bottom:16px">${ok ? '✅' : p.status === 'review' ? '↩️' : '⌛'}</div>
+   <h1 style="font-size:28px">${ok ? 'Paid' : p.status === 'review' ? 'Payment received' : 'Payment closed'}</h1>
+   <p>${ok ? `${esc(PLAN[p.plan])} is on${p.until > 0 ? ' until ' + dateOf(p.until) : ''}. Go back to Scan Holders — it updates by itself.` : p.status === 'review' ? esc((p.note || 'It could not be used for this plan') + '. It will be sent back to your wallet by hand.') : 'This payment request expired. Start again from Account in Scan Holders.'}</p>
+   ${p.sig ? `<a class="bt wide" href="https://solscan.io/tx/${esc(p.sig)}" target="_blank" rel="noopener">Receipt on Solscan</a>` : ''}
+   <a class="bt bp wide mt" href="${location.pathname}">Open Scan Holders</a></div>`;
+}
+function renewBanner() {
+  if (!me || me.plan === 'free' || me.plan === 'lifetime' || me.isAdmin || !me.planUntil || tab === 'account') return '';
+  const left = me.planUntil - Date.now() / 1000; if (left <= 0 || left > 3 * 86400) return '';
+  if (localStorage.getItem('sh_renew') === new Date().toDateString()) return '';
+  const d = Math.ceil(left / 86400);
+  return `<div class="ann" id="renew" style="background:var(--wabg);color:var(--wa);display:flex;gap:10px;align-items:center"><span style="flex:1" onclick="go('account')">Your plan ends ${d <= 1 ? 'within a day' : 'in ' + d + ' days'} — tap to renew</span><span onclick="localStorage.setItem('sh_renew', new Date().toDateString());this.parentNode.remove()" style="font-size:20px;line-height:1;padding:0 2px">×</span></div>`;
+}
+
 // ---------- Account ----------
 async function Account() {
-  const prices = (SITE && SITE.prices) || {};
-  const plansHtml = ['m1', 'm3', 'm6', 'm12', 'lifetime'].filter(k => prices[k] != null && (k !== 'lifetime' || (SITE.founder === '1' && SITE.founderLeft > 0))).map(k => {
+  const prices = (SITE && SITE.prices) || {}, payOn = !!(SITE && SITE.payments === '1');
+  const keys = ['m1', 'm3', 'm6', 'm12', 'lifetime'].filter(k => prices[k] != null && (k !== 'lifetime' || (SITE.founder === '1' && SITE.founderLeft > 0)));
+  if (!keys.includes(PAYSEL)) PAYSEL = keys.includes('m3') ? 'm3' : keys[0];
+  const timedOn = me && planActiveMe() && me.plan !== 'lifetime' && !me.isAdmin;
+  const plansHtml = keys.map(k => {
     const per = { m1: 1, m3: 3, m6: 6, m12: 12 }[k], save = per && per > 1 && prices.m1 ? Math.round((1 - prices[k] / (prices.m1 * per)) * 100) : 0;
-    return `<div class="row"><div><div>${PLAN[k]} ${k === 'lifetime' ? '<span class="pl sm pr">Founder</span>' : save > 0 ? `<span class="pl sm ok">Save ${save}%</span>` : ''}</div>
+    const on = payOn && k === PAYSEL;
+    return `<div class="row ${payOn ? 'tap' : ''}" data-p="${k}" style="${on ? 'background:var(--accbg);margin:0 -16px;padding:10px 16px;border-radius:10px;border-top-color:transparent' : ''}">
+      ${payOn ? `<span class="rad${on ? ' on' : ''}"></span>` : ''}<div style="flex:1"><div>${PLAN[k]} ${k === 'lifetime' ? '<span class="pl sm pr">Founder</span>' : save > 0 ? `<span class="pl sm ok">Save ${save}%</span>` : ''}</div>
       <div class="mu">${k === 'lifetime' ? `Pay once · ${fmt(SITE.founderLeft)} of ${fmt(SITE.founder_max)} left` : per > 1 ? (Math.round(prices[k] / per * 100) / 100) + ' SOL a month' : 'Monthly'}</div></div><b>${prices[k]} SOL</b></div>`; }).join('');
-  const plans = `<div class="sec">Plans</div><div class="cd">${plansHtml}
-    <button class="bt ${SITE && SITE.payments === '1' ? 'bp' : ''} wide mt" id="pay" disabled>${SITE && SITE.payments === '1' ? 'Pay with SOL — opening soon' : 'Payments open soon'}</button>
-    <div class="mu3 center mt">Pay in SOL from your wallet. Unlocks every token, every buyer and ${fmt(SITE ? SITE.paid_wallets : 4000)} wallets.</div></div>`;
+  const plans = `<div class="sec">${timedOn ? 'Renew or change plan' : 'Plans'}</div><div class="cd">${plansHtml}
+    <button class="bt ${payOn ? 'bp' : ''} wide mt" id="pay" ${payOn && PAYSEL ? '' : 'disabled'}>${!payOn ? 'Payments open soon' : !me ? 'Sign in to get a plan' : `Pay ${prices[PAYSEL]} SOL`}</button>
+    <div class="mu3 center mt">${payOn && timedOn ? 'Renewing adds the days on top of the time you have left. ' : ''}Pay in SOL from your wallet. Unlocks every token, every buyer and ${fmt(SITE ? SITE.paid_wallets : 4000)} wallets.</div></div>`;
   const legal = `<div class="cd" style="padding:2px 16px"><div class="row tap" data-l="terms"><span>Terms</span><span class="chev">›</span></div><div class="row tap" data-l="privacy"><span>Privacy</span><span class="chev">›</span></div><div class="row tap" data-l="risk"><span>Not financial advice</span><span class="chev">›</span></div></div>
    <div class="mu3 center" style="margin-top:14px">Scan Holders</div>`;
   if (!me) {
@@ -421,13 +591,26 @@ async function Account() {
     const plan = me.isAdmin ? 'owner' : me.plan, days = me.planUntil ? Math.max(0, Math.ceil((me.planUntil - Date.now() / 1000) / 86400)) : 0;
     $('#app').innerHTML = header('Account') + `<div class="cd"><div class="row" style="min-height:56px"><div style="min-width:0"><div class="ht">${esc(me.name || me.email || short(me.wallet))}</div><div class="mu">${me.name || me.email ? (me.wallet ? 'Wallet ' + short(me.wallet) : 'Google account') : 'Signed in with your wallet'}</div></div>
        <span class="pl ${plan === 'free' ? 'ne' : 'ok'}">${esc(PLAN[plan] || plan)}</span></div>
-      ${plan !== 'free' && plan !== 'owner' ? `<div class="row"><span>${plan === 'lifetime' ? 'Never expires' : 'Days left'}</span><b>${plan === 'lifetime' ? '∞' : days}</b></div>` : ''}
+      ${plan !== 'free' && plan !== 'owner' ? `<div class="row"><span>${plan === 'lifetime' ? 'Never expires' : 'Days left'}</span><b style="${plan !== 'lifetime' && days <= 3 ? 'color:var(--wa)' : ''}">${plan === 'lifetime' ? '∞' : days + (days <= 3 ? ' · renew below' : '')}</b></div>
+        ${plan !== 'lifetime' ? `<div class="row"><span>Ends</span><span class="mu">${dateOf(me.planUntil)}</span></div>` : ''}` : ''}
       ${plan === 'free' ? `<div class="row"><span>Free plan</span><span class="mu">Top ${SITE ? SITE.free_tokens : 4} tokens · ${SITE ? SITE.free_wallets : 10} wallets</span></div>` : ''}</div>`
-      + (plan === 'free' || plan === 'lifetime' || plan === 'owner' ? (plan === 'free' ? plans : '') : plans) + legal
+      + (plan === 'lifetime' || (plan === 'owner' && !(SITE && SITE.payments === '1')) ? '' : plans) + '<div id="rcpt"></div>' + legal
       + `<button class="bt bd wide" id="so" style="margin-top:14px">Sign out</button>`;
     $('#so').onclick = () => menu([['Sign out', async () => { try { await api('/api/auth/logout', { body: {} }); } catch (e) { } token = ''; me = null; localStorage.removeItem(TK); toast('Signed out'); go('feed'); }, true]]);
   }
   $('#app').querySelectorAll('[data-l]').forEach(r => r.onclick = () => legalSheet(r.dataset.l));
+  if (payOn) {
+    $('#app').querySelectorAll('[data-p]').forEach(r => r.onclick = () => { buzz(5); PAYSEL = r.dataset.p; Account(); });
+    $('#pay').onclick = () => me ? paySheet(PAYSEL) : signInSheet('Sign in first so the plan goes to your account.');
+  }
+  if (me) receipts();
+}
+async function receipts() {
+  let j; try { j = await api('/api/pay/mine'); } catch (e) { return; }
+  const el = $('#rcpt'); if (!el || tab !== 'account' || !j.payments.length) return;
+  el.innerHTML = `<div class="sec">Payments</div><div class="cd" style="padding:2px 16px">${j.payments.map(p => `<div class="row"><div style="min-width:0;flex:1"><div>${esc(PLAN[p.plan] || p.plan)}</div>
+    <div class="mu">${dateOf(p.paidAt || p.created)}${p.status === 'review' ? ' · being refunded' : p.status === 'refunded' ? ' · refunded' : ''}</div></div>
+    <div class="tr"><b>${p.status === 'paid' ? p.sol : p.got} SOL</b>${p.sig ? `<div><a class="mu" href="https://solscan.io/tx/${esc(p.sig)}" target="_blank" rel="noopener">Receipt</a></div>` : ''}</div></div>`).join('')}</div>`;
 }
 function legalSheet(k) {
   const T = {
@@ -440,6 +623,8 @@ function legalSheet(k) {
 
 // ---------- start ----------
 (async function start() {
+  const payref = new URLSearchParams(location.search).get('payref');
+  if (payref) return PayScreen(payref);
   const siteP = api('/api/site').then(j => { SITE = j.site; }).catch(e => { if (e.message === 'down') throw e; });
   const meP = token ? api('/api/me').then(j => { me = j.user; }).catch(() => { }) : Promise.resolve();
   try { await Promise.all([siteP, meP]); } catch (e) { return; }
@@ -447,6 +632,7 @@ function legalSheet(k) {
   const h = location.hash.slice(1);
   if (!me && !localStorage.getItem(SEEN) && !h) return Welcome();
   go(h || 'feed');
+  if (pend().length) checkPendingQuiet();
 })();
 window.addEventListener('hashchange', () => { const h = location.hash.slice(1); if (h && h !== tab && TABS.some(x => x[0] === h)) go(h); });
 </script>

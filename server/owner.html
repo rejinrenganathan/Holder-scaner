@@ -348,6 +348,7 @@ async function Home() {
   const att = [];
   if (h.keysMissing) att.push([`${h.keysMissing} API key${h.keysMissing > 1 ? 's' : ''} not added`, 'more/keys', 'Add']);
   if (h.keysBad) att.push([`${h.keysBad} API key${h.keysBad > 1 ? 's' : ''} not working`, 'more/keys', 'Check']);
+  if (h.payReview) att.push([`${h.payReview} payment${h.payReview > 1 ? 's' : ''} need${h.payReview > 1 ? '' : 's'} a refund`, 'money', 'See']);
   if (h.expiring) att.push([`${h.expiring} plan${h.expiring > 1 ? 's' : ''} expire this week`, 'users', 'See']);
   if (h.warns) att.push([`${h.warns} warning${h.warns > 1 ? 's' : ''} in the last 24h`, 'more/health', 'See']);
   if (h.settings.site_live !== '1') att.push(['Site is switched off', 'more/site', 'Open']);
@@ -358,11 +359,11 @@ async function Home() {
     <div class="kp"><div class="mu">Unique visitors</div><div class="kn">${fmt(h.visitors)}</div><div style="font-size:11px">${diff(h.visitors, h.visitorsY)}</div></div>
     <div class="kp"><div class="mu">Sign-ups</div><div class="kn">${fmt(h.signups)}</div><div style="font-size:11px">${diff(h.signups, h.signupsY)}</div></div>
     <div class="kp"><div class="mu">Online now</div><div class="kn" style="color:var(--ok)">${fmt(h.online)}</div><div class="mu3">${fmt(h.active)} active in 24h</div></div>
-    <div class="kp"><div class="mu">Users</div><div class="kn">${fmt(h.users)}</div><div class="mu3">${fmt(h.paid)} paid</div></div>
+    <div class="kp"><div class="mu">Users</div><div class="kn">${fmt(h.users)}</div><div class="mu3">${fmt(h.paid)} paid${h.payToday ? ' · ' + solS(h.payToday / 1e9) + ' SOL today' : ''}</div></div>
    </div></div>
   <div class="sec">Needs your attention</div>
   <div class="cd" style="padding:2px 16px">
-   ${att.length ? att.map(a => `<div class="row tap" style="margin:0 -16px;padding:9px 16px" onclick="location.hash='${a[1]}'"><div class="sq" style="background:${/key/i.test(a[0]) ? '#ff9f0a' : /expire/.test(a[0]) ? '#0a84ff' : /warning/.test(a[0]) ? '#ff9f0a' : '#ff453a'}">${svg(/key/i.test(a[0]) ? 'keys' : /expire/.test(a[0]) ? 'users' : /warning/.test(a[0]) ? 'health' : 'site')}</div><span style="flex:1">${esc(a[0])}</span><span class="chev">›</span></div>`).join('')
+   ${att.length ? att.map(a => `<div class="row tap" style="margin:0 -16px;padding:9px 16px" onclick="location.hash='${a[1]}'"><div class="sq" style="background:${/key/i.test(a[0]) ? '#ff9f0a' : /expire/.test(a[0]) ? '#0a84ff' : /warning|refund/.test(a[0]) ? '#ff9f0a' : '#ff453a'}">${svg(/key/i.test(a[0]) ? 'keys' : /expire/.test(a[0]) ? 'users' : /warning/.test(a[0]) ? 'health' : /refund/.test(a[0]) ? 'money' : 'site')}</div><span style="flex:1">${esc(a[0])}</span><span class="chev">›</span></div>`).join('')
      : '<div class="row"><div class="sq" style="background:#30d158">✓</div><span style="flex:1">All clear</span></div>'}</div>
   <div class="sec">At a glance</div>
   <div class="cd" style="padding:2px 16px">
@@ -377,7 +378,7 @@ async function Home() {
 // ---------- Money ----------
 async function Money() {
   loading('Money');
-  let w, st; try { [w, st] = await Promise.all([api('/api/owner/wallet'), api('/api/owner/settings')]); w = w.wallet; st = st.settings; } catch (e) { return e.message === 'signed out' || errBox('Money', e); }
+  let w, st, pj; try { [w, st, pj] = await Promise.all([api('/api/owner/wallet'), api('/api/owner/settings'), api('/api/owner/payments?' + new URLSearchParams({ filter: MS.filter, limit: MS.shown }))]); w = w.wallet; st = st.settings; } catch (e) { return e.message === 'signed out' || errBox('Money', e); }
   const sol = w.sol, inr = sol != null && w.inr ? sol * w.inr : null, sold = w.founderSold, max = w.founderMax || 1;
   $('#app').innerHTML = header('Money') + `
   <div class="cd">
@@ -394,12 +395,65 @@ async function Money() {
    <div class="kp"><div class="mu">Founder spots</div><div class="kn">${sold} <span style="font-size:15px;color:var(--tx2)">/ ${max}</span></div>
     <div class="meter"><div style="width:${Math.max(2, Math.round(100 * sold / max))}%;background:var(--pr)"></div></div></div>
    <div class="kp"><div class="mu">Prices (SOL)</div><div style="font-size:14px;margin-top:6px;line-height:1.8">1m <b>${st.prices.m1}</b> · 3m <b>${st.prices.m3}</b> · 6m <b>${st.prices.m6}</b><br>12m <b>${st.prices.m12}</b> · Life <b>${st.prices.lifetime}</b></div></div></div>
-  <div class="sec">Payments</div>
-  <div class="cd" style="display:flex;gap:12px;align-items:center"><div class="sq" style="background:#30d158">${ICONS.receipt}</div>
-   <div class="rl"><div>No payments yet</div><div class="mu" style="white-space:normal">Each payment will show here with its plan and user. Wrong amounts get a Review tag.</div></div></div>`;
+  ${moneyHTML(pj, st)}`;
+  bindMoney(pj);
   $('#cpa').onclick = () => copy(w.address, 'Address copied');
   $('#cp').onclick = () => copy(w.address, 'Address copied');
   $('#chg').onclick = () => editSetting('pay_wallet', 'Payment wallet', w.address, 'Only paste a wallet you control. For safety this needs a sign-in from the last 15 minutes.');
+}
+
+// payments list + income (SOL and ₹ at the price when each payment came in)
+const MS = { filter: 'all', shown: 30 };
+const solS = n => (Math.round(n * 1000) / 1000).toLocaleString('en-IN', { maximumFractionDigits: 3 });
+const rupee = n => '₹' + Math.round(n || 0).toLocaleString('en-IN');
+const payWho = p => p.user.email || p.user.name || (p.user.wallet ? short(p.user.wallet) : 'User #' + p.user.id);
+const PAYST = { paid: ['Paid', 'ok'], review: ['Needs refund', 'wa'], refunded: ['Refunded', 'ne'], pending: ['Waiting', 'ac'], expired: ['Expired', 'ne'] };
+function moneyHTML(pj, st) {
+  const I = pj.income, c = pj.counts || {}, box = (label, x) => `<div class="kp"><div class="mu">${label}</div><div class="kn" style="font-size:22px">${solS(x.sol)} <span style="font-size:13px;color:var(--tx2)">SOL</span></div>
+    <div class="mu3">${rupee(x.inr)} · ${fmt(x.n)} paid</div></div>`;
+  const review = pj.payments.filter(p => p.status === 'review');
+  return `<div class="sec">Income</div><div class="g2 plain" style="margin-bottom:10px">${box('Today', I.today)}${box('Last 7 days', I.week)}</div>
+   <div class="kp" style="margin-bottom:6px"><div class="mu">All time</div><div class="kn" style="font-size:26px">${solS(I.all.sol)} <span style="font-size:14px;color:var(--tx2)">SOL</span></div>
+    <div class="mu3">${rupee(I.all.inr)} at the price when paid${pj.inrNow ? ' · ' + rupee(I.all.sol * pj.inrNow) + ' at today\'s price' : ''}</div></div>
+   ${st.payments !== '1' ? `<div class="mu" style="margin:8px 4px 0">Payments are off. Turn them on in More → Site control → Payments.</div>` : ''}
+   ${c.review && MS.filter !== 'review' ? `<div class="issue tap" id="rvw" style="margin-top:14px;background:var(--wabg);color:var(--wa)"><span style="font-size:18px">↩</span><div style="flex:1"><div style="font-weight:600">${fmt(c.review)} payment${c.review > 1 ? 's' : ''} need${c.review > 1 ? '' : 's'} a refund</div><div style="font-size:12px">Wrong amount or no seat left. Send it back from Phantom, then mark it refunded.</div></div><span class="chev">›</span></div>` : ''}
+   <div class="sec">Payments</div>
+   <div class="cd"><div class="chips" id="mf">${[['all', 'All'], ['paid', `Paid · ${fmt(c.paid || 0)}`], ['review', `Needs refund · ${fmt(c.review || 0)}`], ['pending', `Waiting · ${fmt(c.pending || 0)}`]]
+     .map(([k, l]) => `<span class="ch ${MS.filter === k ? 'on' : ''}" data-k="${k}">${l}</span>`).join('')}</div>
+    ${pj.payments.length ? pj.payments.map((p, i) => { const [l, cl] = PAYST[p.status] || [p.status, 'ne'];
+      return `<div class="row tap" data-pi="${i}" style="margin:0 -16px;padding:9px 16px"><div class="sq" style="background:${p.status === 'paid' ? '#30d158' : p.status === 'review' ? '#ff9f0a' : '#8e8e93'}">${ICONS.receipt}</div>
+       <div class="rl"><div>${esc(payWho(p))}</div><div class="mu">${esc(p.planName)} · ${p.paidAt ? dateS(p.paidAt) + ' ' + clock(p.paidAt) : 'asked ' + ago(p.created)}</div></div>
+       <div style="text-align:right;flex:none"><div style="font-weight:600">${solS(p.status === 'paid' || p.status === 'pending' ? p.sol : p.got)} SOL</div>${p.status === 'paid' ? '' : `<span class="pl ${cl}" style="font-size:11px">${l}</span>`}</div></div>`; }).join('')
+     : `<div class="mu center" style="padding:16px 0">${MS.filter === 'all' ? 'No payments yet. Each one shows here with its plan, user and Solscan link.' : 'Nothing here'}</div>`}
+    ${pj.more ? '<button class="bt wide mt" id="mmore">Show more</button>' : ''}</div>`;
+}
+function bindMoney(pj) {
+  $('#mf').querySelectorAll('.ch').forEach(x => x.onclick = () => { MS.filter = x.dataset.k; MS.shown = 30; render(); });
+  const rv = $('#rvw'); if (rv) rv.onclick = () => { MS.filter = 'review'; render(); };
+  const mm = $('#mmore'); if (mm) mm.onclick = () => { MS.shown += 30; render(); };
+  $('#app').querySelectorAll('[data-pi]').forEach(r => r.onclick = () => paySheetO(pj.payments[r.dataset.pi]));
+}
+function paySheetO(p) {
+  const [l, cl] = PAYST[p.status] || [p.status, 'ne'];
+  const ends = p.until === -1 ? 'Never (Founder)' : p.until ? dateS(p.until) : '';
+  sheet(`<h3>${esc(p.planName)} · ${solS(p.status === 'review' || p.status === 'refunded' ? p.got : p.sol)} SOL</h3>
+   <div class="row"><span class="mu">Status</span><span class="pl ${cl}">${l}</span></div>
+   <div class="row"><span class="mu">User</span><span style="text-align:right">${esc(payWho(p))}</span></div>
+   ${p.status !== 'paid' && p.status !== 'pending' ? `<div class="row"><span class="mu">Price</span><span>${solS(p.sol)} SOL</span></div>` : ''}
+   ${p.note ? `<div class="row"><span class="mu">Note</span><span style="text-align:right">${esc(p.note)}</span></div>` : ''}
+   <div class="row"><span class="mu">${p.paidAt ? 'Paid' : 'Asked'}</span><span>${dateS(p.paidAt || p.created)} ${clock(p.paidAt || p.created)}</span></div>
+   ${p.inr && p.status === 'paid' ? `<div class="row"><span class="mu">In rupees</span><span>${rupee(p.got * p.inr)} <span class="mu">(₹${fmt(Math.round(p.inr))}/SOL)</span></span></div>` : ''}
+   ${ends && p.status === 'paid' ? `<div class="row"><span class="mu">Plan now ends</span><span>${ends}</span></div>` : ''}
+   ${p.payer ? `<div class="row"><span class="mu">Paid from</span><span class="addr" style="text-align:right">${esc(p.payer)}</span></div>` : ''}
+   <div class="g2 mt">${p.sig ? `<a class="bt" style="text-decoration:none" target="_blank" rel="noopener" href="https://solscan.io/tx/${esc(p.sig)}">Solscan</a>` : '<span></span>'}
+    ${p.payer ? '<button class="bt" id="pcp">Copy payer</button>' : '<span></span>'}</div>
+   ${p.status === 'review' ? `<div class="mu mt">Send ${solS(p.got)} SOL back to the payer from Phantom, then tap below.</div><button class="bt bp wide mt" id="pref">Mark refunded</button>` : ''}
+   ${p.status === 'pending' ? '<button class="bt wide mt" id="prc">Check again now</button>' : ''}`, bg => {
+    const q = s => bg.querySelector(s);
+    if (q('#pcp')) q('#pcp').onclick = () => copy(p.payer, 'Payer address copied');
+    if (q('#pref')) q('#pref').onclick = e => act(e.target, async () => { await api('/api/owner/payments/action', { body: { id: p.id, action: 'refunded' } }); closeSheet(); toast('Marked refunded'); render(); });
+    if (q('#prc')) q('#prc').onclick = e => act(e.target, async () => { const j = await api('/api/owner/payments/action', { body: { id: p.id, action: 'recheck' } }); closeSheet(); toast(j.status === 'paid' ? 'Found it — plan is on' : j.status === 'review' ? 'Found it, but it needs a refund' : 'Not paid yet'); render(); });
+  });
 }
 
 // ---------- Wallets ----------
