@@ -9,7 +9,7 @@
 // the plan price to the payment wallet with that key attached. The server finds the transfer by the key on Helius, checks recipient,
 // exact amount, confirmation and that the signature was never used before, then turns the plan on. A cron re-checks every 5 minutes.
 
-const API_V = 16;
+const API_V = 17;
 // Owner wallet(s) — always allowed into the dashboard. More owners can be added in Site control.
 const OWNER_WALLETS = 'CZQkA9JszBPP7x2LescrtZwh1LGoxZwnW68wLbdFPz93';
 // Sites allowed to call this API from a browser
@@ -664,6 +664,7 @@ function range(o, hi) { if (!o || typeof o !== 'object') return null; const a = 
 function parseFilters(raw, full) {
   let f = {}; try { f = JSON.parse(raw || '{}') || {}; } catch (e) { }
   const b = f.b || {}, out = { b: { all: b.all !== false, kol: b.kol !== false, smart: b.smart !== false } };
+  if (out.b.all && out.b.kol !== out.b.smart) out.b.all = false;   // old All + one type → that type only
   if (!out.b.kol && !out.b.smart) out.b.all = true;
   out.stage = { bond: !f.stage || f.stage.bond !== false, mig: !f.stage || f.stage.mig !== false }; if (!out.stage.bond && !out.stage.mig) out.stage = { bond: true, mig: true };
   out.lpOff = Array.isArray(f.lpOff) ? f.lpOff.filter(x => typeof x === 'string' && x.length <= 60).slice(0, 80) : [];
@@ -687,9 +688,11 @@ async function hotFeed(req, env, s, u, full, later, q, spikes) {
   const RU = rulesOf(s), rh = spikes ? RU.spk : RU.hot, LPS = await lpState(env, s);
   const win = spikes ? Math.max(60, (R(RU.spk, 'win') || 15) * 60) : [900, 3600, 14400, 86400].includes(+q.get('win')) ? +q.get('win') : 3600;
   const f = spikes ? parseFilters(JSON.stringify({ b: { all: false, kol: true, smart: true } }), full) : parseFilters(q.get('f'), full);
-  const tracked = f.b.kol || f.b.smart, FREE = Math.max(1, +s.free_tokens || 4);
+  // Buyers: All = whole market + every KOL and smart wallet coin, ranked equally. Otherwise KOL / Smart / both.
+  const ALL = !spikes && f.b.all, tOnly = f.b.kol || f.b.smart;
+  const tracked = ALL || tOnly, FREE = Math.max(1, +s.free_tokens || 4);
   const minBuy = R(rh, 'minBuySol') || 0;
-  const kinds = [f.b.kol ? 'kol' : null, f.b.smart ? 'smart' : null].filter(Boolean);
+  const kinds = ALL ? ['kol', 'smart'] : [f.b.kol ? 'kol' : null, f.b.smart ? 'smart' : null].filter(Boolean);
   let toks = [];
   if (tracked) {
     // one row per token + wallet: buys in the window (0.1 SOL or more), token amounts for "still holding", last buy
@@ -718,6 +721,7 @@ async function hotFeed(req, env, s, u, full, later, q, spikes) {
     toks = Object.values(by).map(x => { x.raw += Math.log2(1 + x.solIn) * 0.5; return x; });
     if (spikes) toks = toks.filter(x => x.nb >= (R(RU.spk, 'buys') || 1));
     toks = toks.sort((a, b) => b.raw - a.raw).slice(0, 150);
+    if (ALL) { const have = new Set(toks.map(x => x.mint)); for (const mint of await marketMints(env, R(rh, 'listSize') || 1500)) if (!have.has(mint)) toks.push({ mint, market: true }); }
     if (spikes && RU.spk.market.on) { const have = new Set(toks.map(x => x.mint)); for (const mint of await marketMints(env, R(RU.hot, 'listSize') || 1500)) if (!have.has(mint)) toks.push({ mint, market: true, spikeMkt: true }); }
   } else {
     toks = (await marketMints(env, R(rh, 'listSize') || 1500)).map(mint => ({ mint, market: true }));
@@ -725,7 +729,7 @@ async function hotFeed(req, env, s, u, full, later, q, spikes) {
   const mints = toks.map(x => x.mint), metas = await metaGet(env, mints);
   await dexRefresh(env, mints, metas);
   const needST = mints.filter(m => !metas[m] || now() - (metas[m]._st || 0) > 240).slice(0, 40);
-  if (needST.length || f.ads) later(stWork(env, tracked ? mints.slice(0, 60) : needST, f.ads).catch(() => 0));
+  if (needST.length || f.ads) later(stWork(env, tracked && !ALL ? mints.slice(0, 60) : needST, f.ads).catch(() => 0));
   const px = await solPrice();
   let waiting = 0;
   const pass = [], D = { checked: toks.length, noLp: 0, lpOff: 0, unsafe: 0, rules: 0, filters: 0 }, newLp = {};
@@ -759,13 +763,15 @@ async function hotFeed(req, env, s, u, full, later, q, spikes) {
     } else {
       buyersN = x.buyers; sol = x.solIn;
       const own = Math.min(99, Math.round(x.raw * 8));
-      if (f.b.all) { const t5 = (m.tx || {}).m5, t1 = (m.tx || {}).h1; const r = t5 && t1 && t1.b ? t5.b / Math.max(1, t1.b / 12) : 0; hot = t5 ? Math.round(0.6 * mktScore(t5.b, r) + 0.4 * own) : Math.round(own * 0.4); }
+      // All: same scale for every coin — a wallet coin gets the better of its wallet score and its market score, never a bonus
+      if (ALL) { const t5 = (m.tx || {}).m5, t1 = (m.tx || {}).h1; const r = t5 && t1 && t1.b ? t5.b / Math.max(1, t1.b / 12) : 0; hot = Math.max(own, t5 ? mktScore(t5.b, r) : 0); x.spike = r ? Math.round(r * 10) / 10 : null; }
       else hot = own;
     }
     if (f.minb && !(buyersN != null && buyersN >= f.minb)) continue;
+    if (tOnly && x.market && (f.minsol || f.hold)) continue;   // wallet-only filters on: market coins have no wallet data → hidden
     if (!x.market) {
-      if (f.minsol && !(sol >= f.minsol)) continue;
-      if (f.hold && !(x.buyers && 100 * x.holding / x.buyers >= f.hold)) continue;
+      if (tOnly && f.minsol && !(sol >= f.minsol)) continue;
+      if (tOnly && f.hold && !(x.buyers && 100 * x.holding / x.buyers >= f.hold)) continue;
       if (f.lastb && !(t - x.last <= f.lastb)) continue;
     } else if (f.lastb) { const k = f.lastb <= 300 ? 'm5' : f.lastb <= 3600 ? 'h1' : f.lastb <= 21600 ? 'h6' : 'h24'; const tx = (m.tx || {})[k]; if (!(tx && tx.b > 0)) continue; }
     if (f.pc) { const pv = v.pc[f.pc.tf]; if (pv == null) continue; if (f.pc.dir === 'up' ? !(pv > 0 && pv >= f.pc.min) : !(pv < 0 && -pv >= f.pc.min)) continue; }
@@ -791,7 +797,7 @@ async function hotFeed(req, env, s, u, full, later, q, spikes) {
     if (added) await setSetting(env, 'lp_seen', JSON.stringify(seen)); })().catch(() => { }));
   const count = pass.length, vis = full ? pass.slice(0, 60) : pass.slice(0, FREE);
   const plan = u ? (isOwner(u, s) ? 'owner' : planActive(u) ? u.plan : 'free') : 'guest';
-  return json(req, { ok: true, tab: spikes ? 'spikes' : 'hot', spk: spikes ? { min: Math.round(win / 60), buys: R(RU.spk, 'buys') || 1, market: !!RU.spk.market.on } : undefined, win, plan, mode: tracked ? (f.b.all ? 'mixed' : 'tracked') : 'market', limit: full ? null : FREE, count, tokens: q.get('dry') ? [] : vis, locked: count - vis.length, waiting, filters: f, diag: D });
+  return json(req, { ok: true, tab: spikes ? 'spikes' : 'hot', spk: spikes ? { min: Math.round(win / 60), buys: R(RU.spk, 'buys') || 1, market: !!RU.spk.market.on } : undefined, win, plan, mode: ALL ? 'all' : 'tracked', limit: full ? null : FREE, count, tokens: q.get('dry') ? [] : vis, locked: count - vis.length, waiting, filters: f, diag: D });
 }
 
 // ---------- public app API ----------

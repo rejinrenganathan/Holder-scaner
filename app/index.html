@@ -282,7 +282,9 @@ function downScreen(msg) {
 const HFK = 'sh_hotf';
 const HF0 = () => ({ b: { all: true, kol: true, smart: true }, stage: { bond: true, mig: true }, lpOff: [], age: null, minsol: 0, hold: 0, lastb: 0, pc: null,
   bun: null, snp: null, liq: null, top: null, dev: null, mc: null, vol: null, fee: null, ubr: null, bsr: null, hld: null, soc: [], paid: false, boost: false, ads: false, sort: 'hot' });
-let HF = (() => { try { return { ...HF0(), ...JSON.parse(localStorage.getItem(HFK) || '{}') }; } catch (e) { return HF0(); } })();
+// old saved combos like All + KOL (one wallet type) → that wallet type only; All now means everything
+const normB = o => { if (o && o.b && o.b.all && (o.b.kol !== o.b.smart)) o.b.all = false; return o; };
+let HF = normB((() => { try { return { ...HF0(), ...JSON.parse(localStorage.getItem(HFK) || '{}') }; } catch (e) { return HF0(); } })());
 delete HF.minb;
 const HOT_WIN = [[900, '15m'], [3600, '1h'], [14400, '4h'], [86400, '24h']];
 const LPS0 = ['Pump.fun', 'Bonk.fun', 'Raydium LaunchLab', 'StonkFun', 'Bags', 'Moonit', 'Boop'];
@@ -337,10 +339,10 @@ async function HotFeed(quiet) {
   let j; try { j = await api(hotQuery()); } catch (e) { if (e.message !== 'down' && $('#fl')) $('#fl').innerHTML = `<div class="cd err">${esc(e.message)}</div>`; return; }
   if (tab !== 'feed' || FS.tab !== 'hot' || !$('#fl')) return;
   for (const t of j.tokens) META.set(t.mint, { t: Date.now(), d: { sym: t.sym, name: t.name, img: t.img, mc: t.mc, liq: t.liq, ch1: t.ch1, ch5: t.pc && t.pc['5m'], ch24: t.pc && t.pc['24h'], age: t.created ? t.created * 1000 : null, url: t.url || null, pair: t.pair || null } });
-  $('#fnote').innerHTML = `<span class="live"></span>${j.mode === 'market' ? 'Sudden buying across the market' : j.mode === 'mixed' ? 'Tokens our wallets bought · ranked by all buyers' : 'Ranked by Hot score'} · ${fmt(j.count)} token${j.count === 1 ? '' : 's'}${j.waiting ? ` · checking ${j.waiting} more` : ''}`;
+  $('#fnote').innerHTML = `<span class="live"></span>${j.mode === 'all' ? 'Whole market + KOL + smart buys · ranked equally' : 'Ranked by Hot score'} · ${fmt(j.count)} token${j.count === 1 ? '' : 's'}${j.waiting ? ` · checking ${j.waiting} more` : ''}`;
   if (!j.tokens.length) {
     const D = j.diag || {}, why = [];
-    if (!D.checked) why.push(j.mode === 'market' ? 'No token list from Solana Tracker yet — try again in a minute' : 'No KOL or smart buys in this time (is live tracking on?)');
+    if (!D.checked) why.push(j.mode === 'all' ? 'No token list from Solana Tracker and no wallet buys yet — try again in a minute' : 'No KOL or smart buys in this time (is live tracking on?)');
     else { why.push(`Checked ${fmt(D.checked)} tokens`); if (D.noLp) why.push(`${fmt(D.noLp)} not from a launchpad${j.waiting ? ' yet' : ''}`); if (D.lpOff) why.push(`${fmt(D.lpOff)} from launchpads that are off`); if (D.unsafe) why.push(`${fmt(D.unsafe)} unsafe`);
       if (D.rules) why.push(`${fmt(D.rules)} outside the site rules`); if (D.filters) why.push(`${fmt(D.filters)} hidden by your filters`); }
     $('#fl').innerHTML = `<div class="cd center mu" style="padding:24px 16px">${j.waiting ? 'Checking tokens — they show up here in a few seconds.' : 'No tokens match right now.'}<div class="mu3" style="margin-top:8px">${esc(why.join(' · '))}</div></div>`; return autoRefresh(Feed); }
@@ -351,13 +353,14 @@ async function HotFeed(quiet) {
 }
 function hotRow(t) {
   const d = { sym: t.sym, img: t.img }, fire = t.hot >= 80 ? 'er' : t.hot >= 50 ? 'wa' : 'ne';
+  const badge = (t.kol ? ' <span class="pl sm" style="font-size:11px;color:#bf5af2">KOL</span>' : '') + (t.smart ? ' <span class="pl sm" style="font-size:11px;color:#0a84ff">Smart</span>' : '');
   const who = t.market ? `${fmt(t.buys || 0)} buys · ${t.spike ? t.spike + '× spike' : ''}` : [t.kol ? `${t.kol} KOL` : '', t.smart ? `${t.smart} smart` : ''].filter(Boolean).join(' · ') + (t.first ? ` · first ${ago(t.first)} ago` : '');
   const l2 = t.market ? `${t.vol != null ? usd(t.vol) + ' vol' : ''}${t.liq != null ? ' · liq ' + usd(t.liq) : ''}` : `<span class="up">+${t.solIn} SOL in</span>${t.holding != null ? ` · ${t.holding} of ${t.holding + t.sold} holding` : ''}${t.liq != null ? ' · liq ' + usd(t.liq) : ''}`;
   const firstKind = t.buyersList && t.buyersList[0] ? (t.buyersList[0].kind === 'kol' ? 'KOLs' : 'Smart') : '';
   const x = t.entryMc && t.mc ? t.mc / t.entryMc : null;
   const entry = x ? `<div class="t2"><span class="pl sm ${x >= 1 ? 'ok' : 'er'}" style="font-size:11px">${firstKind} in at ${usd(t.entryMc)} → now ${usd(t.mc)} · ${x >= 10 ? Math.round(x) : Math.round(x * 10) / 10}×</span></div>` : '';
   return `<div class="tk" data-m="${esc(t.mint)}">${av(d, t.mint)}
-   <div class="tm"><div class="t1">${esc(t.sym ? '$' + t.sym : short(t.mint))} <span class="pl sm ${fire}">🔥 ${t.hot}</span> <span class="mu" style="font-weight:400">${t.created ? ago(t.created) : ''}</span></div>
+   <div class="tm"><div class="t1">${esc(t.sym ? '$' + t.sym : short(t.mint))} <span class="pl sm ${fire}">🔥 ${t.hot}</span> ${badge} <span class="mu" style="font-weight:400">${t.created ? ago(t.created) : ''}</span></div>
     <div class="t2">${esc(who)}</div><div class="t2">${l2}</div>${entry}</div>
    <div class="tr"><div class="t1">${t.mc != null ? usd(t.mc) : '—'}</div><div class="t2">${pct(t.ch1)}</div></div></div>`;
 }
@@ -459,7 +462,7 @@ function drawH() {
   body.querySelectorAll('[data-stage]').forEach(x => x.onclick = gate('stage', () => { const k = x.dataset.stage; HD.stage[k] = !HD.stage[k]; if (!HD.stage.bond && !HD.stage.mig) HD.stage[k] = true; }));
   body.querySelectorAll('[data-lp]').forEach(x => x.onclick = gate('lpOff', () => { const n = x.dataset.lp, i = HD.lpOff.indexOf(n); if (i >= 0) HD.lpOff.splice(i, 1); else HD.lpOff.push(n); if (HD.lpOff.length >= LPSf().length) HD.lpOff = LPSf().filter(z => z !== n); }));
   body.querySelectorAll('[data-lpall]').forEach(x => x.onclick = gate('lpOff', () => { HD.lpOff = HD.lpOff.length ? [] : LPSf().slice(1); }));
-  body.querySelectorAll('[data-buy]').forEach(x => x.onclick = gate('b', () => { const k = x.dataset.buy; const was = marketMode(HD); HD.b[k] = !HD.b[k]; if (!HD.b.kol && !HD.b.smart) HD.b.all = true; }));
+  body.querySelectorAll('[data-buy]').forEach(x => x.onclick = gate('b', () => { const k = x.dataset.buy; const was = marketMode(HD); if (k === 'all') { HD.b.all = !HD.b.all; if (HD.b.all) HD.b.kol = HD.b.smart = true; } else { HD.b[k] = !HD.b[k]; if (!HD.b[k] || HD.b.kol !== HD.b.smart) HD.b.all = false; } if (!HD.b.kol && !HD.b.smart) HD.b.all = true; }));
   body.querySelectorAll('[data-set]').forEach(x => x.onclick = gate(x.dataset.set, () => { HD[x.dataset.set] = +x.dataset.v; HE = null; }));
   body.querySelectorAll('[data-ed]').forEach(x => x.onclick = () => { const k = x.dataset.ed; if (!proOK(k)) return proToast(); HE = HE === k ? null : k; drawH(); bindEd(); });
   body.querySelectorAll('[data-rg]').forEach(x => x.onclick = () => { const k = x.dataset.rg, s = x.dataset.x; if (!proOK(k)) return proToast(); if (s === 'any') { HD[k] = null; HE = null; drawH(); countH(); return; } HE = HE === k + ':' + s ? null : k + ':' + s; drawH(); bindEd(); });
@@ -483,7 +486,7 @@ function countH() {
   countH.t = setTimeout(async () => { const keep = HF; HF = HD; const q = hotQuery('&dry=1'); HF = keep;
     try { const j = await api(q); if ($('#hshow')) $('#hshow').textContent = `Show ${fmt(j.count)} token${j.count === 1 ? '' : 's'}`; } catch (e) { } }, 450);
 }
-async function loadHotPrefs() { if (!me) return; try { const j = await api('/api/prefs'); if (j.prefs && j.prefs.hot) { HF = { ...HF0(), ...j.prefs.hot }; HF.lpOff = (HF.lpOff || []).filter(x => typeof x === 'string'); localStorage.setItem(HFK, JSON.stringify(HF)); } } catch (e) { } }
+async function loadHotPrefs() { if (!me) return; try { const j = await api('/api/prefs'); if (j.prefs && j.prefs.hot) { HF = normB({ ...HF0(), ...j.prefs.hot }); HF.lpOff = (HF.lpOff || []).filter(x => typeof x === 'string'); localStorage.setItem(HFK, JSON.stringify(HF)); } } catch (e) { } }
 
 // ---------- Feed ----------
 const FS = { tab: 'hot', win: 3600 };
