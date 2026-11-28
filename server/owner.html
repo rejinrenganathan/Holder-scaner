@@ -506,7 +506,7 @@ async function lbLoad(more) {
           LBB.all = Object.values(by); }
         LBB.asOf = Math.max(0, ...LBB.all.map(r => r.last || 0));
       }
-      LBB.rows = LBB.all.slice(); LBB.more = null;
+      LBB.rows = LBB.all.slice(); LBB.more = null; LBB.asOf = Math.max(0, ...LBB.all.map(r => r.last || 0));
     }
   } catch (e) { if (e.message !== 'signed out') LBB.err = e.message; }
   LBB.loading = false; lbDraw();
@@ -516,7 +516,8 @@ function lbPass(r) {
   const g = lbGrp(r.src), f = LBB.f[g], now = Date.now() / 1000;
   if (f.tracked && TRK && TRK.has(r.w) && !ADDED.has(r.w)) return false;
   if (f.bots && r.bot) return false; if (f.xOnly && !r.x) return false;
-  if (+f.last > 0 && r.last && now - r.last > f.last * 86400) return false; if (+f.last > 0 && !r.last && g === 'gm') return false;
+  const base = g === 'gm' && LBB.asOf ? LBB.asOf : now;   // snapshot: count "active" from the snapshot date, not today
+  if (+f.last > 0 && r.last && base - r.last > f.last * 86400) return false; if (+f.last > 0 && !r.last && g === 'gm') return false;
   if (+f.tpd > 0 && r.tpd != null && r.tpd > f.tpd) return false;
   if (g === 'st') { if (+f.buyMin > 0 && (r.avgBuy == null || r.avgBuy < f.buyMin)) return false; if (+f.buyMax > 0 && r.avgBuy != null && r.avgBuy > f.buyMax) return false; if (+f.pdays > 0 && r.pdays != null && r.pdays < f.pdays) return false; return true; }
   if (g === 'pf') { if ((r.wins || 0) < (+f.minWin || 1)) return false; if (+f.pnl > 0 && (r.pnl || 0) < f.pnl) return false; if (+f.roi > 0 && (r.roi == null || r.roi < f.roi)) return false;
@@ -574,7 +575,7 @@ function lbDraw() {
   const el = $('#lbList'); if (!el) return;
   const rows = lbShown(), nNew = rows.filter(r => !onSite(r.w)).length, snap = LBB.src === 'gmgn' || LBB.src === 'kolscan', src = LBS.find(x => x[0] === LBB.src);
   el.innerHTML = `${LBB.err ? `<div class="${LBB.src === 'pf' && !LBB.lab ? 'mu' : 'err'}" style="margin:8px 0">${esc(LBB.err)}</div>` : ''}
-   ${snap && LBB.rows.length ? `<div class="mu3" style="margin:6px 0">📦 Saved snapshot of the ${src[1].replace(/^\S+\s/, '')} leaderboard${LBB.asOf ? ' · data up to ' + new Date(LBB.asOf * 1000).toLocaleDateString('en-IN') : ''} — not live.</div>` : ''}
+   ${snap && LBB.rows.length ? `<div class="mu3" style="margin:6px 0">📦 Saved snapshot of the ${src[1].replace(/^\S+\s/, '')} leaderboard${LBB.asOf ? ' · data up to ' + new Date(LBB.asOf * 1000).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : ''} — not live. “Last trade within” counts back from that date.</div>` : ''}
    ${LBB.rows.length ? `<div class="selbar"><span style="flex:1" class="mu"><b>${rows.length}</b> of ${fmt(LBB.rows.length)} match</span><button class="bt bp" id="lbAll" ${nNew ? '' : 'disabled'}>＋ Add all ${nNew}</button></div>` : ''}
    ${rows.slice(0, LBB.show).map(lbRowHTML).join('')}
    ${rows.length > LBB.show ? `<button class="bt wide mt" id="lbShowMore">Show ${Math.min(50, rows.length - LBB.show)} more · ${rows.length - LBB.show} left</button>` : ''}

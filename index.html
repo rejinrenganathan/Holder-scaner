@@ -705,7 +705,7 @@ function median(a){if(!a.length)return null;const s=[...a].sort((x,y)=>x-y),m=s.
 const STORE_FREE=[/^hslab_(c_|grad|last|f_)/,/^hs_wc$/,/^hs_img$/,/^hs_xav$/,/^hs_kev$/,/^hs_devh$/];   // all re-fetched automatically
 const STORE_MUST=/^hs_(kol|kolx|smart|key|stkey|bekey|hook|set|plan|fav)$/;                             // your own data
 let storeWarned=0;
-const APP_V=80;   // shown in the status card — bump together with sw.js
+const APP_V=81;   // shown in the status card — bump together with sw.js
 const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v);}catch(e){return d;}},
   set(k,v){let j;try{j=JSON.stringify(v);}catch(e){return false;}
     try{localStorage.setItem(k,j);return true;}catch(e){}
@@ -1926,7 +1926,7 @@ async function lbLoad(more){
           LBB.all=Object.values(by);}
         LBB.asOf=Math.max(0,...LBB.all.map(r=>r.last||0));
       }
-      LBB.rows=LBB.all.slice();LBB.more=null;
+      LBB.rows=LBB.all.slice();LBB.more=null;LBB.asOf=Math.max(0,...LBB.all.map(r=>r.last||0));
     }
   }catch(e){LBB.err=e.message;}
   LBB.loading=false;lbDraw();
@@ -1936,7 +1936,7 @@ function lbPass(r){
   const g=lbGrp(r.src),f=LBB.f[g],now=Date.now()/1000,tr=!!(KOL[r.w]||SMART[r.w]);
   if(f.tracked&&tr&&!LBADD_SEEN.has(r.w))return false;
   if(f.bots&&r.bot)return false;if(f.xOnly&&!r.x)return false;
-  if(+f.last>0&&r.last&&now-r.last>f.last*86400)return false;if(+f.last>0&&!r.last&&g==='gm')return false;
+  const base=g==='gm'&&LBB.asOf?LBB.asOf:now;if(+f.last>0&&r.last&&base-r.last>f.last*86400)return false;if(+f.last>0&&!r.last&&g==='gm')return false;
   if(+f.tpd>0&&r.tpd!=null&&r.tpd>f.tpd)return false;
   if(g==='st'){if(+f.buyMin>0&&(r.avgBuy==null||r.avgBuy<f.buyMin))return false;if(+f.buyMax>0&&r.avgBuy!=null&&r.avgBuy>f.buyMax)return false;if(+f.pdays>0&&r.pdays!=null&&r.pdays<f.pdays)return false;return true;}
   if(g==='pf'){if((r.wins||0)<(+f.minWin||1))return false;if(+f.pnl>0&&(r.pnl||0)<f.pnl)return false;if(+f.roi>0&&(r.roi==null||r.roi<f.roi))return false;
