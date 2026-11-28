@@ -284,7 +284,8 @@ const HF0 = () => ({ b: { all: true, kol: true, smart: true }, stage: { bond: tr
   bun: null, snp: null, liq: null, top: null, dev: null, mc: null, vol: null, fee: null, ubr: null, bsr: null, hld: null, soc: [], paid: false, boost: false, ads: false, sort: 'hot' });
 let HF = (() => { try { return { ...HF0(), ...JSON.parse(localStorage.getItem(HFK) || '{}') }; } catch (e) { return HF0(); } })();
 const HOT_WIN = [[900, '15m'], [3600, '1h'], [14400, '4h'], [86400, '24h']];
-const LPS = ['Pump.fun', 'Bonk.fun', 'Raydium LaunchLab', 'Bags', 'Moonit', 'Boop', 'Meteora launchpads'];
+const LPS = ['Pump.fun', 'Bonk.fun', 'Raydium LaunchLab', 'Bags', 'Moonit', 'Boop'];
+HF.lpOff = (HF.lpOff || []).filter(x => LPS.includes(x));
 const FREE_F = new Set(['b', 'stage', 'lpOff', 'age', 'mc', 'liq']);
 const isPro = () => !!(me && (me.isAdmin || (me.plan && me.plan !== 'free')));
 const marketMode = (o = HF) => !o.b.kol && !o.b.smart;
@@ -307,7 +308,7 @@ function activeList() {
   if (!HF.b.kol || !HF.b.smart || !HF.b.all) L.push(['b', marketMode() ? 'Whole market' : [HF.b.all ? 'All' : '', HF.b.kol ? 'KOL' : '', HF.b.smart ? 'Smart' : ''].filter(Boolean).join(' + ')]);
   if (!HF.stage.bond || !HF.stage.mig) L.push(['stage', HF.stage.bond ? 'Bonding' : 'Migrated']);
   if (HF.lpOff.length) L.push(['lpOff', `${LPS.length - HF.lpOff.length} launchpads`]);
-  if (HF.minb !== d.minb) L.push(['minb', HF.minb ? (marketMode() ? fmt(HF.minb) + '+ buys' : HF.minb + '+ buyers') : 'Any buyers']);
+  if (isPro() && HF.minb !== (marketMode() ? 0 : 2)) L.push(['minb', HF.minb ? (marketMode() ? fmt(HF.minb) + '+ buys' : HF.minb + '+ buyers') : 'Any buyers']);
   if (HF.minsol) L.push(['minsol', HF.minsol + '+ SOL in']);
   if (HF.hold) L.push(['hold', HF.hold === 100 ? 'All holding' : HF.hold + '%+ holding']);
   if (HF.lastb) L.push(['lastb', 'Last buy ' + fDur(HF.lastb)]);
@@ -470,7 +471,7 @@ function countH() {
   countH.t = setTimeout(async () => { const keep = HF; HF = HD; const q = hotQuery('&dry=1'); HF = keep;
     try { const j = await api(q); if ($('#hshow')) $('#hshow').textContent = `Show ${fmt(j.count)} token${j.count === 1 ? '' : 's'}`; } catch (e) { } }, 450);
 }
-async function loadHotPrefs() { if (!me) return; try { const j = await api('/api/prefs'); if (j.prefs && j.prefs.hot) { HF = { ...HF0(), ...j.prefs.hot }; localStorage.setItem(HFK, JSON.stringify(HF)); } } catch (e) { } }
+async function loadHotPrefs() { if (!me) return; try { const j = await api('/api/prefs'); if (j.prefs && j.prefs.hot) { HF = { ...HF0(), ...j.prefs.hot }; HF.lpOff = (HF.lpOff || []).filter(x => LPS.includes(x)); localStorage.setItem(HFK, JSON.stringify(HF)); } } catch (e) { } }
 
 // ---------- Feed ----------
 const FS = { tab: 'hot', win: 3600 };

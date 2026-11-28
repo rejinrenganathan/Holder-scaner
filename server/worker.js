@@ -9,7 +9,7 @@
 // the plan price to the payment wallet with that key attached. The server finds the transfer by the key on Helius, checks recipient,
 // exact amount, confirmation and that the signature was never used before, then turns the plan on. A cron re-checks every 5 minutes.
 
-const API_V = 12;
+const API_V = 13;
 // Owner wallet(s) — always allowed into the dashboard. More owners can be added in Site control.
 const OWNER_WALLETS = 'CZQkA9JszBPP7x2LescrtZwh1LGoxZwnW68wLbdFPz93';
 // Sites allowed to call this API from a browser
@@ -459,10 +459,11 @@ async function solPrice() {
 //  • DexScreener orders (paced): ads — only when someone uses the Ads filter
 const SUFFIX_LP = [[/pump$/, 'Pump.fun'], [/bonk$/, 'Bonk.fun'], [/BAGS$/, 'Bags'], [/boop$/, 'Boop']];
 const MARKET_LP = { pumpfun: 'Pump.fun', 'pumpfun-amm': 'Pump.fun', pumpswap: 'Pump.fun', 'raydium-launchpad': 'Raydium LaunchLab', launchlab: 'Raydium LaunchLab',
-  moonshot: 'Moonit', moonit: 'Moonit', boop: 'Boop', 'meteora-curve': 'Meteora launchpads', 'meteora-dbc': 'Meteora launchpads', believe: 'Meteora launchpads',
-  'jupiter-studio': 'Meteora launchpads', heaven: 'Meteora launchpads', bags: 'Bags' };
+  moonshot: 'Moonit', moonit: 'Moonit', boop: 'Boop', bags: 'Bags',
+  // Meteora DBC coins (Believe, Jupiter Studio, Heaven…) are never shown: their curve can change trading fees (owner decision 28 Nov 2026). Bags is kept (found by its BAGS ending).
+  'meteora-curve': 'BLOCKED', 'meteora-dbc': 'BLOCKED', believe: 'BLOCKED', 'jupiter-studio': 'BLOCKED', heaven: 'BLOCKED' };
 const CURVE_MARKETS = new Set(['pumpfun', 'raydium-launchpad', 'launchlab', 'moonshot', 'moonit', 'boop', 'meteora-curve', 'meteora-dbc', 'heaven', 'bags']);
-const LP_NAMES = ['Pump.fun', 'Bonk.fun', 'Raydium LaunchLab', 'Bags', 'Moonit', 'Boop', 'Meteora launchpads'];
+const LP_NAMES = ['Pump.fun', 'Bonk.fun', 'Raydium LaunchLab', 'Bags', 'Moonit', 'Boop'];
 const sleep = ms => new Promise(r => setTimeout(r, globalThis.__FAST_TEST ? 0 : ms));   // tests skip the pauses
 const SEEN_MARKETS = new Set(Object.keys(MARKET_LP).concat(['raydium', 'raydium-cpmm', 'raydium-amm', 'raydium-clmm', 'meteora', 'meteora-damm', 'meteora-damm-v2', 'orca', 'pumpswap']));
 function classifyLinks(urls) {
@@ -643,6 +644,8 @@ function parseFilters(raw, full) {
   out.sort = ['hot', 'new', 'buyers', 'sol', 'mc', 'vol', 'fees'].includes(f.sort) ? f.sort : 'hot';
   return out;
 }
+// 15 buys in 5 min ≈ 30, 200 ≈ 60, 1,000+ with a strong spike ≈ 90+
+const mktScore = (b5, ratio) => Math.max(1, Math.min(99, Math.round(25 * Math.log10(1 + (b5 || 0)) + 6 * Math.min(5, ratio || 0))));
 const inR = (v, r) => !r || (v != null && (r.min == null || v >= r.min) && (r.max == null || v <= r.max));   // filter on + no data → hidden
 async function hotFeed(req, env, s, u, full, later, q) {
   const DB = env.DB, t = now(), uid = u ? u.id : -1, follow = !u || u.follow !== 0;
@@ -687,7 +690,7 @@ async function hotFeed(req, env, s, u, full, later, q) {
   const pass = [], D = { checked: toks.length, noLp: 0, unsafe: 0, quiet: 0, noSpike: 0, filters: 0 };
   for (const x of toks) {
     const m = metas[x.mint] || {}, v = view(x.mint, m, win);
-    if (!v.lp) { if (!v.hasST) waiting++; D.noLp++; continue; }   // launchpad tokens only (unknown → wait for Solana Tracker)
+    if (!v.lp || v.lp === 'BLOCKED') { if (!v.lp && !v.hasST) waiting++; D.noLp++; continue; }   // launchpad tokens only (unknown → wait for Solana Tracker)
     if (v.unsafe) { D.unsafe++; continue; }                                                     // mint or freeze authority still on → never shown
     if (!f.stage[v.stage === 'bond' ? 'bond' : 'mig'] && v.stage) continue;
     if (!v.stage && !(f.stage.bond && f.stage.mig)) continue;
@@ -702,11 +705,13 @@ async function hotFeed(req, env, s, u, full, later, q) {
       const ratio = t1 && t1.b ? t5.b / Math.max(1, t1.b / 12) : t5.b ? 5 : 0;
       if (!(t5.b >= 15 && v5 >= 3000 && ratio >= 2)) { D.noSpike++; continue; }
       buyersN = v.buys; sol = null;
-      hot = Math.min(99, Math.round(10 * Math.log2(1 + (v.buys || 0) / 10) + 8 * Math.min(5, ratio)));
+      hot = mktScore(t5.b, ratio);
       x.spike = Math.round(ratio * 10) / 10;
     } else {
       buyersN = x.buyers; sol = x.solIn;
-      hot = f.b.all ? Math.min(99, Math.round(8 * Math.log2(1 + (v.buys || 0) / 5) + 4 * Math.log10(1 + (v.vol || 0)) + x.raw * 2)) : Math.min(99, Math.round(x.raw * 8));
+      const own = Math.min(99, Math.round(x.raw * 8));
+      if (f.b.all) { const t5 = (m.tx || {}).m5, t1 = (m.tx || {}).h1; const r = t5 && t1 && t1.b ? t5.b / Math.max(1, t1.b / 12) : 0; hot = t5 ? Math.round(0.6 * mktScore(t5.b, r) + 0.4 * own) : Math.round(own * 0.4); }
+      else hot = own;
     }
     if (f.minb && !(buyersN != null && buyersN >= f.minb)) continue;
     if (!x.market) {
