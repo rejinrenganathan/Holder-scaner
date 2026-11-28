@@ -15,9 +15,10 @@
 <title>Owner · Holder Scan</title>
 <style>
 /* iOS-style dark theme */
-:root{--bg:#000;--card:#1c1c1e;--card2:#2c2c2e;--line:#38383a;--line2:#48484a;--tx:#fff;--tx2:#8e8e93;--tx3:#636366;--soft:#2c2c2e;
+:root{--sat:0px;--bg:#000;--card:#1c1c1e;--card2:#2c2c2e;--line:#38383a;--line2:#48484a;--tx:#fff;--tx2:#8e8e93;--tx3:#636366;--soft:#2c2c2e;
 --acc:#0a84ff;--accbg:rgba(10,132,255,.18);--ok:#30d158;--okbg:rgba(48,209,88,.16);--wa:#ff9f0a;--wabg:rgba(255,159,10,.16);--er:#ff453a;--erbg:rgba(255,69,58,.16);
 --pr:#bf5af2;--prbg:rgba(191,90,242,.18);--pri:#fff;--onpri:#000;color-scheme:dark}
+@media (display-mode: standalone){:root{--sat:env(safe-area-inset-top)}}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html{background:var(--bg)}
 body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.4 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,system-ui,sans-serif;-webkit-font-smoothing:antialiased;overscroll-behavior-y:contain}
@@ -26,10 +27,10 @@ button,input,select,textarea{font:inherit;color:inherit}
 .wrap>*{animation:in .28s cubic-bezier(.2,.8,.2,1) both}
 @keyframes in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 /* bars */
-.bar{position:fixed;top:0;left:0;right:0;z-index:6;height:calc(44px + env(safe-area-inset-top));padding:env(safe-area-inset-top) 8px 0;display:grid;grid-template-columns:96px 1fr 96px;align-items:center;
+.bar{position:fixed;top:0;left:0;right:0;z-index:6;height:calc(44px + var(--sat));padding:var(--sat) 8px 0;display:grid;grid-template-columns:96px 1fr 96px;align-items:center;
  background:rgba(22,22,24,.86);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-bottom:.5px solid rgba(84,84,88,.5);opacity:0;pointer-events:none;transition:opacity .2s}
 .bar.show{opacity:1;pointer-events:auto}.bar b{font-size:17px;font-weight:600;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.top{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;padding:calc(14px + env(safe-area-inset-top)) 0 14px}
+.top{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;padding:calc(14px + var(--sat)) 0 14px}
 .top h1{font-size:34px;font-weight:700;letter-spacing:.2px;margin:0;line-height:1.1}
 .back{display:inline-flex;align-items:center;gap:2px;color:var(--acc);font-size:17px;background:none;border:0;padding:8px 8px 8px 0;min-height:44px;cursor:pointer}
 .back svg{width:22px;height:22px}
@@ -98,7 +99,7 @@ textarea{font-family:ui-monospace,Menlo,monospace;font-size:13px;min-height:100p
 .as button{display:block;width:100%;background:none;border:0;border-top:.5px solid var(--line2);padding:16px;font-size:19px;color:var(--acc);cursor:pointer}
 .as button:first-of-type{border-top:0}.as .t+button{border-top:0}.as button:active{background:rgba(255,255,255,.08)}.as button.dg{color:var(--er)}.as .cancel{font-weight:600}
 /* toast banner */
-.toast{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top));transform:translateX(-50%);background:rgba(44,44,46,.95);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);color:#fff;padding:12px 16px;border-radius:16px;font-size:15px;z-index:30;max-width:92%;display:flex;gap:14px;align-items:center;box-shadow:0 10px 30px rgba(0,0,0,.4);animation:drop .35s cubic-bezier(.2,.9,.25,1) both}
+.toast{position:fixed;left:50%;top:calc(10px + var(--sat));transform:translateX(-50%);background:rgba(44,44,46,.95);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);color:#fff;padding:12px 16px;border-radius:16px;font-size:15px;z-index:30;max-width:92%;display:flex;gap:14px;align-items:center;box-shadow:0 10px 30px rgba(0,0,0,.4);animation:drop .35s cubic-bezier(.2,.9,.25,1) both}
 @keyframes drop{from{transform:translate(-50%,-120%)}}
 .toast button{background:none;border:0;color:var(--acc);font-weight:600;font-size:15px;padding:0}
 /* swipe rows */
@@ -106,15 +107,19 @@ textarea{font-family:ui-monospace,Menlo,monospace;font-size:13px;min-height:100p
 .swr .row{border-top:0;background:var(--card);transition:transform .25s cubic-bezier(.2,.8,.2,1);z-index:1}
 .swa{position:absolute;top:0;bottom:0;right:0;display:flex}.swa button{width:78px;border:0;color:#fff;font-size:14px;font-weight:600;cursor:pointer}
 .dots{background:none;border:0;padding:6px;cursor:pointer;color:var(--tx2);min-width:40px;min-height:40px;display:inline-flex;align-items:center;justify-content:center}.dots svg{width:22px;height:22px}
-.selbar{position:sticky;top:calc(52px + env(safe-area-inset-top));background:rgba(44,44,46,.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-radius:12px;padding:8px 10px;display:flex;gap:8px;align-items:center;margin-bottom:8px;z-index:4}
+.selbar{position:sticky;top:calc(52px + var(--sat));background:rgba(44,44,46,.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-radius:12px;padding:8px 10px;display:flex;gap:8px;align-items:center;margin-bottom:8px;z-index:4}
 .selbar .bt{min-height:36px;padding:7px 12px;font-size:14px}
 .ck{width:22px;height:22px;flex:none;accent-color:var(--acc)}
+.rck{width:24px;height:24px;border-radius:50%;border:2px solid #636366;flex:none;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:700;cursor:pointer;transition:background .15s,border-color .15s}
+.rck.on{background:var(--acc);border-color:var(--acc)}.rck.dis{border-style:dashed;opacity:.6}
+.lav{width:34px;height:34px;border-radius:50%;background:var(--card2);flex:none;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--tx2)}.lav img{width:100%;height:100%;object-fit:cover}
+.lgo{color:var(--acc);text-decoration:none;padding:6px 0 6px 8px;margin:-6px -4px -6px 0;font-size:15px}
 .center{text-align:center}.mt{margin-top:10px}.mb0{margin-bottom:0}
 .spin{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.2);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertical-align:-3px}
 @keyframes sp{to{transform:rotate(360deg)}}
 .sk{background:linear-gradient(90deg,#1c1c1e 25%,#2c2c2e 50%,#1c1c1e 75%);background-size:200% 100%;animation:shim 1.2s infinite;border-radius:14px}
 @keyframes shim{to{background-position:-200% 0}}
-.ptr{position:fixed;top:calc(8px + env(safe-area-inset-top));left:50%;transform:translateX(-50%) translateY(-90px);opacity:0;z-index:7;width:36px;height:36px;border-radius:50%;background:var(--card2);color:var(--tx);display:flex;align-items:center;justify-content:center;transition:transform .2s,opacity .2s;pointer-events:none}.ptr svg{width:20px;height:20px}
+.ptr{position:fixed;top:calc(8px + var(--sat));left:50%;transform:translateX(-50%) translateY(-90px);opacity:0;z-index:7;width:36px;height:36px;border-radius:50%;background:var(--card2);color:var(--tx);display:flex;align-items:center;justify-content:center;transition:transform .2s,opacity .2s;pointer-events:none}.ptr svg{width:20px;height:20px}
 .err{color:var(--er);font-size:14px;margin-top:4px}
 .addr{font-family:ui-monospace,Menlo,monospace;font-size:13px;word-break:break-all}
 a{color:var(--acc)}
@@ -291,7 +296,7 @@ function header(title, extra, actions) {
   const bl = $('#barL'), br = $('#barR');
   if (bl) bl.innerHTML = sub ? `<button class="back" style="min-height:44px;font-size:16px" onclick="location.hash='more'">${svg('back')}More</button>` : '';
   if (br) br.innerHTML = `<button class="ib" style="width:32px;height:32px;background:transparent" aria-label="Refresh" onclick="refresh()">${svg('refresh')}</button>`;
-  return `${sub ? `<button class="back" style="margin-top:calc(4px + env(safe-area-inset-top))" onclick="location.hash='more'">${svg('back')}More</button>` : ''}
+  return `${sub ? `<button class="back" style="margin-top:calc(4px + var(--sat))" onclick="location.hash='more'">${svg('back')}More</button>` : ''}
    <div class="top" style="${sub ? 'padding-top:2px' : ''}"><div style="min-width:0">${extra && !sub ? `<div class="mu" style="margin-bottom:2px">${extra}</div>` : ''}<h1>${esc(title)}</h1>${extra && sub ? `<div class="mu" style="margin-top:4px">${extra}</div>` : ''}</div>
     <div style="display:flex;gap:8px">${actions || ''}<button class="ib" title="Refresh" aria-label="Refresh" onclick="refresh()">${svg('refresh')}</button></div></div>`;
 }
@@ -650,7 +655,7 @@ async function loadTracked() { try { TRK = new Set((await api('/api/owner/wallet
 function labRead() { return new Promise(res => { try { const q = indexedDB.open('hslab', 1); q.onupgradeneeded = () => { try { q.result.createObjectStore('kv'); } catch (e) { } };
   q.onsuccess = () => { try { const g = q.result.transaction('kv').objectStore('kv').get('last'); g.onsuccess = () => res(g.result || null); g.onerror = () => res(null); } catch (e) { res(null); } }; q.onerror = () => res(null); } catch (e) { res(null); } }); }
 async function lbLoad(more) {
-  if (LBB.loading) return; LBB.loading = true; LBB.err = ''; if (!more) { LBB.rows = []; LBB.more = null; LBB.asOf = 0; LBB.show = 50; } lbDraw();
+  if (LBB.loading) return; LBB.loading = true; LBB.err = ''; if (!more) { LBSEL.clear(); LBB.rows = []; LBB.more = null; LBB.asOf = 0; LBB.show = 50; } lbDraw();
   const days = { '1d': 1, '7d': 7, '30d': 30, '90d': 90 }[LBB.per] || 7, have = new Set(LBB.rows.map(r => r.w));
   try {
     if (!TRK) await loadTracked();
@@ -720,24 +725,44 @@ function lineOf(r) { return [r.w, (r.name || '').replace(/[,;|\t@]/g, ' ').repla
 async function lbAddRows(rows) {
   rows = rows.filter(r => !onSite(r.w)); if (!rows.length) return { add: 0, kol: 0, smart: 0 };
   const j = await api('/api/owner/wallets/add', { body: { text: rows.map(lineOf).join('\n'), source: 'leaderboard' } });
-  rows.forEach(r => ADDED.set(r.w, asKol(r) ? 'kol' : 'smart')); return j.result;
+  try { TRK = new Set((await rawApi('/api/owner/wallets/ids')).ids); } catch (e) { }
+  rows.forEach(r => { if (!TRK || TRK.has(r.w)) ADDED.set(r.w, asKol(r) ? 'kol' : 'smart'); }); return j.result;
 }
-function lbRowHTML(r, i) {
-  const st = ADDED.get(r.w) || (TRK && TRK.has(r.w) ? 'site' : null);
-  const pn = r.pnl == null ? '' : r.cur === 'SOL' ? num(r.pnl, 1) + ' SOL' : usd(Math.abs(r.pnl));
-  const bits = [];
-  if (r.src === 'pf') { bits.push(`<b style="color:var(--ok)">${r.wins}</b> winner${r.wins > 1 ? 's' : ''}`); if (pn) bits.push(`<span style="color:var(--${r.pnl >= 0 ? 'ok' : 'er'})">${r.pnl >= 0 ? '+' : '-'}${pn}</span>`); if (r.roi != null) bits.push(num(r.roi, 1) + '×');
-    if (r.medMc != null) bits.push('entry ' + usd(r.medMc)); if (r.hold != null) bits.push('held ' + (r.hold < 3600 ? Math.round(r.hold / 60) + 'm' : (r.hold / 3600).toFixed(1) + 'h')); if (r.life != null) bits.push('life ' + (r.life >= 0 ? '+' : '-') + usd(Math.abs(r.life))); }
-  else { if (pn) bits.push(`<span style="color:var(--${r.pnl >= 0 ? 'ok' : 'er'})">${r.pnl >= 0 ? '+' : '-'}${pn}</span>`); if (r.wr != null) bits.push('WR ' + num(r.wr, 0) + '%'); if (r.roi != null) bits.push('ROI ' + num(r.roi, 0) + '%'); if (r.days != null) bits.push(r.days + ' days'); if (r.trades != null) bits.push(num(r.trades, 0) + ' trades'); }
-  const sub = r.src === 'pf' ? (r.coins || []).slice(0, 3).map(c => esc(c.sym ? '$' + c.sym : short(c.m)) + ' ' + (c.pnl >= 0 ? '+' : '-') + usd(Math.abs(c.pnl))).join(' · ')
-    : [r.avgBuy != null ? 'avg buy ' + usd(r.avgBuy) : '', r.one != null ? Math.round(r.one) + '% from one coin' : '', r.last ? 'last trade ' + ago(r.last) : ''].filter(Boolean).join(' · ');
+const kn = v => { v = Math.abs(+v || 0); return v >= 1e6 ? +(v / 1e6).toFixed(1) + 'M' : v >= 1e4 ? Math.round(v / 1e3) + 'K' : v >= 1e3 ? +(v / 1e3).toFixed(1) + 'K' : String(Math.round(v)); };
+const LBSEL = new Set();
+function lbStatus(r) { return ADDED.get(r.w) || (TRK && TRK.has(r.w) ? 'site' : null); }
+// two lines per wallet: name + profit, then the key numbers
+function lbRowHTML(r) {
+  const st = lbStatus(r), on = LBSEL.has(r.w);
+  const pn = r.pnl == null ? '' : (r.pnl >= 0 ? '+' : '-') + (r.cur === 'SOL' ? num(Math.abs(r.pnl), 1) + ' SOL' : '$' + kn(r.pnl));
+  const name = r.name || (r.x ? '@' + r.x : short(r.w));
+  const l2 = r.src === 'pf'
+    ? [`${r.wins} winner${r.wins > 1 ? 's' : ''}`, r.roi != null ? num(r.roi, 1) + '×' : '', r.medMc != null ? 'entry $' + kn(r.medMc) : '', r.hold != null ? 'held ' + (r.hold < 3600 ? Math.round(r.hold / 60) + 'm' : (r.hold / 3600).toFixed(1) + 'h') : '']
+    : [r.wr != null ? 'WR ' + num(r.wr, 0) + '%' : '', r.roi != null ? 'ROI ' + num(r.roi, 0) + '%' : '', r.trades != null ? kn(r.trades) + ' trades' : '', r.last ? ago(r.last) : ''];
+  const tag = st ? `<span class="pl ${st === 'site' ? 'ne' : 'ok'}" style="font-size:10px;padding:1px 5px">${st === 'site' ? '✓ On site' : '✓ Added'}</span>`
+    : `<span class="pl ${asKol(r) ? 'ac' : 'ne'}" style="font-size:10px;padding:1px 5px">${asKol(r) ? 'KOL' : 'Smart'}</span>`;
   const ini = esc((r.name || r.x || r.w).replace(/[^A-Za-z0-9]/g, '').slice(0, 2).toUpperCase() || '?');
-  return `<div class="row" style="align-items:flex-start"><span class="mu3" style="width:20px;padding-top:2px">${i + 1}</span>
-   <div style="width:34px;height:34px;border-radius:50%;background:var(--soft);flex:none;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--tx2)">${r.av ? `<img src="${esc(r.av)}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover" onerror="this.remove()">` : ini}</div>
-   <div class="rl"><div style="white-space:normal">${esc(r.name || (r.x ? '@' + r.x : short(r.w)))}${r.bot ? ' <span class="pl er">BOT</span>' : ''}${r.style ? ` <span class="pl ne">${STY[r.style] || esc(r.style)}</span>` : ''}${r.tt != null && r.tt <= 3 ? ' <span class="pl wa">fresh</span>' : ''}</div>
-    <div class="mu">${r.x ? '@' + esc(r.x) + ' · ' : ''}<a style="color:var(--acc);text-decoration:none" href="https://gmgn.ai/sol/address/${r.w}" target="_blank" rel="noopener">${short(r.w)} ↗</a></div>
-    <div style="font-size:12px;margin-top:2px;white-space:normal">${bits.join(' · ')}</div>${sub ? `<div class="mu3" style="white-space:normal">${sub}</div>` : ''}</div>
-   ${st ? `<span class="pl ${st === 'site' ? 'ne' : 'ok'}">${st === 'site' ? 'On site' : '✓ ' + (st === 'kol' ? 'KOL' : 'Smart')}</span>` : `<button class="bt" style="padding:5px 9px" data-la="${r.w}">＋ ${asKol(r) ? 'KOL' : 'Smart'}</button>`}</div>`;
+  return `<div class="row lbr tap" data-w="${r.w}" style="margin:0 -16px;padding:8px 16px;gap:10px;min-height:56px;${st ? 'opacity:.55' : ''}">
+   <span class="rck ${on ? 'on' : ''} ${st ? 'dis' : ''}">${on ? '✓' : ''}</span>
+   <div class="lav">${r.av ? `<img src="${esc(r.av)}" alt="" loading="lazy" onerror="this.remove()">` : ini}</div>
+   <div class="rl"><div style="display:flex;gap:6px;align-items:center;justify-content:space-between"><span style="display:flex;gap:5px;align-items:center;min-width:0;overflow:hidden">
+      <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(name)}</span>${r.name && r.x ? `<span class="mu" style="white-space:nowrap">@${esc(r.x)}</span>` : ''}
+${r.bot ? '<span class="pl er" style="font-size:10px;padding:1px 5px">BOT</span>' : ''}${tag}</span>
+     <span style="display:flex;align-items:center;gap:2px;flex:none">${pn ? `<b style="color:var(--${r.pnl >= 0 ? 'ok' : 'er'});white-space:nowrap;font-weight:600">${pn}</b>` : ''}<a class="lgo" href="https://gmgn.ai/sol/address/${r.w}" target="_blank" rel="noopener" aria-label="Open in GMGN">↗</a></span></div>
+    <div class="mu" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${l2.filter(Boolean).join(' · ')}</div></div></div>`;
+}
+function lbDetails(r) {
+  const row = (k, v) => v == null || v === '' ? '' : `<div class="row"><span class="mu" style="font-size:15px">${k}</span><span>${v}</span></div>`;
+  const st = lbStatus(r);
+  sheet(`<h3>${esc(r.name || (r.x ? '@' + r.x : short(r.w)))}</h3><div class="addr mu" style="margin-bottom:8px">${esc(r.w)}</div>
+   ${row('Profit', r.pnl == null ? '' : (r.pnl >= 0 ? '+' : '-') + (r.cur === 'SOL' ? num(Math.abs(r.pnl), 2) + ' SOL' : usd(Math.abs(r.pnl))))}${row('Win rate', r.wr != null ? num(r.wr, 0) + '%' : '')}
+   ${row(r.src === 'pf' ? 'ROI' : 'ROI', r.roi != null ? (r.src === 'pf' ? num(r.roi, 1) + '×' : num(r.roi, 0) + '%') : '')}${row('Trades', r.trades != null ? fmt(r.trades) : '')}${row('Active days', r.days)}
+   ${row('Average buy', r.avgBuy != null ? usd(r.avgBuy) : '')}${row('Profit from one coin', r.one != null ? Math.round(r.one) + '%' : '')}${row('Profitable days', r.pdays != null ? Math.round(r.pdays) + '%' : '')}
+   ${row('Winners', r.wins)}${row('Lifetime profit', r.life != null ? (r.life >= 0 ? '+' : '-') + usd(Math.abs(r.life)) : '')}${row('Style', r.style ? STY[r.style] || r.style : '')}${row('Last trade', r.last ? ago(r.last) : '')}
+   ${r.src === 'pf' && (r.coins || []).length ? row('Winning coins', (r.coins || []).slice(0, 4).map(c => esc(c.sym ? '$' + c.sym : short(c.m))).join(', ')) : ''}
+   <div class="g2 mt"><a class="bt" target="_blank" rel="noopener" href="https://gmgn.ai/sol/address/${r.w}">GMGN ↗</a>${st ? '<span class="bt" style="color:var(--tx2)">✓ On site</span>' : `<button class="bt bp" id="ldAdd">＋ Add as ${asKol(r) ? 'KOL' : 'Smart'}</button>`}</div>`, bg => {
+    const b = bg.querySelector('#ldAdd'); if (b) b.onclick = e => act(e.target, async () => { await lbAddRows([r]); closeSheet(); toast(`Added as ${asKol(r) ? 'KOL' : 'Smart'}`); lbDraw(); });
+  });
 }
 const lbNum = v => { const m = String(v ?? '').trim().toLowerCase().replace(/[$,%×x\s]|sol/g, '').match(/^(-?\d*\.?\d+)([kmb]?)$/); return m ? +m[1] * ({ k: 1e3, m: 1e6, b: 1e9 }[m[2]] || 1) : 0; };
 const lbFmt = (v, k) => !+v ? '' : k === '$' ? (v >= 1e6 ? +(v / 1e6).toFixed(2) + 'M' : v >= 1e3 ? +(v / 1e3).toFixed(1) + 'K' : String(v)) : String(v);
@@ -759,17 +784,28 @@ function lbDraw() {
   el.innerHTML = `${LBB.err ? `<div class="${LBB.src === 'pf' && !LBB.lab ? 'mu' : 'err'}" style="margin:8px 0">${esc(LBB.err)}</div>` : ''}
    ${snap && LBB.rows.length ? `<div class="mu3" style="margin:6px 0">📦 Saved snapshot of the ${src[1].replace(/^\S+\s/, '')} leaderboard${LBB.asOf ? ' · data up to ' + new Date(LBB.asOf * 1000).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : ''} — not live. “Last trade within” counts back from that date.</div>` : ''}
    ${LBB.rows.length && rows.length < LBB.rows.length ? (() => { const c = {}; LBB.rows.forEach(r => { const w = lbWhy(r); if (w) c[w] = (c[w] || 0) + 1; }); return `<div class="mu" style="margin:0 2px 8px">Hidden by: ${Object.entries(c).sort((a, b) => b[1] - a[1]).map(([k, n]) => `<b style="color:var(--tx)">${fmt(n)}</b> ${esc(k)}`).join(' · ')}</div>`; })() : ''}
-   ${LBB.rows.length ? `<div class="selbar"><span style="flex:1" class="mu"><b>${rows.length}</b> of ${fmt(LBB.rows.length)} match</span><button class="bt bp" id="lbAll" ${nNew ? '' : 'disabled'}>＋ Add all ${nNew}</button></div>` : ''}
+   ${LBB.rows.length ? (() => { const vis = rows.slice(0, LBB.show).filter(r => !onSite(r.w)), allOn = vis.length && vis.every(r => LBSEL.has(r.w)), nSel = [...LBSEL].filter(w => !onSite(w)).length;
+     return `<div class="selbar" style="margin:0 -6px 4px"><span class="rck ${allOn ? 'on' : ''}" id="lbSA">${allOn ? '✓' : ''}</span><span style="flex:1;font-size:14px">${nSel ? `<b>${nSel}</b> selected` : `<b>${rows.length}</b> of ${fmt(LBB.rows.length)} match`}</span>
+      <button class="bt bp" id="lbAll" ${nSel || nNew ? '' : 'disabled'}>＋ Add ${nSel ? nSel : 'all ' + nNew}</button></div>`; })() : ''}
    ${rows.slice(0, LBB.show).map(lbRowHTML).join('')}
    ${rows.length > LBB.show ? `<button class="bt wide mt" id="lbShowMore">Show ${Math.min(50, rows.length - LBB.show)} more · ${rows.length - LBB.show} left</button>` : ''}
    ${LBB.loading ? '<div class="center mu" style="padding:18px 0"><span class="spin"></span> Loading…</div>' : (LBB.rows.length && !rows.length ? '<div class="mu" style="padding:12px 0">No wallet matches these filters — loosen them in Filters.</div>' : '')}
    ${LBB.more && !LBB.loading ? '<button class="bt wide mt" id="lbMore">Load 100 more</button>' : ''}`;
-  el.querySelectorAll('[data-la]').forEach(b => b.onclick = () => act(b, async () => { const r = LBB.rows.find(x => x.w === b.dataset.la); if (!r) return; await lbAddRows([r]); lbDraw(); toast(`Added as ${asKol(r) ? 'KOL' : 'Smart'}`); }));
+  el.querySelectorAll('.lbr').forEach(rowEl => {
+    const r = LBB.rows.find(x => x.w === rowEl.dataset.w); if (!r) return; let lt = null, moved = false;
+    rowEl.addEventListener('touchstart', e => { moved = false; const y = e.touches[0].clientY; rowEl._y = y; lt = setTimeout(() => { lt = null; if (!moved) { buzz(12); rowEl._long = 1; lbDetails(r); } }, 500); }, { passive: true });
+    rowEl.addEventListener('touchmove', e => { if (Math.abs(e.touches[0].clientY - rowEl._y) > 8) { moved = true; if (lt) { clearTimeout(lt); lt = null; } } }, { passive: true });
+    rowEl.addEventListener('touchend', () => { if (lt) { clearTimeout(lt); lt = null; } }, { passive: true });
+    rowEl.onclick = e => { if (e.target.closest('a')) return; if (rowEl._long) { rowEl._long = 0; return; } if (onSite(r.w)) return lbDetails(r); buzz(5); LBSEL.has(r.w) ? LBSEL.delete(r.w) : LBSEL.add(r.w); lbDraw(); };
+    rowEl.oncontextmenu = e => { e.preventDefault(); lbDetails(r); };
+  });
+  const sa = $('#lbSA'); if (sa) sa.onclick = () => { buzz(5); const vis = lbShown().slice(0, LBB.show).filter(r => !onSite(r.w)), allOn = vis.length && vis.every(r => LBSEL.has(r.w)); vis.forEach(r => allOn ? LBSEL.delete(r.w) : LBSEL.add(r.w)); lbDraw(); };
   const all = $('#lbAll'); if (all) all.onclick = () => {
-    const list = lbShown().filter(r => !onSite(r.w));
-    sheet(`<h3>Add ${list.length} wallets to the site?</h3><p class="mu">${list.filter(asKol).length} as KOL (have an X handle) · ${list.filter(r => !asKol(r)).length} as Smart. Wallets already on the site are skipped.</p>
+    const picked = [...LBSEL].filter(w => !onSite(w));
+    const list = picked.length ? LBB.rows.filter(r => LBSEL.has(r.w) && !onSite(r.w)) : lbShown().filter(r => !onSite(r.w));
+    sheet(`<h3>Add ${list.length} ${picked.length ? 'selected ' : ''}wallet${list.length === 1 ? '' : 's'} to the site?</h3><p class="mu">${list.filter(asKol).length} as KOL (have an X handle) · ${list.filter(r => !asKol(r)).length} as Smart. Wallets already on the site are skipped.</p>
      <div class="g2"><button class="bt" onclick="closeSheet()">Cancel</button><button class="bt bp" id="lbAllGo">Add ${list.length}</button></div>`, bg => bg.querySelector('#lbAllGo').onclick = e => act(e.target, async () => {
-      let n = 0; for (let i = 0; i < list.length; i += 500) n += (await lbAddRows(list.slice(i, i + 500))).add; closeSheet(); toast(`${fmt(n)} wallets added`); lbDraw(); }));
+      let n = 0; for (let i = 0; i < list.length; i += 500) n += (await lbAddRows(list.slice(i, i + 500))).add; LBSEL.clear(); closeSheet(); toast(`${fmt(n)} wallets added`); lbDraw(); }));
   };
   const mo = $('#lbMore'); if (mo) mo.onclick = () => lbLoad(true);
   const sm = $('#lbShowMore'); if (sm) sm.onclick = () => { LBB.show += 50; lbDraw(); };
